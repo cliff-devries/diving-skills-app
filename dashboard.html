@@ -38,7 +38,7 @@
   // =============================================
 
   (async function initDashboard() {
-    initSupabase();
+    await initSupabase();
 
     const user = await Auth.init(true);
     if (!user) return;
