@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diving Skills — Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+  <!-- Sidebar (desktop) -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main content -->
+  <main class="main-content fade-in" id="main-content">
+    <div class="loading-overlay">
+      <div class="loading-spinner loading-spinner-lg"></div>
+      <span>Loading your dashboard…</span>
+    </div>
+  </main>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/airtable.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  // =============================================
+  // Dashboard — role-aware home screen
+  // =============================================
+
+  (async function initDashboard() {
+    initSupabase();
+
+    const user = await Auth.init(true);
+    if (!user) return;
+
+    App.renderNav(user);
+
+    // Route to the appropriate dashboard renderer
+    switch (user.role) {
+      case 'coach':  await renderCoachDashboard(user);  break;
+      case 'diver':  await renderDiverDashboard(user);  break;
+      case 'parent': await renderParentDashboard(user); break;
+      default:
+        document.getElementById('main-content').innerHTML =
+          '<p class="text-secondary">Unknown role. Please contact support.</p>';
+    }
+  })();
+
+  // =============================================
+  // COACH DASHBOARD
+  // =============================================
+  async function renderCoachDashboard(user) {
+    const main = document.getElementById('main-content');
+
+    // Load roster and pending confirmations in parallel
+    const [roster, pending] = await Promise.all([
+      SupabaseDB.getRoster(user.id),
+      SupabaseDB.getPendingForCoach(user.id),
+    ]);
+
+    main.innerHTML = `
+      <div class="page-header">
+        <h1>Welcome back, ${App.escHtml(user.full_name.split(' ')[0])} 👋</h1>
+        <p>Here's what's happening with your team today.</p>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="card-grid mb-6">
+        <div class="stat-card">
+          <div class="stat-value">${roster.length}</div>
+          <div class="stat-label">Divers on Roster</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: ${pending.length ? 'var(--pending)' : 'var(--accent)'}">
+            ${pending.length}
+          </div>
+          <div class="stat-label">Awaiting Confirmation</div>
+        </div>
+      </div>
+
+      <!-- Pending confirmations -->
+      <div class="content-section">
+        <div class="section-title">Needs Confirmation</div>
+        <div id="pending-list">
+          ${renderPendingList(pending)}
+        </div>
+      </div>
+
+      <!-- Roster preview -->
+      <div class="content-section">
+        <div class="card-header" style="margin-bottom: 14px">
+          <div class="section-title" style="margin-bottom:0">Your Roster</div>
+          <a href="roster.html" class="btn btn-ghost btn-sm">View All →</a>
+        </div>
+        <div id="roster-preview">
+          ${roster.length === 0
+            ? `<div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <p>No divers yet. <a href="roster.html">Add divers to your roster</a>.</p>
+               </div>`
+            : roster.slice(0, 5).map(r => renderDiverRow(r.diver)).join('')
+          }
+        </div>
+      </div>
+    `;
+
+    // Wire up confirm buttons
+    attachConfirmHandlers(user);
+  }
+
+  function renderPendingList(pending) {
+    if (!pending.length) {
+      return `<div class="empty-state" style="padding: 24px">
+        <div class="empty-state-icon">✅</div>
+        <p>No pending confirmations — you're all caught up!</p>
+      </div>`;
+    }
+    return `<div class="card card-sm">
+      ${pending.slice(0, 8).map(p => `
+        <div class="list-item">
+          <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
+          <div class="list-item-content">
+            <div class="list-item-title">${App.escHtml(p.diver?.full_name ?? 'Unknown Diver')}</div>
+            <div class="list-item-subtitle">Skill ID: ${App.escHtml(p.airtable_skill_id)} · ${App.formatRelative(p.self_reported_at)}</div>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            data-completion-id="${p.id}"
+            data-coach-id="${Auth.currentUser.id}"
+            onclick="confirmSkill(this)">
+            Confirm
+          </button>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+
+  function renderDiverRow(diver) {
+    return `
+      <a href="progress.html?diver=${diver.id}" class="diver-row">
+        <div class="avatar-sm">${Auth.getInitials(diver.full_name)}</div>
+        <div class="list-item-content">
+          <div class="list-item-title">${App.escHtml(diver.full_name)}</div>
+          <div class="list-item-subtitle">${App.escHtml(diver.email)}</div>
+        </div>
+        <span>→</span>
+      </a>
+    `;
+  }
+
+  async function confirmSkill(btn) {
+    const completionId = btn.dataset.completionId;
+    const coachId      = btn.dataset.coachId;
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.confirmSkill(completionId, coachId);
+      btn.closest('.list-item').remove();
+      App.showToast('Skill confirmed!');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  function attachConfirmHandlers(user) {
+    // Handlers are set via inline onclick to keep this self-contained
+  }
+
+  // =============================================
+  // DIVER DASHBOARD
+  // =============================================
+  async function renderDiverDashboard(user) {
+    const main = document.getElementById('main-content');
+
+    const [stats, recentCompletions, coach] = await Promise.all([
+      SupabaseDB.getCompletionStats(user.id),
+      SupabaseDB.getRecentCompletions(user.id, 6),
+      SupabaseDB.getDiverCoach(user.id),
+    ]);
+
+    const pct = App.calcProgress(stats.confirmed + stats.selfReported, stats.confirmed + stats.selfReported + 1 || 1);
+
+    main.innerHTML = `
+      <div class="page-header">
+        <h1>Hey, ${App.escHtml(user.full_name.split(' ')[0])} 🏊</h1>
+        <p>${coach ? `Coach: <strong>${App.escHtml(coach.full_name)}</strong>` : 'No coach assigned yet'}</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="card-grid mb-6">
+        <div class="stat-card">
+          <div class="stat-value">${stats.confirmed}</div>
+          <div class="stat-label">Skills Confirmed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--pending)">${stats.selfReported}</div>
+          <div class="stat-label">Self-Reported</div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="content-section">
+        <div class="section-title">Quick Actions</div>
+        <div class="flex gap-3 flex-wrap">
+          <a href="skills.html" class="btn btn-primary">🎯 Browse Skills</a>
+          <a href="progress.html" class="btn btn-secondary">📊 My Progress</a>
+        </div>
+      </div>
+
+      <!-- Recent activity -->
+      <div class="content-section">
+        <div class="section-title">Recent Activity</div>
+        ${recentCompletions.length === 0
+          ? `<div class="empty-state" style="padding: 28px">
+              <div class="empty-state-icon">🎯</div>
+              <p>No skills logged yet. <a href="skills.html">Browse the skills library</a> to get started.</p>
+             </div>`
+          : `<div class="card card-sm">
+              ${recentCompletions.map(c => `
+                <div class="list-item">
+                  <div class="list-item-content">
+                    <div class="list-item-title">Skill: ${App.escHtml(c.airtable_skill_id)}</div>
+                    <div class="list-item-subtitle">${App.formatRelative(c.self_reported_at)}</div>
+                  </div>
+                  ${App.statusBadgeHtml(c)}
+                </div>
+              `).join('')}
+             </div>`
+        }
+      </div>
+    `;
+  }
+
+  // =============================================
+  // PARENT DASHBOARD
+  // =============================================
+  async function renderParentDashboard(user) {
+    const main = document.getElementById('main-content');
+
+    const links = await SupabaseDB.getLinkedDivers(user.id);
+
+    main.innerHTML = `
+      <div class="page-header">
+        <h1>Hello, ${App.escHtml(user.full_name.split(' ')[0])} 👋</h1>
+        <p>Tracking progress for your diver${links.length !== 1 ? 's' : ''}.</p>
+      </div>
+
+      ${links.length === 0
+        ? `<div class="empty-state">
+            <div class="empty-state-icon">🔗</div>
+            <p>No divers linked to your account yet. Contact your coach to get connected.</p>
+           </div>`
+        : `<div class="content-section">
+            <div class="section-title">Your Diver${links.length !== 1 ? 's' : ''}</div>
+            ${links.map(l => `
+              <a href="progress.html?diver=${l.diver.id}" class="diver-row">
+                <div class="avatar avatar-md">${Auth.getInitials(l.diver.full_name)}</div>
+                <div class="list-item-content">
+                  <div class="list-item-title">${App.escHtml(l.diver.full_name)}</div>
+                  <div class="list-item-subtitle">View progress →</div>
+                </div>
+              </a>
+            `).join('')}
+           </div>`
+      }
+    `;
+  }
+</script>
+
+</body>
+</html>

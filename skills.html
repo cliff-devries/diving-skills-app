@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diving Skills — Skills Library</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content fade-in">
+    <div class="page-header">
+      <h1>Skills Library</h1>
+      <p>Browse all skills across Levels 0–12. Tap a skill to log it.</p>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search" class="form-input" placeholder="Search skills…">
+      </div>
+      <select id="filter-level" class="form-select">
+        <option value="">All Levels</option>
+      </select>
+      <select id="filter-type" class="form-select">
+        <option value="">All Types</option>
+      </select>
+    </div>
+
+    <!-- Results count -->
+    <div class="flex items-center justify-between mb-4">
+      <span id="result-count" class="text-sm text-secondary"></span>
+      <button id="clear-filters" class="btn btn-ghost btn-sm hidden">Clear Filters</button>
+    </div>
+
+    <!-- Skills list -->
+    <div id="skills-container">
+      <div class="loading-overlay">
+        <div class="loading-spinner loading-spinner-lg"></div>
+        <span>Loading skills from Airtable…</span>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+<!-- Skill Detail Modal -->
+<div class="modal-overlay" id="skill-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="modal-skill-name">Skill Name</h2>
+        <div id="modal-skill-meta" class="skill-meta mt-1"></div>
+      </div>
+      <button class="modal-close" onclick="App.closeModal('skill-modal')" aria-label="Close">✕</button>
+    </div>
+
+    <div id="modal-status-badge" class="mb-4"></div>
+
+    <div id="modal-description" class="text-sm text-secondary mb-4" style="line-height:1.6"></div>
+
+    <div id="modal-video" class="mb-4 hidden">
+      <div class="section-title mb-2">Video</div>
+      <a id="modal-video-link" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+        ▶ Watch Video
+      </a>
+    </div>
+
+    <div id="modal-coaching" class="hidden">
+      <div class="section-title mb-2">Coaching Notes</div>
+      <div id="modal-coaching-text" class="text-sm text-secondary" style="line-height:1.6"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="modal-action-area"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/airtable.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  let allSkills      = [];
+  let completionMap  = {};
+  let currentUser    = null;
+  let activeSkill    = null;
+
+  (async function initSkillsPage() {
+    initSupabase();
+    const user = await Auth.init(true);
+    if (!user) return;
+    currentUser = user;
+    App.renderNav(user);
+
+    // Fetch skills + completion status in parallel
+    const [skills, cMap] = await Promise.all([
+      fetchSkills(),
+      (user.role === 'diver') ? SupabaseDB.getCompletionMap(user.id) : Promise.resolve({}),
+    ]);
+
+    allSkills     = skills;
+    completionMap = cMap;
+
+    if (skills.length === 0) return;
+
+    populateFilters(skills);
+    renderSkills(skills);
+    attachFilterListeners();
+  })();
+
+  async function fetchSkills() {
+    try {
+      return await Airtable.getAllSkills();
+    } catch (err) {
+      App.showError('skills-container', `Could not load skills: ${err.message}`);
+      return [];
+    }
+  }
+
+  // ---- Populate filter dropdowns ----
+  function populateFilters(skills) {
+    const levelSel = document.getElementById('filter-level');
+    const typeSel  = document.getElementById('filter-type');
+
+    Airtable.uniqueLevels(skills).forEach(lvl => {
+      const opt = document.createElement('option');
+      opt.value = lvl;
+      opt.textContent = `Level ${lvl}`;
+      levelSel.appendChild(opt);
+    });
+
+    Airtable.uniqueTypes(skills).forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = t;
+      typeSel.appendChild(opt);
+    });
+  }
+
+  // ---- Attach filter event listeners ----
+  function attachFilterListeners() {
+    ['search', 'filter-level', 'filter-type'].forEach(id => {
+      document.getElementById(id).addEventListener('input', applyFilters);
+    });
+
+    document.getElementById('clear-filters').addEventListener('click', () => {
+      document.getElementById('search').value        = '';
+      document.getElementById('filter-level').value  = '';
+      document.getElementById('filter-type').value   = '';
+      applyFilters();
+    });
+  }
+
+  function applyFilters() {
+    const search = document.getElementById('search').value;
+    const level  = document.getElementById('filter-level').value;
+    const type   = document.getElementById('filter-type').value;
+
+    const filtered = Airtable.filterSkills(allSkills, { level, type, search });
+    renderSkills(filtered);
+
+    // Show/hide the "clear" button
+    const hasFilters = search || level || type;
+    document.getElementById('clear-filters').classList.toggle('hidden', !hasFilters);
+  }
+
+  // ---- Render skill cards ----
+  function renderSkills(skills) {
+    const container = document.getElementById('skills-container');
+    const countEl   = document.getElementById('result-count');
+
+    countEl.textContent = `${skills.length} skill${skills.length !== 1 ? 's' : ''}`;
+
+    if (skills.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <p>No skills match your filters. Try adjusting your search.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `<div class="skills-list">${skills.map(skill => buildSkillCard(skill)).join('')}</div>`;
+
+    // Attach click handlers
+    container.querySelectorAll('.skill-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const skillId = card.dataset.skillId;
+        const skill   = allSkills.find(s => s.id === skillId);
+        if (skill) openSkillModal(skill);
+      });
+    });
+  }
+
+  function buildSkillCard(skill) {
+    const completion = completionMap[skill.id];
+    const status     = App.completionStatus(completion);
+    const cardClass  = status === 'confirmed' ? 'confirmed' : status === 'self-reported' ? 'self-reported' : '';
+
+    return `
+      <div class="skill-card ${cardClass}" data-skill-id="${skill.id}" role="button" tabindex="0">
+        <div class="skill-card-header">
+          <div class="skill-name">${App.escHtml(skill.name)}</div>
+          ${App.statusBadgeHtml(completion)}
+        </div>
+        ${skill.description
+          ? `<div class="skill-description">${App.escHtml(skill.description.slice(0, 100))}${skill.description.length > 100 ? '…' : ''}</div>`
+          : ''}
+        <div class="skill-meta">
+          <span class="badge badge-level">L${skill.level ?? '?'}</span>
+          <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
+          ${skill.videoUrl ? '<span class="badge badge-accent">▶ Video</span>' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // ---- Skill detail modal ----
+  function openSkillModal(skill) {
+    activeSkill = skill;
+    const completion = completionMap[skill.id];
+
+    document.getElementById('modal-skill-name').textContent = skill.name;
+
+    document.getElementById('modal-skill-meta').innerHTML = `
+      <span class="badge badge-level">Level ${skill.level ?? '?'}</span>
+      <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
+      ${skill.category ? `<span class="badge badge-secondary">${App.escHtml(skill.category)}</span>` : ''}
+    `;
+
+    document.getElementById('modal-status-badge').innerHTML = App.statusBadgeHtml(completion) || '';
+    document.getElementById('modal-description').textContent = skill.description || 'No description available.';
+
+    // Video
+    const videoWrap = document.getElementById('modal-video');
+    if (skill.videoUrl) {
+      document.getElementById('modal-video-link').href = skill.videoUrl;
+      videoWrap.classList.remove('hidden');
+    } else {
+      videoWrap.classList.add('hidden');
+    }
+
+    // Coaching notes (coach only or has notes)
+    const coachingWrap = document.getElementById('modal-coaching');
+    if (skill.coachingNotes && currentUser.role === 'coach') {
+      document.getElementById('modal-coaching-text').textContent = skill.coachingNotes;
+      coachingWrap.classList.remove('hidden');
+    } else {
+      coachingWrap.classList.add('hidden');
+    }
+
+    // Action area
+    renderModalActions(skill, completion);
+
+    App.openModal('skill-modal');
+  }
+
+  function renderModalActions(skill, completion) {
+    const area = document.getElementById('modal-action-area');
+
+    if (currentUser.role === 'diver') {
+      if (!completion) {
+        area.innerHTML = `
+          <button class="btn btn-primary btn-full" onclick="selfReportSkill('${skill.id}', this)">
+            ✋ Mark as Self-Reported
+          </button>
+          <p class="text-xs text-secondary mt-2" style="text-align:center">
+            Your coach will confirm once they've seen you do it.
+          </p>
+        `;
+      } else if (completion.coach_confirmed_at) {
+        area.innerHTML = `<p class="text-secondary text-sm" style="text-align:center">✅ Coach confirmed on ${App.formatDate(completion.coach_confirmed_at)}</p>`;
+      } else {
+        area.innerHTML = `
+          <p class="text-pending text-sm" style="text-align:center">⏳ Self-reported ${App.formatRelative(completion.self_reported_at)} — awaiting coach confirmation.</p>
+        `;
+      }
+    } else if (currentUser.role === 'coach') {
+      area.innerHTML = `<p class="text-secondary text-sm">Manage skill completions from the <a href="roster.html">Roster</a> or <a href="progress.html">Progress</a> pages.</p>`;
+    } else {
+      area.innerHTML = '';
+    }
+  }
+
+  async function selfReportSkill(airtableSkillId, btn) {
+    App.setBtnLoading(btn, true);
+    try {
+      const completion = await SupabaseDB.selfReportSkill(currentUser.id, airtableSkillId);
+      completionMap[airtableSkillId] = completion;
+      App.showToast('Skill logged! Your coach will confirm it soon.');
+      App.closeModal('skill-modal');
+      // Re-render list to reflect new status
+      applyFilters();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  // Close modal on overlay click
+  document.getElementById('skill-modal').addEventListener('click', function(e) {
+    if (e.target === this) App.closeModal('skill-modal');
+  });
+
+  // Keyboard: close on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') App.closeModal('skill-modal');
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diving Skills — Progress</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .progress-summary {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 28px;
+    }
+    @media (max-width: 480px) {
+      .progress-summary { grid-template-columns: repeat(3, 1fr); }
+    }
+    .level-skills-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .skill-check-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .skill-check-row:last-child { border-bottom: none; }
+    .skill-check-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .skill-check-icon.confirmed    { background: var(--accent-dim); color: var(--accent); }
+    .skill-check-icon.self-reported { background: var(--pending-dim); color: var(--pending); }
+    .skill-check-icon.none          { background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content fade-in">
+    <div id="diver-banner" class="hidden">
+      <!-- Shown when a coach/parent is viewing a specific diver -->
+    </div>
+
+    <div class="page-header">
+      <h1>Progress Tracker</h1>
+      <p id="page-subtitle">Your journey through Levels 0–12.</p>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="progress-summary">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-confirmed">—</div>
+        <div class="stat-label">Confirmed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--pending)" id="stat-pending">—</div>
+        <div class="stat-label">Self-Reported</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-label">Total Skills</div>
+      </div>
+    </div>
+
+    <!-- Level tabs -->
+    <div class="section-title">Select Level</div>
+    <div class="level-tabs" id="level-tabs">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Level content -->
+    <div id="level-content">
+      <div class="loading-overlay">
+        <div class="loading-spinner loading-spinner-lg"></div>
+        <span>Loading skills…</span>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+<!-- Confirm skill modal (coach only) -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Confirm Skill</h2>
+      <button class="modal-close" onclick="App.closeModal('confirm-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Confirming <strong id="confirm-skill-name">this skill</strong> for <strong id="confirm-diver-name">this diver</strong>.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Coach Notes (optional)</label>
+      <textarea id="confirm-notes" class="form-input" rows="3" placeholder="Great job on the entry…" style="resize:vertical"></textarea>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('confirm-modal')">Cancel</button>
+      <button class="btn btn-primary" id="confirm-submit-btn" onclick="submitConfirmation()">✓ Confirm Skill</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/airtable.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  let allSkills      = [];
+  let completionMap  = {};
+  let currentUser    = null;
+  let targetDiverId  = null;
+  let targetDiver    = null;
+  let activeLevel    = 0;
+  let pendingConfirm = null;  // { completionId, skillName }
+
+  (async function initProgressPage() {
+    initSupabase();
+    const user = await Auth.init(true);
+    if (!user) return;
+    currentUser = user;
+    App.renderNav(user);
+
+    // Coaches/parents can view a specific diver via ?diver=UUID
+    const diverParam = App.getParam('diver');
+    if (diverParam && (user.role === 'coach' || user.role === 'parent')) {
+      targetDiverId = diverParam;
+      targetDiver   = await SupabaseDB.getProfile(diverParam);
+      if (targetDiver) {
+        document.getElementById('page-subtitle').textContent =
+          `Showing progress for ${targetDiver.full_name}.`;
+        document.getElementById('diver-banner').innerHTML = `
+          <div class="alert alert-info visible mb-4">
+            👤 Viewing progress for <strong>${App.escHtml(targetDiver.full_name)}</strong>
+            <a href="roster.html" style="margin-left:8px;font-weight:600">← Back to Roster</a>
+          </div>
+        `;
+        document.getElementById('diver-banner').classList.remove('hidden');
+      }
+    } else {
+      targetDiverId = user.id;
+    }
+
+    // Fetch skills from Airtable and completions in parallel
+    const [skills, cMap] = await Promise.all([
+      Airtable.getAllSkills(),
+      SupabaseDB.getCompletionMap(targetDiverId),
+    ]);
+
+    allSkills     = skills;
+    completionMap = cMap;
+
+    // Update summary stats
+    updateStats(skills, cMap);
+
+    // Build level tabs
+    buildLevelTabs(skills, cMap);
+
+    // Render first level
+    renderLevel(activeLevel);
+  })();
+
+  function updateStats(skills, cMap) {
+    const confirmed   = Object.values(cMap).filter(c => c.coach_confirmed_at).length;
+    const selfReported = Object.values(cMap).filter(c => c.self_reported_at && !c.coach_confirmed_at).length;
+    document.getElementById('stat-confirmed').textContent = confirmed;
+    document.getElementById('stat-pending').textContent   = selfReported;
+    document.getElementById('stat-total').textContent     = skills.length;
+  }
+
+  function buildLevelTabs(skills, cMap) {
+    const levels = Airtable.uniqueLevels(skills);
+    const tabsEl = document.getElementById('level-tabs');
+
+    tabsEl.innerHTML = levels.map(lvl => {
+      const lvlSkills    = skills.filter(s => s.level === lvl);
+      const confirmed    = lvlSkills.filter(s => cMap[s.id]?.coach_confirmed_at).length;
+      const selfReported = lvlSkills.filter(s => cMap[s.id]?.self_reported_at && !cMap[s.id]?.coach_confirmed_at).length;
+      const isComplete   = confirmed === lvlSkills.length && lvlSkills.length > 0;
+      const isPartial    = (confirmed + selfReported) > 0;
+
+      let cls = '';
+      if (isComplete) cls = 'complete';
+      else if (isPartial) cls = 'partial';
+
+      return `
+        <button
+          class="level-tab ${cls} ${lvl === activeLevel ? 'active' : ''}"
+          data-level="${lvl}"
+          onclick="selectLevel(${lvl})">
+          ${lvl === 0 ? 'L0' : `L${lvl}`}
+        </button>
+      `;
+    }).join('');
+  }
+
+  function selectLevel(level) {
+    activeLevel = level;
+    // Update active tab
+    document.querySelectorAll('.level-tab').forEach(t => {
+      t.classList.toggle('active', parseInt(t.dataset.level) === level);
+    });
+    renderLevel(level);
+  }
+
+  function renderLevel(level) {
+    const container   = document.getElementById('level-content');
+    const lvlSkills   = allSkills.filter(s => s.level === level);
+
+    if (!lvlSkills.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>No skills found for this level.</p></div>`;
+      return;
+    }
+
+    const confirmed    = lvlSkills.filter(s => completionMap[s.id]?.coach_confirmed_at).length;
+    const selfReported = lvlSkills.filter(s => completionMap[s.id]?.self_reported_at && !completionMap[s.id]?.coach_confirmed_at).length;
+    const total        = lvlSkills.length;
+    const pct          = App.calcProgress(confirmed + selfReported, total);
+
+    container.innerHTML = `
+      <div class="card fade-in">
+        <div class="level-skills-header">
+          <div>
+            <h3>${App.getLevelLabel(level)}</h3>
+            <div class="text-sm text-secondary mt-1">
+              ${confirmed} confirmed · ${selfReported} self-reported · ${total - confirmed - selfReported} remaining
+            </div>
+          </div>
+          <div class="text-accent" style="font-size:1.5rem;font-weight:800">${pct}%</div>
+        </div>
+        <div class="progress-bar-wrap mb-4">
+          <div class="progress-bar-fill ${pct > 0 && confirmed < total ? 'partial' : ''}"
+               style="width: ${pct}%"></div>
+        </div>
+
+        <div>
+          ${lvlSkills.map(skill => buildSkillRow(skill)).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function buildSkillRow(skill) {
+    const completion = completionMap[skill.id];
+    const status     = App.completionStatus(completion);
+    let iconHtml = '';
+    if (status === 'confirmed')     iconHtml = '<div class="skill-check-icon confirmed">✓</div>';
+    else if (status === 'self-reported') iconHtml = '<div class="skill-check-icon self-reported">⏳</div>';
+    else                            iconHtml = '<div class="skill-check-icon none">○</div>';
+
+    // Build action button(s)
+    let actionHtml = '';
+    if (currentUser.role === 'diver') {
+      if (status === 'none') {
+        actionHtml = `<button class="btn btn-secondary btn-sm" onclick="selfReport('${skill.id}', this)">✋ Log It</button>`;
+      } else if (status === 'self-reported') {
+        actionHtml = `<span class="badge badge-pending">Awaiting Coach</span>`;
+      } else {
+        actionHtml = `<span class="badge badge-accent">✓ Done</span>`;
+      }
+    } else if (currentUser.role === 'coach' && status === 'self-reported') {
+      actionHtml = `
+        <button class="btn btn-primary btn-sm"
+          onclick="openConfirmModal('${completion.id}', '${App.escHtml(skill.name)}')">
+          Confirm
+        </button>
+      `;
+    }
+
+    return `
+      <div class="skill-check-row">
+        ${iconHtml}
+        <div class="list-item-content">
+          <div class="list-item-title">${App.escHtml(skill.name)}</div>
+          <div class="flex gap-2 mt-1 flex-wrap">
+            <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
+            ${completion?.coach_confirmed_at
+              ? `<span class="text-xs text-secondary">Confirmed ${App.formatDate(completion.coach_confirmed_at)}</span>`
+              : ''}
+            ${completion?.self_reported_at && !completion?.coach_confirmed_at
+              ? `<span class="text-xs text-secondary">Logged ${App.formatRelative(completion.self_reported_at)}</span>`
+              : ''}
+          </div>
+        </div>
+        ${actionHtml}
+      </div>
+    `;
+  }
+
+  async function selfReport(airtableSkillId, btn) {
+    App.setBtnLoading(btn, true);
+    try {
+      const c = await SupabaseDB.selfReportSkill(targetDiverId, airtableSkillId);
+      completionMap[airtableSkillId] = c;
+      App.showToast('Skill logged! Your coach will confirm it soon.');
+      renderLevel(activeLevel);
+      buildLevelTabs(allSkills, completionMap);
+      updateStats(allSkills, completionMap);
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  function openConfirmModal(completionId, skillName) {
+    pendingConfirm = { completionId, skillName };
+    document.getElementById('confirm-skill-name').textContent = skillName;
+    document.getElementById('confirm-diver-name').textContent = targetDiver?.full_name ?? 'this diver';
+    document.getElementById('confirm-notes').value = '';
+    App.openModal('confirm-modal');
+  }
+
+  async function submitConfirmation() {
+    if (!pendingConfirm) return;
+    const btn   = document.getElementById('confirm-submit-btn');
+    const notes = document.getElementById('confirm-notes').value;
+    App.setBtnLoading(btn, true);
+    try {
+      const updated = await SupabaseDB.confirmSkill(pendingConfirm.completionId, currentUser.id, notes);
+      // Update completion map
+      const skill = allSkills.find(s => completionMap[s.id]?.id === pendingConfirm.completionId);
+      if (skill) completionMap[skill.id] = updated;
+      App.closeModal('confirm-modal');
+      App.showToast('Skill confirmed!');
+      renderLevel(activeLevel);
+      buildLevelTabs(allSkills, completionMap);
+      updateStats(allSkills, completionMap);
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+      pendingConfirm = null;
+    }
+  }
+
+  // Close confirm modal on overlay click
+  document.getElementById('confirm-modal').addEventListener('click', function(e) {
+    if (e.target === this) App.closeModal('confirm-modal');
+  });
+</script>
+
+</body>
+</html>

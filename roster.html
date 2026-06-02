@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diving Skills — Roster</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content fade-in">
+    <div class="page-header">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1>Roster</h1>
+          <p>Manage your divers and track their progress.</p>
+        </div>
+        <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">
+          + Add Diver
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card-grid mb-6" id="roster-stats">
+      <div class="stat-card">
+        <div class="stat-value" id="roster-count">—</div>
+        <div class="stat-label">Total Divers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--pending)" id="pending-count">—</div>
+        <div class="stat-label">Pending Confirmations</div>
+      </div>
+    </div>
+
+    <!-- Pending confirmations section -->
+    <div class="content-section" id="pending-section" style="display:none">
+      <div class="section-title">⏳ Pending Confirmations</div>
+      <div id="pending-list" class="card card-sm"></div>
+    </div>
+
+    <!-- Roster list -->
+    <div class="content-section">
+      <div class="section-title">My Divers</div>
+      <div id="roster-list">
+        <div class="loading-overlay">
+          <div class="loading-spinner loading-spinner-lg"></div>
+          <span>Loading roster…</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+<!-- Add Diver Modal -->
+<div class="modal-overlay" id="add-diver-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Diver to Roster</h2>
+      <button class="modal-close" onclick="App.closeModal('add-diver-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Enter the diver's email address. They must already have a Diving Skills account with the "diver" role.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Diver's Email Address</label>
+      <input
+        type="email"
+        id="add-diver-email"
+        class="form-input"
+        placeholder="diver@example.com"
+        inputmode="email"
+        autocomplete="off"
+      >
+    </div>
+    <div id="add-diver-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('add-diver-modal')">Cancel</button>
+      <button class="btn btn-primary" id="add-diver-btn" onclick="addDiverByEmail()">Add to Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Skill Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Confirm Skill</h2>
+      <button class="modal-close" onclick="App.closeModal('confirm-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Confirming <strong id="confirm-skill-label">this skill</strong> for
+      <strong id="confirm-diver-label">this diver</strong>.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <textarea id="confirm-notes" class="form-input" rows="3" style="resize:vertical"
+                placeholder="Great entry today, keep working on the hurdle…"></textarea>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('confirm-modal')">Cancel</button>
+      <button class="btn btn-primary" id="confirm-btn" onclick="submitConfirmation()">✓ Confirm Skill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove Diver Confirmation -->
+<div class="modal-overlay" id="remove-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Remove Diver</h2>
+      <button class="modal-close" onclick="App.closeModal('remove-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Remove <strong id="remove-diver-name">this diver</strong> from your roster?
+      Their skill data will be kept, they'll just be unlinked from you.
+    </p>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('remove-modal')">Cancel</button>
+      <button class="btn btn-danger" id="remove-btn" onclick="confirmRemoveDiver()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/airtable.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  let currentUser    = null;
+  let roster         = [];
+  let pendingSkills  = [];
+  let pendingConfirm = null;
+  let pendingRemove  = null;
+
+  (async function initRosterPage() {
+    initSupabase();
+    const user = await Auth.init(true);
+    if (!user) return;
+    currentUser = user;
+
+    // Coaches only
+    Auth.requireRole('coach');
+
+    App.renderNav(user);
+    await loadRoster();
+  })();
+
+  async function loadRoster() {
+    const [rosterData, pending] = await Promise.all([
+      SupabaseDB.getRoster(currentUser.id),
+      SupabaseDB.getPendingForCoach(currentUser.id),
+    ]);
+
+    roster        = rosterData;
+    pendingSkills = pending;
+
+    // Stats
+    document.getElementById('roster-count').textContent  = roster.length;
+    document.getElementById('pending-count').textContent = pending.length;
+
+    // Pending section
+    const pendingSection = document.getElementById('pending-section');
+    if (pending.length > 0) {
+      pendingSection.style.display = 'block';
+      document.getElementById('pending-list').innerHTML = pending.map(p => `
+        <div class="list-item" id="pending-${p.id}">
+          <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
+          <div class="list-item-content">
+            <div class="list-item-title">${App.escHtml(p.diver?.full_name ?? 'Unknown')}</div>
+            <div class="list-item-subtitle">
+              Skill: ${App.escHtml(p.airtable_skill_id)} · ${App.formatRelative(p.self_reported_at)}
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm"
+            onclick="openConfirmModal('${p.id}', '${App.escHtml(p.airtable_skill_id)}', '${App.escHtml(p.diver?.full_name ?? '')}')">
+            Confirm
+          </button>
+        </div>
+      `).join('');
+    } else {
+      pendingSection.style.display = 'none';
+    }
+
+    // Roster list
+    const rosterEl = document.getElementById('roster-list');
+    if (roster.length === 0) {
+      rosterEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">👥</div>
+          <p>Your roster is empty. Add a diver to get started.</p>
+          <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">+ Add First Diver</button>
+        </div>
+      `;
+    } else {
+      rosterEl.innerHTML = roster.map(r => `
+        <div class="diver-row" id="diver-row-${r.diver.id}" style="cursor:default">
+          <a href="progress.html?diver=${r.diver.id}" style="display:contents; text-decoration:none; color:inherit">
+            <div class="avatar avatar-md">${Auth.getInitials(r.diver.full_name)}</div>
+            <div class="list-item-content">
+              <div class="list-item-title">${App.escHtml(r.diver.full_name)}</div>
+              <div class="list-item-subtitle">${App.escHtml(r.diver.email)}</div>
+            </div>
+          </a>
+          <div class="flex gap-2">
+            <a href="progress.html?diver=${r.diver.id}" class="btn btn-secondary btn-sm">Progress →</a>
+            <button class="btn btn-ghost btn-sm"
+              onclick="openRemoveModal('${r.diver.id}', '${App.escHtml(r.diver.full_name)}')">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // ---- Add diver by email ----
+  async function addDiverByEmail() {
+    const emailInput = document.getElementById('add-diver-email');
+    const btn        = document.getElementById('add-diver-btn');
+    const alertEl    = document.getElementById('add-diver-alert');
+    const email      = emailInput.value.trim().toLowerCase();
+
+    alertEl.className = 'alert mb-4';
+
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = 'Please enter a valid email address.';
+      return;
+    }
+
+    App.setBtnLoading(btn, true);
+
+    try {
+      const diver = await SupabaseDB.getProfileByEmail(email);
+
+      if (!diver) {
+        throw new Error('No account found with that email. The diver needs to sign up first.');
+      }
+      if (diver.role !== 'diver') {
+        throw new Error(`That account has the role "${diver.role}" — only divers can be added to a roster.`);
+      }
+      if (roster.find(r => r.diver.id === diver.id)) {
+        throw new Error(`${diver.full_name} is already on your roster.`);
+      }
+
+      await SupabaseDB.addDiverToRoster(currentUser.id, diver.id);
+
+      App.closeModal('add-diver-modal');
+      emailInput.value = '';
+      App.showToast(`${diver.full_name} added to your roster!`);
+      await loadRoster();
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = err.message;
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  // ---- Confirm skill ----
+  function openConfirmModal(completionId, skillId, diverName) {
+    pendingConfirm = { completionId };
+    document.getElementById('confirm-skill-label').textContent = skillId;
+    document.getElementById('confirm-diver-label').textContent  = diverName;
+    document.getElementById('confirm-notes').value = '';
+    App.openModal('confirm-modal');
+  }
+
+  async function submitConfirmation() {
+    if (!pendingConfirm) return;
+    const btn   = document.getElementById('confirm-btn');
+    const notes = document.getElementById('confirm-notes').value;
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.confirmSkill(pendingConfirm.completionId, currentUser.id, notes);
+      App.closeModal('confirm-modal');
+      App.showToast('Skill confirmed!');
+      await loadRoster();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+      pendingConfirm = null;
+    }
+  }
+
+  // ---- Remove diver ----
+  function openRemoveModal(diverId, diverName) {
+    pendingRemove = diverId;
+    document.getElementById('remove-diver-name').textContent = diverName;
+    App.openModal('remove-modal');
+  }
+
+  async function confirmRemoveDiver() {
+    if (!pendingRemove) return;
+    const btn = document.getElementById('remove-btn');
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.removeDiverFromRoster(currentUser.id, pendingRemove);
+      App.closeModal('remove-modal');
+      App.showToast('Diver removed from roster.');
+      await loadRoster();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+      pendingRemove = null;
+    }
+  }
+
+  // Close modals on overlay click
+  ['add-diver-modal', 'confirm-modal', 'remove-modal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) App.closeModal(id);
+    });
+  });
+
+  // Enter key triggers add-diver submit
+  document.getElementById('add-diver-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addDiverByEmail();
+  });
+</script>
+
+</body>
+</html>
