@@ -1,29 +1,21 @@
 // Runs at Netlify build time to write js/config.js from environment variables.
-// Never committed to git — generated fresh on every deploy.
-const fs = require('fs');
+// Only Supabase credentials are included — Airtable keys stay server-side
+// in the netlify/functions/airtable-skills.js function.
+const fs   = require('fs');
 const path = require('path');
 
-const required = [
-  'SUPABASE_URL',
-  'SUPABASE_ANON_KEY',
-  'AIRTABLE_BASE_ID',
-  'AIRTABLE_API_KEY',
-];
-
-const missing = required.filter(k => !process.env[k]);
+const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+const missing  = required.filter(k => !process.env[k]);
 if (missing.length) {
   console.error(`Missing required environment variables: ${missing.join(', ')}`);
   console.error('Set them in Netlify → Site configuration → Environment variables.');
   process.exit(1);
 }
 
-const config = `// Auto-generated at build time from Netlify environment variables. Do not edit.
+const config = `// Auto-generated at build time. Do not edit.
 const CONFIG = {
   SUPABASE_URL:      '${process.env.SUPABASE_URL}',
   SUPABASE_ANON_KEY: '${process.env.SUPABASE_ANON_KEY}',
-  AIRTABLE_BASE_ID:      '${process.env.AIRTABLE_BASE_ID}',
-  AIRTABLE_API_KEY:      '${process.env.AIRTABLE_API_KEY}',
-  AIRTABLE_SKILLS_TABLE: '${process.env.AIRTABLE_SKILLS_TABLE || 'Skills'}',
   APP_NAME:    'Diving Skills',
   APP_VERSION: '1.0.0',
 };

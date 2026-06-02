@@ -1,95 +1,38 @@
 // =============================================
-// DIVING SKILLS — Airtable API
-// Read-only access to the skills library.
-// Coaches edit skills directly in Airtable.
+// DIVING SKILLS — Airtable API (via Netlify Function)
+// All requests go through /.netlify/functions/airtable-skills
+// so the Airtable API key never reaches the browser.
 // =============================================
 
 const Airtable = {
 
-  get baseUrl() {
-    return `https://api.airtable.com/v0/${CONFIG.AIRTABLE_BASE_ID}`;
-  },
-
-  get headers() {
-    return {
-      'Authorization': `Bearer ${CONFIG.AIRTABLE_API_KEY}`,
-      'Content-Type':  'application/json',
-    };
-  },
-
-  // ---- Internal fetch wrapper ----
-  async _request(path) {
-    const url = `${this.baseUrl}/${path}`;
+  async _request(params = {}) {
+    const qs  = new URLSearchParams(params).toString();
+    const url = `/.netlify/functions/airtable-skills${qs ? '?' + qs : ''}`;
     let res;
     try {
-      res = await fetch(url, { headers: this.headers });
+      res = await fetch(url);
     } catch (networkErr) {
       throw new Error('Network error — check your connection and try again.');
     }
     if (!res.ok) {
       let body = {};
       try { body = await res.json(); } catch (_) { /* ignore */ }
-      const msg = body?.error?.message ?? `Airtable responded with status ${res.status}`;
-      throw new Error(msg);
+      throw new Error(body?.error ?? `Server responded with status ${res.status}`);
     }
     return res.json();
   },
 
-  // ---- Fetch ALL skills, handling Airtable's 100-record pagination ----
   async getAllSkills() {
-    const table = encodeURIComponent(CONFIG.AIRTABLE_SKILLS_TABLE);
-    let allRecords = [];
-    let offset     = null;
-
-    do {
-      const params = new URLSearchParams();
-      params.set('pageSize', '100');
-      // Sort by level ascending, then name ascending
-      params.set('sort[0][field]',     '# Skill Level');
-      params.set('sort[0][direction]', 'asc');
-      params.set('sort[1][field]',     'Skill Name');
-      params.set('sort[1][direction]', 'asc');
-      if (offset) params.set('offset', offset);
-
-      const data = await this._request(`${table}?${params.toString()}`);
-      allRecords = allRecords.concat(data.records ?? []);
-      offset = data.offset ?? null;
-
-    } while (offset);
-
-    return allRecords.map(r => this._normalize(r));
+    return this._request({ op: 'all' });
   },
 
-  // ---- Fetch skills for a specific level (0–12) ----
   async getSkillsByLevel(level) {
-    const table   = encodeURIComponent(CONFIG.AIRTABLE_SKILLS_TABLE);
-    const formula = encodeURIComponent(`{# Skill Level} = ${level}`);
-    const data    = await this._request(
-      `${table}?filterByFormula=${formula}&sort[0][field]=Skill+Name&sort[0][direction]=asc`
-    );
-    return (data.records ?? []).map(r => this._normalize(r));
+    return this._request({ op: 'level', level });
   },
 
-  // ---- Fetch a single skill record ----
   async getSkill(recordId) {
-    const table = encodeURIComponent(CONFIG.AIRTABLE_SKILLS_TABLE);
-    const data  = await this._request(`${table}/${recordId}`);
-    return this._normalize(data);
-  },
-
-  // ---- Normalize an Airtable record into a clean JS object ----
-  _normalize(record) {
-    const f = record.fields ?? {};
-    return {
-      id:            record.id,
-      name:          f['Skill Name']        ?? 'Untitled Skill',
-      level:         f['# Skill Level']     ?? null,
-      type:          f['Skill Type']         ?? 'General',
-      description:   f['Skill Description'] ?? '',
-      category:      f['Skill Category']    ?? '',
-      videoUrl:      f['Video URL']         ?? null,
-      coachingNotes: f['Coaching Notes']    ?? '',
-    };
+    return this._request({ op: 'skill', id: recordId });
   },
 
   // ---- Client-side filtering (fast, no extra API calls) ----
