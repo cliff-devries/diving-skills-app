@@ -142,7 +142,7 @@
   let pendingRemove  = null;
 
   (async function initRosterPage() {
-    initSupabase();
+    await initSupabase();
     const user = await Auth.init(true);
     if (!user) return;
     currentUser = user;

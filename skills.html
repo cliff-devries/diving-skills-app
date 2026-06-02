@@ -96,7 +96,7 @@
   let activeSkill    = null;
 
   (async function initSkillsPage() {
-    initSupabase();
+    await initSupabase();
     const user = await Auth.init(true);
     if (!user) return;
     currentUser = user;

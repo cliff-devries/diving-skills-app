@@ -102,7 +102,7 @@
 
 <script>
   (async function initLoginPage() {
-    initSupabase();
+    await initSupabase();
 
     // If already signed in, skip login and go straight to dashboard
     const { data: { session } } = await window.supabaseClient.auth.getSession();
