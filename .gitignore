@@ -1,5 +1,7 @@
-# ---- Credentials (NEVER commit real keys) ----
-js/config.js
+# ---- Credentials ----
+# js/config.js is committed — Supabase anon key is a public key designed for
+# client-side use, protected by RLS policies. Airtable PAT is server-side only
+# (netlify/functions/airtable-skills.js reads it from process.env).
 
 # ---- OS / Editor ----
 .DS_Store
