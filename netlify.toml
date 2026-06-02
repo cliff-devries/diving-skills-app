@@ -5,6 +5,13 @@
 [build]
   publish = "."
 
+# js/config.js contains the Supabase anon key, which is a PUBLIC key designed
+# for client-side use (see: supabase.com/docs/guides/api/api-keys).
+# Data is protected by RLS policies, not by keeping this key secret.
+# Airtable PAT is server-side only (netlify/functions/airtable-skills.js).
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = "js/config.js"
+
 # Security headers — applied to all responses
 [[headers]]
   for = "/*"
