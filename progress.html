@@ -36,7 +36,7 @@
       font-size: 0.85rem;
       flex-shrink: 0;
     }
-    .skill-check-icon.confirmed    { background: var(--accent-dim); color: var(--accent); }
+    .skill-check-icon.confirmed     { background: var(--accent-dim); color: var(--accent); }
     .skill-check-icon.self-reported { background: var(--pending-dim); color: var(--pending); }
     .skill-check-icon.none          { background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
   </style>
@@ -47,9 +47,7 @@
   <aside class="sidebar" id="sidebar"></aside>
 
   <main class="main-content fade-in">
-    <div id="diver-banner" class="hidden">
-      <!-- Shown when a coach/parent is viewing a specific diver -->
-    </div>
+    <div id="diver-banner" class="hidden"></div>
 
     <div class="page-header">
       <h1>Progress Tracker</h1>
@@ -74,9 +72,7 @@
 
     <!-- Level tabs -->
     <div class="section-title">Select Level</div>
-    <div class="level-tabs" id="level-tabs">
-      <!-- Populated by JS -->
-    </div>
+    <div class="level-tabs" id="level-tabs"></div>
 
     <!-- Level content -->
     <div id="level-content">
@@ -115,7 +111,7 @@
 <script src="js/config.js"></script>
 <script src="js/supabase.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/airtable.js"></script>
+<script src="js/skills.js"></script>
 <script src="js/app.js"></script>
 
 <script>
@@ -134,7 +130,6 @@
     currentUser = user;
     App.renderNav(user);
 
-    // Coaches/parents can view a specific diver via ?diver=UUID
     const diverParam = App.getParam('diver');
     if (diverParam && (user.role === 'coach' || user.role === 'parent')) {
       targetDiverId = diverParam;
@@ -154,27 +149,21 @@
       targetDiverId = user.id;
     }
 
-    // Fetch skills from Airtable and completions in parallel
     const [skills, cMap] = await Promise.all([
-      Airtable.getAllSkills(),
+      Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
     ]);
 
     allSkills     = skills;
     completionMap = cMap;
 
-    // Update summary stats
     updateStats(skills, cMap);
-
-    // Build level tabs
     buildLevelTabs(skills, cMap);
-
-    // Render first level
     renderLevel(activeLevel);
   })();
 
   function updateStats(skills, cMap) {
-    const confirmed   = Object.values(cMap).filter(c => c.coach_confirmed_at).length;
+    const confirmed    = Object.values(cMap).filter(c => c.coach_confirmed_at).length;
     const selfReported = Object.values(cMap).filter(c => c.self_reported_at && !c.coach_confirmed_at).length;
     document.getElementById('stat-confirmed').textContent = confirmed;
     document.getElementById('stat-pending').textContent   = selfReported;
@@ -182,7 +171,7 @@
   }
 
   function buildLevelTabs(skills, cMap) {
-    const levels = Airtable.uniqueLevels(skills);
+    const levels = Skills.uniqueLevels(skills);
     const tabsEl = document.getElementById('level-tabs');
 
     tabsEl.innerHTML = levels.map(lvl => {
@@ -209,7 +198,6 @@
 
   function selectLevel(level) {
     activeLevel = level;
-    // Update active tab
     document.querySelectorAll('.level-tab').forEach(t => {
       t.classList.toggle('active', parseInt(t.dataset.level) === level);
     });
@@ -217,8 +205,8 @@
   }
 
   function renderLevel(level) {
-    const container   = document.getElementById('level-content');
-    const lvlSkills   = allSkills.filter(s => s.level === level);
+    const container = document.getElementById('level-content');
+    const lvlSkills = allSkills.filter(s => s.level === level);
 
     if (!lvlSkills.length) {
       container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>No skills found for this level.</p></div>`;
@@ -245,9 +233,8 @@
           <div class="progress-bar-fill ${pct > 0 && confirmed < total ? 'partial' : ''}"
                style="width: ${pct}%"></div>
         </div>
-
         <div>
-          ${lvlSkills.map(skill => buildSkillRow(skill)).join('')}
+          ${lvlSkills.map(buildSkillRow).join('')}
         </div>
       </div>
     `;
@@ -256,16 +243,16 @@
   function buildSkillRow(skill) {
     const completion = completionMap[skill.id];
     const status     = App.completionStatus(completion);
-    let iconHtml = '';
-    if (status === 'confirmed')     iconHtml = '<div class="skill-check-icon confirmed">✓</div>';
-    else if (status === 'self-reported') iconHtml = '<div class="skill-check-icon self-reported">⏳</div>';
-    else                            iconHtml = '<div class="skill-check-icon none">○</div>';
 
-    // Build action button(s)
+    let iconHtml = '';
+    if (status === 'confirmed')      iconHtml = '<div class="skill-check-icon confirmed">✓</div>';
+    else if (status === 'self-reported') iconHtml = '<div class="skill-check-icon self-reported">⏳</div>';
+    else                             iconHtml = '<div class="skill-check-icon none">○</div>';
+
     let actionHtml = '';
     if (currentUser.role === 'diver') {
       if (status === 'none') {
-        actionHtml = `<button class="btn btn-secondary btn-sm" onclick="selfReport('${skill.id}', this)">✋ Log It</button>`;
+        actionHtml = `<button class="btn btn-secondary btn-sm" onclick="selfReport(${skill.id}, this)">✋ Log It</button>`;
       } else if (status === 'self-reported') {
         actionHtml = `<span class="badge badge-pending">Awaiting Coach</span>`;
       } else {
@@ -284,7 +271,7 @@
       <div class="skill-check-row">
         ${iconHtml}
         <div class="list-item-content">
-          <div class="list-item-title">${App.escHtml(skill.name)}</div>
+          <div class="list-item-title">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span class="text-secondary text-xs">+</span>' : ''}</div>
           <div class="flex gap-2 mt-1 flex-wrap">
             <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
             ${completion?.coach_confirmed_at
@@ -300,11 +287,11 @@
     `;
   }
 
-  async function selfReport(airtableSkillId, btn) {
+  async function selfReport(skillId, btn) {
     App.setBtnLoading(btn, true);
     try {
-      const c = await SupabaseDB.selfReportSkill(targetDiverId, airtableSkillId);
-      completionMap[airtableSkillId] = c;
+      const c = await SupabaseDB.selfReportSkill(targetDiverId, skillId);
+      completionMap[skillId] = c;
       App.showToast('Skill logged! Your coach will confirm it soon.');
       renderLevel(activeLevel);
       buildLevelTabs(allSkills, completionMap);
@@ -330,7 +317,7 @@
     App.setBtnLoading(btn, true);
     try {
       const updated = await SupabaseDB.confirmSkill(pendingConfirm.completionId, currentUser.id, notes);
-      // Update completion map
+      // Update the completion map by finding which skill owns this completion row
       const skill = allSkills.find(s => completionMap[s.id]?.id === pendingConfirm.completionId);
       if (skill) completionMap[skill.id] = updated;
       App.closeModal('confirm-modal');
@@ -346,7 +333,6 @@
     }
   }
 
-  // Close confirm modal on overlay click
   document.getElementById('confirm-modal').addEventListener('click', function(e) {
     if (e.target === this) App.closeModal('confirm-modal');
   });

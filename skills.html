@@ -41,7 +41,7 @@
     <div id="skills-container">
       <div class="loading-overlay">
         <div class="loading-spinner loading-spinner-lg"></div>
-        <span>Loading skills from Airtable…</span>
+        <span>Loading skills…</span>
       </div>
     </div>
   </main>
@@ -86,14 +86,14 @@
 <script src="js/config.js"></script>
 <script src="js/supabase.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/airtable.js"></script>
+<script src="js/skills.js"></script>
 <script src="js/app.js"></script>
 
 <script>
-  let allSkills      = [];
-  let completionMap  = {};
-  let currentUser    = null;
-  let activeSkill    = null;
+  let allSkills     = [];
+  let completionMap = {};
+  let currentUser   = null;
+  let activeSkill   = null;
 
   (async function initSkillsPage() {
     initSupabase();
@@ -102,7 +102,6 @@
     currentUser = user;
     App.renderNav(user);
 
-    // Fetch skills + completion status in parallel
     const [skills, cMap] = await Promise.all([
       fetchSkills(),
       (user.role === 'diver') ? SupabaseDB.getCompletionMap(user.id) : Promise.resolve({}),
@@ -120,42 +119,39 @@
 
   async function fetchSkills() {
     try {
-      return await Airtable.getAllSkills();
+      return await Skills.getAll();
     } catch (err) {
       App.showError('skills-container', `Could not load skills: ${err.message}`);
       return [];
     }
   }
 
-  // ---- Populate filter dropdowns ----
   function populateFilters(skills) {
     const levelSel = document.getElementById('filter-level');
     const typeSel  = document.getElementById('filter-type');
 
-    Airtable.uniqueLevels(skills).forEach(lvl => {
+    Skills.uniqueLevels(skills).forEach(lvl => {
       const opt = document.createElement('option');
       opt.value = lvl;
       opt.textContent = `Level ${lvl}`;
       levelSel.appendChild(opt);
     });
 
-    Airtable.uniqueTypes(skills).forEach(t => {
+    Skills.uniqueTypes(skills).forEach(t => {
       const opt = document.createElement('option');
       opt.value = opt.textContent = t;
       typeSel.appendChild(opt);
     });
   }
 
-  // ---- Attach filter event listeners ----
   function attachFilterListeners() {
     ['search', 'filter-level', 'filter-type'].forEach(id => {
       document.getElementById(id).addEventListener('input', applyFilters);
     });
-
     document.getElementById('clear-filters').addEventListener('click', () => {
-      document.getElementById('search').value        = '';
-      document.getElementById('filter-level').value  = '';
-      document.getElementById('filter-type').value   = '';
+      document.getElementById('search').value       = '';
+      document.getElementById('filter-level').value = '';
+      document.getElementById('filter-type').value  = '';
       applyFilters();
     });
   }
@@ -165,15 +161,13 @@
     const level  = document.getElementById('filter-level').value;
     const type   = document.getElementById('filter-type').value;
 
-    const filtered = Airtable.filterSkills(allSkills, { level, type, search });
+    const filtered = Skills.filterSkills(allSkills, { level, type, search });
     renderSkills(filtered);
 
-    // Show/hide the "clear" button
     const hasFilters = search || level || type;
     document.getElementById('clear-filters').classList.toggle('hidden', !hasFilters);
   }
 
-  // ---- Render skill cards ----
   function renderSkills(skills) {
     const container = document.getElementById('skills-container');
     const countEl   = document.getElementById('result-count');
@@ -190,13 +184,11 @@
       return;
     }
 
-    container.innerHTML = `<div class="skills-list">${skills.map(skill => buildSkillCard(skill)).join('')}</div>`;
+    container.innerHTML = `<div class="skills-list">${skills.map(buildSkillCard).join('')}</div>`;
 
-    // Attach click handlers
     container.querySelectorAll('.skill-card').forEach(card => {
       card.addEventListener('click', () => {
-        const skillId = card.dataset.skillId;
-        const skill   = allSkills.find(s => s.id === skillId);
+        const skill = allSkills.find(s => s.id === Number(card.dataset.skillId));
         if (skill) openSkillModal(skill);
       });
     });
@@ -210,7 +202,7 @@
     return `
       <div class="skill-card ${cardClass}" data-skill-id="${skill.id}" role="button" tabindex="0">
         <div class="skill-card-header">
-          <div class="skill-name">${App.escHtml(skill.name)}</div>
+          <div class="skill-name">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span title="Requires harness">+</span>' : ''}</div>
           ${App.statusBadgeHtml(completion)}
         </div>
         ${skill.description
@@ -220,12 +212,12 @@
           <span class="badge badge-level">L${skill.level ?? '?'}</span>
           <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
           ${skill.videoUrl ? '<span class="badge badge-accent">▶ Video</span>' : ''}
+          ${skill.requiresHarness ? '<span class="badge badge-secondary">+ Harness</span>' : ''}
         </div>
       </div>
     `;
   }
 
-  // ---- Skill detail modal ----
   function openSkillModal(skill) {
     activeSkill = skill;
     const completion = completionMap[skill.id];
@@ -236,12 +228,12 @@
       <span class="badge badge-level">Level ${skill.level ?? '?'}</span>
       <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
       ${skill.category ? `<span class="badge badge-secondary">${App.escHtml(skill.category)}</span>` : ''}
+      ${skill.requiresHarness ? '<span class="badge badge-secondary">+ Harness Required</span>' : ''}
     `;
 
     document.getElementById('modal-status-badge').innerHTML = App.statusBadgeHtml(completion) || '';
     document.getElementById('modal-description').textContent = skill.description || 'No description available.';
 
-    // Video
     const videoWrap = document.getElementById('modal-video');
     if (skill.videoUrl) {
       document.getElementById('modal-video-link').href = skill.videoUrl;
@@ -250,7 +242,6 @@
       videoWrap.classList.add('hidden');
     }
 
-    // Coaching notes (coach only or has notes)
     const coachingWrap = document.getElementById('modal-coaching');
     if (skill.coachingNotes && currentUser.role === 'coach') {
       document.getElementById('modal-coaching-text').textContent = skill.coachingNotes;
@@ -259,9 +250,7 @@
       coachingWrap.classList.add('hidden');
     }
 
-    // Action area
     renderModalActions(skill, completion);
-
     App.openModal('skill-modal');
   }
 
@@ -271,7 +260,7 @@
     if (currentUser.role === 'diver') {
       if (!completion) {
         area.innerHTML = `
-          <button class="btn btn-primary btn-full" onclick="selfReportSkill('${skill.id}', this)">
+          <button class="btn btn-primary btn-full" onclick="selfReportSkill(${skill.id}, this)">
             ✋ Mark as Self-Reported
           </button>
           <p class="text-xs text-secondary mt-2" style="text-align:center">
@@ -292,14 +281,13 @@
     }
   }
 
-  async function selfReportSkill(airtableSkillId, btn) {
+  async function selfReportSkill(skillId, btn) {
     App.setBtnLoading(btn, true);
     try {
-      const completion = await SupabaseDB.selfReportSkill(currentUser.id, airtableSkillId);
-      completionMap[airtableSkillId] = completion;
+      const completion = await SupabaseDB.selfReportSkill(currentUser.id, skillId);
+      completionMap[skillId] = completion;
       App.showToast('Skill logged! Your coach will confirm it soon.');
       App.closeModal('skill-modal');
-      // Re-render list to reflect new status
       applyFilters();
     } catch (err) {
       App.showToast(err.message, 'error');
@@ -307,12 +295,10 @@
     }
   }
 
-  // Close modal on overlay click
   document.getElementById('skill-modal').addEventListener('click', function(e) {
     if (e.target === this) App.closeModal('skill-modal');
   });
 
-  // Keyboard: close on Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') App.closeModal('skill-modal');
   });

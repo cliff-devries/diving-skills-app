@@ -6,7 +6,6 @@
 
 const SupabaseDB = {
 
-  // Helper: shorthand to the client
   get db() { return window.supabaseClient; },
 
   // =============================================
@@ -59,7 +58,7 @@ const SupabaseDB = {
   },
 
   // =============================================
-  // ROSTER — coach's divers
+  // ROSTER
   // =============================================
 
   async getRoster(coachId) {
@@ -154,24 +153,24 @@ const SupabaseDB = {
     return data ?? [];
   },
 
-  // Returns a quick-lookup map: airtableSkillId → completion row
+  // Returns quick-lookup map: skillId → completion row
   async getCompletionMap(diverId) {
     const rows = await this.getCompletions(diverId);
     const map = {};
-    rows.forEach(r => { map[r.airtable_skill_id] = r; });
+    rows.forEach(r => { map[r.skill_id] = r; });
     return map;
   },
 
-  async selfReportSkill(diverId, airtableSkillId) {
+  async selfReportSkill(diverId, skillId) {
     const { data, error } = await this.db
       .from('skill_completions')
       .upsert(
         {
-          diver_id:         diverId,
-          airtable_skill_id: airtableSkillId,
-          self_reported_at:  new Date().toISOString(),
+          diver_id:        diverId,
+          skill_id:        skillId,
+          self_reported_at: new Date().toISOString(),
         },
-        { onConflict: 'diver_id,airtable_skill_id' }
+        { onConflict: 'diver_id,skill_id' }
       )
       .select()
       .single();
@@ -208,7 +207,10 @@ const SupabaseDB = {
   async getRecentCompletions(diverId, limit = 6) {
     const { data, error } = await this.db
       .from('skill_completions')
-      .select('*')
+      .select(`
+        *,
+        skill:skills (id, skill_name, skill_level)
+      `)
       .eq('diver_id', diverId)
       .not('self_reported_at', 'is', null)
       .order('self_reported_at', { ascending: false })
@@ -217,9 +219,9 @@ const SupabaseDB = {
     return data ?? [];
   },
 
-  // All self-reported (unconfirmed) completions across a coach's entire roster
+  // All self-reported (unconfirmed) completions across a coach's entire roster,
+  // joined with skill name so the UI can display it without a separate lookup.
   async getPendingForCoach(coachId) {
-    // Get diver IDs from roster first
     const roster = await this.getRoster(coachId);
     const diverIds = roster.map(r => r.diver.id);
     if (!diverIds.length) return [];
@@ -228,6 +230,7 @@ const SupabaseDB = {
       .from('skill_completions')
       .select(`
         *,
+        skill:skills (id, skill_name, skill_level),
         diver:profiles!skill_completions_diver_id_fkey (
           id, full_name, avatar_url
         )
