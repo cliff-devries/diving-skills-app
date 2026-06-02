@@ -3,7 +3,8 @@
 # =============================================
 
 [build]
-  publish = "."   # deploy from root (no build step needed for vanilla HTML)
+  command = "node scripts/generate-config.js"
+  publish = "."
 
 # Security headers — applied to all responses
 [[headers]]
