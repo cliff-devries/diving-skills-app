@@ -134,10 +134,10 @@ const Auth = {
 
   // ---- Helpers ----
 
-  hasRole(role)   { return this.currentUser?.role === role; }
-  isCoach()       { return this.currentUser?.role === 'coach'; }
-  isDiver()       { return this.currentUser?.role === 'diver'; }
-  isParent()      { return this.currentUser?.role === 'parent'; }
+  hasRole(role)   { return this.currentUser?.role === role; },
+  isCoach()       { return this.currentUser?.role === 'coach'; },
+  isDiver()       { return this.currentUser?.role === 'diver'; },
+  isParent()      { return this.currentUser?.role === 'parent'; },
 
   getInitials(name) {
     if (!name) return '?';
