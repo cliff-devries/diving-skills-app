@@ -11,8 +11,9 @@
 -- =============================================
 
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email        TEXT NOT NULL,
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
+  email        TEXT,
   full_name    TEXT NOT NULL DEFAULT '',
   role         TEXT NOT NULL DEFAULT 'diver'
                  CHECK (role IN ('coach', 'diver', 'parent')),

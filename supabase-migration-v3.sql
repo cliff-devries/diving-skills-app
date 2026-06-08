@@ -23,6 +23,10 @@ UPDATE public.profiles SET auth_user_id = id WHERE auth_user_id IS NULL;
 -- (The constraint name is profiles_id_fkey by Postgres default naming.)
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
+-- Give id a default so unclaimed diver INSERTs that omit id get a UUID automatically.
+-- Originally id was always provided by the handle_new_user trigger, so no DEFAULT existed.
+ALTER TABLE public.profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
 -- Make email optional — coaches may not have an email for a new diver yet
 ALTER TABLE public.profiles ALTER COLUMN email DROP NOT NULL;
 
