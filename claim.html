@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diving Skills — Find Your Profile</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .claim-card {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+    .claim-step { display: none; }
+    .claim-step.active { display: block; }
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      margin-bottom: 10px;
+    }
+    .result-item:hover { border-color: var(--accent); background: var(--bg-surface-2); }
+    .result-item.selected { border-color: var(--accent); background: var(--accent-dim); }
+    .result-item-info { flex: 1; min-width: 0; }
+    .result-name { font-weight: 600; margin-bottom: 2px; }
+    .result-meta { font-size: 0.8rem; color: var(--text-secondary); }
+    .pending-box {
+      background: var(--pending-dim);
+      border: 1px solid var(--pending);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card fade-in claim-card">
+
+    <!-- Brand -->
+    <div class="login-brand" style="margin-bottom:24px">
+      <div class="login-logo">🤿</div>
+      <div class="login-app-name">Diving<span>Skills</span></div>
+    </div>
+
+    <!-- STEP 1: Search -->
+    <div id="step-search" class="claim-step active">
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px">Find Your Profile</h2>
+      <p class="text-secondary text-sm mb-4">
+        Your coach has created a profile for you. Enter your name and your coach's name to find it.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">Your Full Name</label>
+        <input type="text" id="search-name" class="form-input" placeholder="Jane Smith"
+               autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Coach's Name (optional)</label>
+        <input type="text" id="search-coach" class="form-input" placeholder="Coach Davis">
+      </div>
+
+      <div id="search-alert" class="alert mb-4"></div>
+      <button id="search-btn" class="btn btn-primary btn-full" onclick="searchProfiles()">
+        Search
+      </button>
+      <div id="search-results" class="mt-4"></div>
+    </div>
+
+    <!-- STEP 2: Confirm selection -->
+    <div id="step-confirm" class="claim-step">
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px">Is This You?</h2>
+      <p class="text-secondary text-sm mb-4">
+        Review the profile below. If this is you, click Claim to request access.
+        Your coach will be notified to approve.
+      </p>
+      <div id="selected-profile-card" class="card mb-4" style="padding:16px"></div>
+      <div id="confirm-alert" class="alert mb-4"></div>
+      <div class="flex gap-3">
+        <button class="btn btn-ghost btn-full" onclick="showStep('search')">← Back</button>
+        <button id="claim-btn" class="btn btn-primary btn-full" onclick="submitClaim()">
+          Claim This Profile
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Pending approval -->
+    <div id="step-pending" class="claim-step">
+      <div class="pending-box mb-4">
+        <div style="font-size:2rem;margin-bottom:8px">⏳</div>
+        <div style="font-weight:700;margin-bottom:6px">Waiting for Coach Approval</div>
+        <div class="text-sm text-secondary">
+          Your coach has been notified. Once they approve your claim you'll be able to log in
+          and see your full profile and progress.
+        </div>
+      </div>
+      <div id="pending-profile-info" class="text-sm text-secondary text-center mb-4"></div>
+      <button class="btn btn-ghost btn-full" onclick="Auth.logout()">Sign Out</button>
+    </div>
+
+    <!-- STEP 4: Already claimed / active -->
+    <div id="step-active" class="claim-step">
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:2.5rem;margin-bottom:12px">✅</div>
+        <div style="font-weight:700;margin-bottom:6px">Profile Already Active</div>
+        <p class="text-secondary text-sm mb-4">
+          Your profile is claimed and active. You can go straight to your dashboard.
+        </p>
+        <a href="/dashboard.html" class="btn btn-primary">Go to Dashboard →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js"></script>
+
+<script>
+  let selectedProfile = null;
+  let currentAuthUser = null;
+
+  (async function initClaimPage() {
+    initSupabase();
+
+    // Must be signed in to claim
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) {
+      window.location.href = '/index.html';
+      return;
+    }
+
+    currentAuthUser = session.user;
+
+    // Check if this auth user already has an active profile
+    const existingProfile = await SupabaseDB.getProfile(session.user.id);
+    if (existingProfile && existingProfile.status === 'active') {
+      showStep('active');
+      return;
+    }
+
+    // Check if they already have a pending claim
+    const existingClaim = await SupabaseDB.getMyPendingClaim(session.user.id);
+    if (existingClaim) {
+      document.getElementById('pending-profile-info').textContent =
+        `Claim submitted for: ${existingClaim.profile?.full_name ?? 'your profile'}`
+        + (existingClaim.profile?.coach?.full_name ? ` · Coach: ${existingClaim.profile.coach.full_name}` : '');
+      showStep('pending');
+      return;
+    }
+
+    // Pre-fill search with the user's display name if available
+    const displayName = session.user.user_metadata?.full_name ?? '';
+    if (displayName) document.getElementById('search-name').value = displayName;
+
+    showStep('search');
+  })();
+
+  function showStep(name) {
+    document.querySelectorAll('.claim-step').forEach(el => el.classList.remove('active'));
+    document.getElementById(`step-${name}`).classList.add('active');
+  }
+
+  async function searchProfiles() {
+    const name      = document.getElementById('search-name').value.trim();
+    const coachName = document.getElementById('search-coach').value.trim();
+    const alertEl   = document.getElementById('search-alert');
+    const btn       = document.getElementById('search-btn');
+    const resultsEl = document.getElementById('search-results');
+
+    alertEl.className = 'alert mb-4';
+    resultsEl.innerHTML = '';
+
+    if (!name) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = 'Please enter your name.';
+      return;
+    }
+
+    App.setBtnLoading(btn, true);
+    try {
+      const results = await SupabaseDB.searchUnclaimedProfiles(name, coachName);
+
+      if (results.length === 0) {
+        resultsEl.innerHTML = `
+          <div class="empty-state" style="padding:20px">
+            <div class="empty-state-icon">🔍</div>
+            <p>No unclaimed profiles found for "<strong>${App.escHtml(name)}</strong>".
+               Ask your coach to create your profile.</p>
+          </div>
+        `;
+        return;
+      }
+
+      resultsEl.innerHTML = `
+        <div class="section-title mb-2">${results.length} result${results.length !== 1 ? 's' : ''} found</div>
+        ${results.map(p => `
+          <div class="result-item" id="result-${p.id}" onclick="selectProfile('${p.id}')">
+            <div class="avatar-sm">${Auth.getInitials(p.full_name)}</div>
+            <div class="result-item-info">
+              <div class="result-name">${App.escHtml(p.full_name)}</div>
+              <div class="result-meta">
+                ${p.current_level != null ? `Level ${p.current_level}` : 'Level not set'}
+                ${p.coach?.full_name ? ` · Coach: ${App.escHtml(p.coach.full_name)}` : ''}
+              </div>
+            </div>
+            <span class="text-secondary">→</span>
+          </div>
+        `).join('')}
+        <p class="text-xs text-secondary mt-2" style="text-align:center">
+          Don't see yourself? Try adjusting your search terms.
+        </p>
+      `;
+
+      // Store results for selection
+      window._searchResults = results;
+
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = `Search failed: ${err.message}`;
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  function selectProfile(profileId) {
+    selectedProfile = (window._searchResults || []).find(p => p.id === profileId);
+    if (!selectedProfile) return;
+
+    // Highlight selection
+    document.querySelectorAll('.result-item').forEach(el => el.classList.remove('selected'));
+    document.getElementById(`result-${profileId}`)?.classList.add('selected');
+
+    // Build confirmation card
+    const p = selectedProfile;
+    document.getElementById('selected-profile-card').innerHTML = `
+      <div class="flex items-center gap-3 mb-3">
+        <div class="avatar avatar-md">${Auth.getInitials(p.full_name)}</div>
+        <div>
+          <div style="font-weight:700;font-size:1.1rem">${App.escHtml(p.full_name)}</div>
+          <div class="text-sm text-secondary">
+            ${p.current_level != null ? `Level ${p.current_level}` : ''}
+            ${p.coach?.full_name ? ` · Coach: ${App.escHtml(p.coach.full_name)}` : ''}
+          </div>
+        </div>
+      </div>
+      <p class="text-sm text-secondary">
+        If this is your profile, click <strong>Claim This Profile</strong>.
+        Your coach will receive a notification and approve your access.
+      </p>
+    `;
+
+    showStep('confirm');
+  }
+
+  async function submitClaim() {
+    if (!selectedProfile || !currentAuthUser) return;
+    const btn     = document.getElementById('claim-btn');
+    const alertEl = document.getElementById('confirm-alert');
+
+    alertEl.className = 'alert mb-4';
+    App.setBtnLoading(btn, true);
+
+    try {
+      await SupabaseDB.createClaim(selectedProfile.id, currentAuthUser.id);
+
+      document.getElementById('pending-profile-info').textContent =
+        `Claim submitted for: ${selectedProfile.full_name}`
+        + (selectedProfile.coach?.full_name ? ` · Coach: ${selectedProfile.coach.full_name}` : '');
+
+      showStep('pending');
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = err.message;
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  // Trigger search on Enter key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('step-search').classList.contains('active')) {
+      searchProfiles();
+    }
+  });
+</script>
+
+</body>
+</html>

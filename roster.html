@@ -5,6 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Diving Skills — Roster</title>
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-badge.unclaimed { background: var(--bg-surface-2); color: var(--text-secondary); }
+    .status-badge.pending   { background: var(--pending-dim); color: var(--pending); }
+    .status-badge.active    { background: var(--accent-dim);  color: var(--accent); }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
 
@@ -24,7 +46,6 @@
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="card-grid mb-6" id="roster-stats">
       <div class="stat-card">
         <div class="stat-value" id="roster-count">—</div>
@@ -34,11 +55,15 @@
         <div class="stat-value" style="color:var(--pending)" id="pending-count">—</div>
         <div class="stat-label">Pending Confirmations</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--text-secondary)" id="unclaimed-count">—</div>
+        <div class="stat-label">Unclaimed Profiles</div>
+      </div>
     </div>
 
-    <!-- Pending confirmations section -->
+    <!-- Pending skill confirmations -->
     <div class="content-section" id="pending-section" style="display:none">
-      <div class="section-title">⏳ Pending Confirmations</div>
+      <div class="section-title">⏳ Pending Skill Confirmations</div>
       <div id="pending-list" class="card card-sm"></div>
     </div>
 
@@ -57,36 +82,74 @@
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
-<!-- Add Diver Modal -->
+
+<!-- =============================================
+     ADD DIVER MODAL
+============================================= -->
 <div class="modal-overlay" id="add-diver-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:520px">
     <div class="modal-header">
       <h2 class="modal-title">Add Diver to Roster</h2>
       <button class="modal-close" onclick="App.closeModal('add-diver-modal')">✕</button>
     </div>
     <p class="text-secondary text-sm mb-4">
-      Enter the diver's email address. They must already have a Diving Skills account with the "diver" role.
+      Create a profile for your diver. They can claim it later by signing up and finding their name.
+      An email address is not required at this stage.
     </p>
+
     <div class="form-group">
-      <label class="form-label">Diver's Email Address</label>
-      <input
-        type="email"
-        id="add-diver-email"
-        class="form-input"
-        placeholder="diver@example.com"
-        inputmode="email"
-        autocomplete="off"
-      >
+      <label class="form-label">Full Name <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="new-full-name" class="form-input" placeholder="Jane Smith" autocomplete="off">
     </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Current Level</label>
+        <select id="new-current-level" class="form-select">
+          <option value="">Select level…</option>
+          ${[...Array(13).keys()].map(n => `<option value="${n}">Level ${n}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date of Birth</label>
+        <input type="date" id="new-dob" class="form-input">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input type="tel" id="new-phone" class="form-input" placeholder="(555) 123-4567">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email (optional)</label>
+        <input type="email" id="new-email" class="form-input" placeholder="diver@example.com">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Parent / Guardian Name</label>
+      <input type="text" id="new-parent" class="form-input" placeholder="John Smith">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea id="new-notes" class="form-input" rows="2" style="resize:vertical"
+                placeholder="Any notes about this diver…"></textarea>
+    </div>
+
     <div id="add-diver-alert" class="alert mb-4"></div>
     <div class="flex gap-3 justify-end">
       <button class="btn btn-ghost" onclick="App.closeModal('add-diver-modal')">Cancel</button>
-      <button class="btn btn-primary" id="add-diver-btn" onclick="addDiverByEmail()">Add to Roster</button>
+      <button class="btn btn-primary" id="add-diver-btn" onclick="addDiver()">Add to Roster</button>
     </div>
   </div>
 </div>
 
-<!-- Confirm Skill Modal -->
+
+<!-- =============================================
+     CONFIRM SKILL MODAL
+============================================= -->
 <div class="modal-overlay" id="confirm-modal">
   <div class="modal">
     <div class="modal-header">
@@ -109,7 +172,10 @@
   </div>
 </div>
 
-<!-- Remove Diver Confirmation -->
+
+<!-- =============================================
+     REMOVE DIVER MODAL
+============================================= -->
 <div class="modal-overlay" id="remove-modal">
   <div class="modal">
     <div class="modal-header">
@@ -118,7 +184,7 @@
     </div>
     <p class="text-secondary text-sm mb-4">
       Remove <strong id="remove-diver-name">this diver</strong> from your roster?
-      Their skill data will be kept, they'll just be unlinked from you.
+      Their skill data will be kept; they'll just be unlinked from you.
     </p>
     <div class="flex gap-3 justify-end">
       <button class="btn btn-ghost" onclick="App.closeModal('remove-modal')">Cancel</button>
@@ -126,6 +192,7 @@
     </div>
   </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
@@ -145,10 +212,7 @@
     const user = await Auth.init(true);
     if (!user) return;
     currentUser = user;
-
-    // Coaches only
     Auth.requireRole('coach');
-
     App.renderNav(user);
     await loadRoster();
   })();
@@ -162,11 +226,13 @@
     roster        = rosterData;
     pendingSkills = pending;
 
-    // Stats
-    document.getElementById('roster-count').textContent  = roster.length;
-    document.getElementById('pending-count').textContent = pending.length;
+    const unclaimedCount = roster.filter(r => r.diver.status === 'unclaimed' || r.diver.status === 'pending').length;
 
-    // Pending section
+    document.getElementById('roster-count').textContent   = roster.length;
+    document.getElementById('pending-count').textContent  = pending.length;
+    document.getElementById('unclaimed-count').textContent = unclaimedCount;
+
+    // Pending skill confirmations
     const pendingSection = document.getElementById('pending-section');
     if (pending.length > 0) {
       pendingSection.style.display = 'block';
@@ -200,60 +266,88 @@
         </div>
       `;
     } else {
-      rosterEl.innerHTML = roster.map(r => `
-        <div class="diver-row" id="diver-row-${r.diver.id}" style="cursor:default">
-          <a href="progress.html?diver=${r.diver.id}" style="display:contents; text-decoration:none; color:inherit">
-            <div class="avatar avatar-md">${Auth.getInitials(r.diver.full_name)}</div>
-            <div class="list-item-content">
-              <div class="list-item-title">${App.escHtml(r.diver.full_name)}</div>
-              <div class="list-item-subtitle">${App.escHtml(r.diver.email)}</div>
-            </div>
-          </a>
-          <div class="flex gap-2">
-            <a href="progress.html?diver=${r.diver.id}" class="btn btn-secondary btn-sm">Progress →</a>
-            <button class="btn btn-ghost btn-sm"
-              onclick="openRemoveModal('${r.diver.id}', '${App.escHtml(r.diver.full_name)}')">✕</button>
-          </div>
-        </div>
-      `).join('');
+      rosterEl.innerHTML = roster.map(r => renderDiverRow(r)).join('');
     }
   }
 
-  // ---- Add diver by email ----
-  async function addDiverByEmail() {
-    const emailInput = document.getElementById('add-diver-email');
-    const btn        = document.getElementById('add-diver-btn');
-    const alertEl    = document.getElementById('add-diver-alert');
-    const email      = emailInput.value.trim().toLowerCase();
+  function renderDiverRow(r) {
+    const diver    = r.diver;
+    const status   = diver.status ?? 'active';
+    const isActive = status === 'active';
+
+    const badgeHtml = status !== 'active'
+      ? `<span class="status-badge ${status}">${status === 'pending' ? '⏳ Pending' : '○ Unclaimed'}</span>`
+      : '';
+
+    const levelHtml = diver.current_level != null
+      ? `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>`
+      : '';
+
+    return `
+      <div class="diver-row" id="diver-row-${diver.id}" style="cursor:default">
+        ${isActive
+          ? `<a href="progress.html?diver=${diver.id}" style="display:contents;text-decoration:none;color:inherit">`
+          : '<div style="display:contents">'}
+          <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
+          <div class="list-item-content">
+            <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              ${App.escHtml(diver.full_name)}
+              ${levelHtml}
+              ${badgeHtml}
+            </div>
+            <div class="list-item-subtitle">
+              ${diver.email ? App.escHtml(diver.email) : '<em>No email on file</em>'}
+            </div>
+          </div>
+        ${isActive ? '</a>' : '</div>'}
+        <div class="flex gap-2">
+          ${isActive
+            ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">Progress →</a>`
+            : `<span class="text-xs text-secondary" style="padding:6px 4px">Awaiting signup</span>`}
+          <button class="btn btn-ghost btn-sm"
+            onclick="openRemoveModal('${diver.id}', '${App.escHtml(diver.full_name)}')">✕</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---- Add diver ----
+  async function addDiver() {
+    const btn     = document.getElementById('add-diver-btn');
+    const alertEl = document.getElementById('add-diver-alert');
+
+    const fullName      = document.getElementById('new-full-name').value.trim();
+    const currentLevel  = document.getElementById('new-current-level').value;
+    const dob           = document.getElementById('new-dob').value;
+    const phone         = document.getElementById('new-phone').value.trim();
+    const email         = document.getElementById('new-email').value.trim();
+    const parent        = document.getElementById('new-parent').value.trim();
+    const notes         = document.getElementById('new-notes').value.trim();
 
     alertEl.className = 'alert mb-4';
 
-    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+    if (!fullName) {
       alertEl.className   = 'alert alert-error visible mb-4';
-      alertEl.textContent = 'Please enter a valid email address.';
+      alertEl.textContent = 'Full name is required.';
+      document.getElementById('new-full-name').focus();
       return;
     }
 
     App.setBtnLoading(btn, true);
-
     try {
-      const diver = await SupabaseDB.getProfileByEmail(email);
-
-      if (!diver) {
-        throw new Error('No account found with that email. The diver needs to sign up first.');
-      }
-      if (diver.role !== 'diver') {
-        throw new Error(`That account has the role "${diver.role}" — only divers can be added to a roster.`);
-      }
-      if (roster.find(r => r.diver.id === diver.id)) {
-        throw new Error(`${diver.full_name} is already on your roster.`);
-      }
-
-      await SupabaseDB.addDiverToRoster(currentUser.id, diver.id);
+      await SupabaseDB.createUnclaimedDiver({
+        fullName,
+        email:          email       || null,
+        dateOfBirth:    dob         || null,
+        currentLevel:   currentLevel !== '' ? currentLevel : null,
+        phone:          phone       || null,
+        parentGuardian: parent      || null,
+        notes:          notes       || null,
+      });
 
       App.closeModal('add-diver-modal');
-      emailInput.value = '';
-      App.showToast(`${diver.full_name} added to your roster!`);
+      clearAddDiverForm();
+      App.showToast(`${fullName} added to your roster!`);
       await loadRoster();
     } catch (err) {
       alertEl.className   = 'alert alert-error visible mb-4';
@@ -263,11 +357,19 @@
     }
   }
 
+  function clearAddDiverForm() {
+    ['new-full-name','new-dob','new-phone','new-email','new-parent','new-notes'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('new-current-level').value = '';
+    document.getElementById('add-diver-alert').className = 'alert mb-4';
+  }
+
   // ---- Confirm skill ----
-  function openConfirmModal(completionId, skillId, diverName) {
+  function openConfirmModal(completionId, skillName, diverName) {
     pendingConfirm = { completionId };
-    document.getElementById('confirm-skill-label').textContent = skillId;
-    document.getElementById('confirm-diver-label').textContent  = diverName;
+    document.getElementById('confirm-skill-label').textContent = skillName;
+    document.getElementById('confirm-diver-label').textContent = diverName;
     document.getElementById('confirm-notes').value = '';
     App.openModal('confirm-modal');
   }
@@ -319,11 +421,6 @@
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });
-  });
-
-  // Enter key triggers add-diver submit
-  document.getElementById('add-diver-email').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addDiverByEmail();
   });
 </script>
 

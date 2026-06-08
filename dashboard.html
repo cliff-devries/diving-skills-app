@@ -61,10 +61,11 @@
   async function renderCoachDashboard(user) {
     const main = document.getElementById('main-content');
 
-    // Load roster and pending confirmations in parallel
-    const [roster, pending] = await Promise.all([
+    // Load roster, pending skill confirmations, and pending profile claims in parallel
+    const [roster, pending, claims] = await Promise.all([
       SupabaseDB.getRoster(user.id),
       SupabaseDB.getPendingForCoach(user.id),
+      SupabaseDB.getPendingClaimsForCoach(user.id),
     ]);
 
     main.innerHTML = `
@@ -87,7 +88,32 @@
         </div>
       </div>
 
-      <!-- Pending confirmations -->
+      <!-- Pending profile claims -->
+      ${claims.length ? `
+      <div class="content-section">
+        <div class="section-title" style="color:var(--pending)">🔗 Pending Profile Claims</div>
+        <div class="card card-sm" id="claims-list">
+          ${claims.map(c => `
+            <div class="list-item" id="claim-${c.id}">
+              <div class="avatar-sm">${Auth.getInitials(c.profile?.full_name ?? '')}</div>
+              <div class="list-item-content">
+                <div class="list-item-title">${App.escHtml(c.profile?.full_name ?? 'Unknown')}</div>
+                <div class="list-item-subtitle">
+                  Someone is claiming this profile · ${App.formatRelative(c.created_at)}
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn btn-primary btn-sm"
+                  onclick="approveClaim('${c.id}', this)">Approve</button>
+                <button class="btn btn-ghost btn-sm"
+                  onclick="rejectClaim('${c.id}', this)">Reject</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Pending skill confirmations -->
       <div class="content-section">
         <div class="section-title">Needs Confirmation</div>
         <div id="pending-list">
@@ -173,6 +199,30 @@
 
   function attachConfirmHandlers(user) {
     // Handlers are set via inline onclick to keep this self-contained
+  }
+
+  async function approveClaim(claimId, btn) {
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.approveClaim(claimId);
+      document.getElementById(`claim-${claimId}`)?.remove();
+      App.showToast('Profile claim approved! The diver can now log in.');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  async function rejectClaim(claimId, btn) {
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.rejectClaim(claimId);
+      document.getElementById(`claim-${claimId}`)?.remove();
+      App.showToast('Claim rejected. The diver will need to try again.');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
   }
 
   // =============================================

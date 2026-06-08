@@ -52,10 +52,20 @@ const Auth = {
     const profile = await SupabaseDB.getProfile(session.user.id);
 
     if (!profile) {
-      console.warn('[Auth] No profile found for user:', session.user.id);
-      // Sign them out to avoid a broken state
+      // No profile means this auth user signed up via the claiming flow.
+      // Send them to claim.html to find and link their existing profile.
+      if (!window.location.pathname.endsWith('claim.html')) {
+        window.location.href = '/claim.html';
+      }
+      return null;
+    }
+
+    // Active profile required — pending/unclaimed divers can't log in yet
+    if (profile.status === 'pending') {
       await window.supabaseClient.auth.signOut();
-      window.location.href = '/index.html';
+      if (!window.location.pathname.endsWith('claim.html')) {
+        window.location.href = '/claim.html';
+      }
       return null;
     }
 

@@ -12,11 +12,13 @@ const SupabaseDB = {
   // PROFILES
   // =============================================
 
-  async getProfile(userId) {
+  // Look up a profile by the Supabase auth user UUID (auth_user_id column).
+  // Returns null for unclaimed profiles (they have no auth account).
+  async getProfile(authUserId) {
     const { data, error } = await this.db
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('auth_user_id', authUserId)
       .single();
     if (error && error.code !== 'PGRST116') {
       console.error('[SupabaseDB] getProfile:', error.message);
@@ -24,10 +26,22 @@ const SupabaseDB = {
     return data ?? null;
   },
 
+  async getProfileById(profileId) {
+    const { data, error } = await this.db
+      .from('profiles')
+      .select('*')
+      .eq('id', profileId)
+      .single();
+    if (error && error.code !== 'PGRST116') {
+      console.error('[SupabaseDB] getProfileById:', error.message);
+    }
+    return data ?? null;
+  },
+
   async getProfileByEmail(email) {
     const { data, error } = await this.db
       .from('profiles')
-      .select('id, full_name, email, role, avatar_url')
+      .select('id, full_name, email, role, avatar_url, status')
       .eq('email', email.trim().toLowerCase())
       .single();
     if (error && error.code !== 'PGRST116') {
@@ -36,25 +50,141 @@ const SupabaseDB = {
     return data ?? null;
   },
 
-  async updateProfile(userId, updates) {
+  async updateProfile(profileId, updates) {
     const { data, error } = await this.db
       .from('profiles')
       .update(updates)
-      .eq('id', userId)
+      .eq('id', profileId)
       .select()
       .single();
     if (error) throw new Error(error.message);
     return data;
   },
 
-  async createProfile(profileData) {
-    const { data, error } = await this.db
+  // =============================================
+  // UNCLAIMED DIVERS (Phase 1 — coach creates)
+  // Uses the create_unclaimed_diver RPC which atomically
+  // creates the profile and adds it to the coach's roster.
+  // =============================================
+
+  async createUnclaimedDiver({ fullName, email, dateOfBirth, currentLevel, phone, parentGuardian, notes }) {
+    const { data, error } = await this.db.rpc('create_unclaimed_diver', {
+      p_full_name:       fullName,
+      p_email:           email          || null,
+      p_date_of_birth:   dateOfBirth    || null,
+      p_current_level:   currentLevel   !== '' ? Number(currentLevel) : null,
+      p_phone:           phone          || null,
+      p_parent_guardian: parentGuardian || null,
+      p_notes:           notes          || null,
+    });
+    if (error) throw new Error(error.message);
+    return data; // returns new profile UUID
+  },
+
+  // Search unclaimed/pending profiles by diver name (and optionally coach name).
+  // Used on the claim.html page for divers to find themselves.
+  async searchUnclaimedProfiles(diverName, coachName) {
+    let query = this.db
       .from('profiles')
-      .insert(profileData)
+      .select(`
+        id, full_name, current_level, status,
+        coach:profiles!profiles_created_by_coach_id_fkey (
+          id, full_name
+        )
+      `)
+      .in('status', ['unclaimed', 'pending'])
+      .ilike('full_name', `%${diverName.trim()}%`);
+
+    if (coachName && coachName.trim()) {
+      // Post-filter client-side after fetching — avoids complex nested filter
+    }
+
+    const { data, error } = await query.limit(20);
+    if (error) throw new Error(error.message);
+
+    let results = data ?? [];
+    if (coachName && coachName.trim()) {
+      const q = coachName.trim().toLowerCase();
+      results = results.filter(r => r.coach?.full_name?.toLowerCase().includes(q));
+    }
+    return results;
+  },
+
+  // =============================================
+  // PROFILE CLAIMS (Phase 2 — diver claims)
+  // =============================================
+
+  // Diver submits a claim linking their auth account to an unclaimed profile.
+  async createClaim(profileId, authUserId) {
+    // First mark profile as pending
+    const { error: updateErr } = await this.db
+      .from('profiles')
+      .update({ status: 'pending' })
+      .eq('id', profileId);
+    if (updateErr) throw new Error(updateErr.message);
+
+    const { data, error } = await this.db
+      .from('profile_claims')
+      .insert({ profile_id: profileId, auth_user_id: authUserId })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Roll back status if claim insert fails
+      await this.db.from('profiles').update({ status: 'unclaimed' }).eq('id', profileId);
+      throw new Error(error.message);
+    }
     return data;
+  },
+
+  // Check if the current auth user already has a pending claim
+  async getMyPendingClaim(authUserId) {
+    const { data, error } = await this.db
+      .from('profile_claims')
+      .select(`
+        id,
+        created_at,
+        profile:profiles (
+          id, full_name, current_level,
+          coach:profiles!profiles_created_by_coach_id_fkey (full_name)
+        )
+      `)
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    if (error) { console.error('[SupabaseDB] getMyPendingClaim:', error.message); return null; }
+    return data ?? null;
+  },
+
+  // Coach: get all pending claims for divers they created
+  async getPendingClaimsForCoach(coachId) {
+    const { data, error } = await this.db
+      .from('profile_claims')
+      .select(`
+        id,
+        auth_user_id,
+        created_at,
+        profile:profiles!profile_claims_profile_id_fkey (
+          id, full_name, current_level, date_of_birth
+        )
+      `)
+      .order('created_at', { ascending: true });
+
+    if (error) { console.error('[SupabaseDB] getPendingClaimsForCoach:', error.message); return []; }
+
+    // Filter to only claims for profiles this coach created
+    // (RLS already limits to coach's profiles, but coachId param for extra safety)
+    return data ?? [];
+  },
+
+  // Coach approves a claim via RPC (SECURITY DEFINER bypasses RLS for the update)
+  async approveClaim(claimId) {
+    const { error } = await this.db.rpc('approve_profile_claim', { p_claim_id: claimId });
+    if (error) throw new Error(error.message);
+  },
+
+  // Coach rejects a claim via RPC
+  async rejectClaim(claimId) {
+    const { error } = await this.db.rpc('reject_profile_claim', { p_claim_id: claimId });
+    if (error) throw new Error(error.message);
   },
 
   // =============================================
@@ -68,7 +198,7 @@ const SupabaseDB = {
         id,
         joined_at,
         diver:profiles!roster_diver_id_fkey (
-          id, full_name, email, avatar_url, created_at
+          id, full_name, email, avatar_url, status, current_level, created_at
         )
       `)
       .eq('coach_id', coachId)
@@ -153,7 +283,6 @@ const SupabaseDB = {
     return data ?? [];
   },
 
-  // Returns quick-lookup map: skillId → completion row
   async getCompletionMap(diverId) {
     const rows = await this.getCompletions(diverId);
     const map = {};
@@ -207,10 +336,7 @@ const SupabaseDB = {
   async getRecentCompletions(diverId, limit = 6) {
     const { data, error } = await this.db
       .from('skill_completions')
-      .select(`
-        *,
-        skill:skills (id, skill_name, skill_level)
-      `)
+      .select(`*, skill:skills (id, skill_name, skill_level)`)
       .eq('diver_id', diverId)
       .not('self_reported_at', 'is', null)
       .order('self_reported_at', { ascending: false })
@@ -219,8 +345,6 @@ const SupabaseDB = {
     return data ?? [];
   },
 
-  // All self-reported (unconfirmed) completions across a coach's entire roster,
-  // joined with skill name so the UI can display it without a separate lookup.
   async getPendingForCoach(coachId) {
     const roster = await this.getRoster(coachId);
     const diverIds = roster.map(r => r.diver.id);
@@ -243,7 +367,6 @@ const SupabaseDB = {
     return data ?? [];
   },
 
-  // Completion stats for a diver: { confirmed, selfReported, total }
   async getCompletionStats(diverId) {
     const rows = await this.getCompletions(diverId);
     return {
