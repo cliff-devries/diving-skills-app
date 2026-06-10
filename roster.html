@@ -52,8 +52,8 @@
         <div class="stat-label">Total Divers</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color:var(--pending)" id="pending-count">—</div>
-        <div class="stat-label">Pending Confirmations</div>
+        <div class="stat-value" style="color:var(--pending)" id="ready-count">—</div>
+        <div class="stat-label">Ready for Testing</div>
       </div>
       <div class="stat-card">
         <div class="stat-value" style="color:var(--text-secondary)" id="unclaimed-count">—</div>
@@ -61,10 +61,10 @@
       </div>
     </div>
 
-    <!-- Pending skill confirmations -->
-    <div class="content-section" id="pending-section" style="display:none">
-      <div class="section-title">⏳ Pending Skill Confirmations</div>
-      <div id="pending-list" class="card card-sm"></div>
+    <!-- Skills ready for testing -->
+    <div class="content-section" id="ready-section" style="display:none">
+      <div class="section-title">🧪 Ready for Testing</div>
+      <div id="ready-list" class="card card-sm"></div>
     </div>
 
     <!-- Roster list -->
@@ -147,32 +147,6 @@
 
 
 <!-- =============================================
-     CONFIRM SKILL MODAL
-============================================= -->
-<div class="modal-overlay" id="confirm-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title">Confirm Skill</h2>
-      <button class="modal-close" onclick="App.closeModal('confirm-modal')">✕</button>
-    </div>
-    <p class="text-secondary text-sm mb-4">
-      Confirming <strong id="confirm-skill-label">this skill</strong> for
-      <strong id="confirm-diver-label">this diver</strong>.
-    </p>
-    <div class="form-group">
-      <label class="form-label">Notes (optional)</label>
-      <textarea id="confirm-notes" class="form-input" rows="3" style="resize:vertical"
-                placeholder="Great entry today, keep working on the hurdle…"></textarea>
-    </div>
-    <div class="flex gap-3 justify-end">
-      <button class="btn btn-ghost" onclick="App.closeModal('confirm-modal')">Cancel</button>
-      <button class="btn btn-primary" id="confirm-btn" onclick="submitConfirmation()">✓ Confirm Skill</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- =============================================
      REMOVE DIVER MODAL
 ============================================= -->
 <div class="modal-overlay" id="remove-modal">
@@ -202,8 +176,7 @@
 <script>
   let currentUser    = null;
   let roster         = [];
-  let pendingSkills  = [];
-  let pendingConfirm = null;
+  let readyForTest   = [];
   let pendingRemove  = null;
 
   (async function initRosterPage() {
@@ -227,41 +200,38 @@
   })();
 
   async function loadRoster() {
-    const [rosterData, pending] = await Promise.all([
+    const [rosterData, ready] = await Promise.all([
       SupabaseDB.getRoster(currentUser.id),
-      SupabaseDB.getPendingForCoach(currentUser.id),
+      SupabaseDB.getReadyForTestForCoach(currentUser.id),
     ]);
 
-    roster        = rosterData;
-    pendingSkills = pending;
+    roster      = rosterData;
+    readyForTest = ready;
 
     const unclaimedCount = roster.filter(r => r.diver.status === 'unclaimed' || r.diver.status === 'pending').length;
 
-    document.getElementById('roster-count').textContent   = roster.length;
-    document.getElementById('pending-count').textContent  = pending.length;
+    document.getElementById('roster-count').textContent    = roster.length;
+    document.getElementById('ready-count').textContent     = ready.length;
     document.getElementById('unclaimed-count').textContent = unclaimedCount;
 
-    // Pending skill confirmations
-    const pendingSection = document.getElementById('pending-section');
-    if (pending.length > 0) {
-      pendingSection.style.display = 'block';
-      document.getElementById('pending-list').innerHTML = pending.map(p => `
-        <div class="list-item" id="pending-${p.id}">
+    // Skills ready for testing
+    const readySection = document.getElementById('ready-section');
+    if (ready.length > 0) {
+      readySection.style.display = 'block';
+      document.getElementById('ready-list').innerHTML = ready.map(p => `
+        <a href="progress.html?diver=${p.diver?.id}" class="list-item">
           <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
           <div class="list-item-content">
             <div class="list-item-title">${App.escHtml(p.diver?.full_name ?? 'Unknown')}</div>
             <div class="list-item-subtitle">
-              ${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ${App.formatRelative(p.self_reported_at)}
+              ${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ready since ${App.formatRelative(p.ready_for_test_at)}
             </div>
           </div>
-          <button class="btn btn-primary btn-sm"
-            onclick="openConfirmModal('${p.id}', '${App.escHtml(p.skill?.skill_name ?? 'Skill')}', '${App.escHtml(p.diver?.full_name ?? '')}')">
-            Confirm
-          </button>
-        </div>
+          <span class="badge badge-pending">Test now →</span>
+        </a>
       `).join('');
     } else {
-      pendingSection.style.display = 'none';
+      readySection.style.display = 'none';
     }
 
     // Roster list
@@ -374,33 +344,6 @@
     document.getElementById('add-diver-alert').className = 'alert mb-4';
   }
 
-  // ---- Confirm skill ----
-  function openConfirmModal(completionId, skillName, diverName) {
-    pendingConfirm = { completionId };
-    document.getElementById('confirm-skill-label').textContent = skillName;
-    document.getElementById('confirm-diver-label').textContent = diverName;
-    document.getElementById('confirm-notes').value = '';
-    App.openModal('confirm-modal');
-  }
-
-  async function submitConfirmation() {
-    if (!pendingConfirm) return;
-    const btn   = document.getElementById('confirm-btn');
-    const notes = document.getElementById('confirm-notes').value;
-    App.setBtnLoading(btn, true);
-    try {
-      await SupabaseDB.confirmSkill(pendingConfirm.completionId, currentUser.id, notes);
-      App.closeModal('confirm-modal');
-      App.showToast('Skill confirmed!');
-      await loadRoster();
-    } catch (err) {
-      App.showToast(err.message, 'error');
-    } finally {
-      App.setBtnLoading(btn, false);
-      pendingConfirm = null;
-    }
-  }
-
   // ---- Remove diver ----
   function openRemoveModal(diverId, diverName) {
     pendingRemove = diverId;
@@ -426,7 +369,7 @@
   }
 
   // Close modals on overlay click
-  ['add-diver-modal', 'confirm-modal', 'remove-modal'].forEach(id => {
+  ['add-diver-modal', 'remove-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });

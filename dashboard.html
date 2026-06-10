@@ -61,10 +61,10 @@
   async function renderCoachDashboard(user) {
     const main = document.getElementById('main-content');
 
-    // Load roster, pending skill confirmations, and pending profile claims in parallel
-    const [roster, pending, claims] = await Promise.all([
+    // Load roster, skills ready for testing, and pending profile claims in parallel
+    const [roster, readyForTest, claims] = await Promise.all([
       SupabaseDB.getRoster(user.id),
-      SupabaseDB.getPendingForCoach(user.id),
+      SupabaseDB.getReadyForTestForCoach(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
     ]);
 
@@ -81,10 +81,10 @@
           <div class="stat-label">Divers on Roster</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: ${pending.length ? 'var(--pending)' : 'var(--accent)'}">
-            ${pending.length}
+          <div class="stat-value" style="color: ${readyForTest.length ? 'var(--pending)' : 'var(--accent)'}">
+            ${readyForTest.length}
           </div>
-          <div class="stat-label">Awaiting Confirmation</div>
+          <div class="stat-label">Ready for Testing</div>
         </div>
       </div>
 
@@ -113,11 +113,11 @@
         </div>
       </div>` : ''}
 
-      <!-- Pending skill confirmations -->
+      <!-- Skills ready for testing -->
       <div class="content-section">
-        <div class="section-title">Needs Confirmation</div>
-        <div id="pending-list">
-          ${renderPendingList(pending)}
+        <div class="section-title">Ready for Testing</div>
+        <div id="ready-list">
+          ${renderReadyForTestList(readyForTest)}
         </div>
       </div>
 
@@ -139,33 +139,25 @@
       </div>
     `;
 
-    // Wire up confirm buttons
-    attachConfirmHandlers(user);
   }
 
-  function renderPendingList(pending) {
-    if (!pending.length) {
+  function renderReadyForTestList(readyForTest) {
+    if (!readyForTest.length) {
       return `<div class="empty-state" style="padding: 24px">
         <div class="empty-state-icon">✅</div>
-        <p>No pending confirmations — you're all caught up!</p>
+        <p>No skills awaiting testing — you're all caught up!</p>
       </div>`;
     }
     return `<div class="card card-sm">
-      ${pending.slice(0, 8).map(p => `
-        <div class="list-item">
+      ${readyForTest.slice(0, 8).map(p => `
+        <a href="progress.html?diver=${p.diver?.id}" class="list-item">
           <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
           <div class="list-item-content">
             <div class="list-item-title">${App.escHtml(p.diver?.full_name ?? 'Unknown Diver')}</div>
-            <div class="list-item-subtitle">${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ${App.formatRelative(p.self_reported_at)}</div>
+            <div class="list-item-subtitle">${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ready since ${App.formatRelative(p.ready_for_test_at)}</div>
           </div>
-          <button
-            class="btn btn-primary btn-sm"
-            data-completion-id="${p.id}"
-            data-coach-id="${Auth.currentUser.id}"
-            onclick="confirmSkill(this)">
-            Confirm
-          </button>
-        </div>
+          <span class="badge badge-pending">Test now →</span>
+        </a>
       `).join('')}
     </div>`;
   }
@@ -181,24 +173,6 @@
         <span>→</span>
       </a>
     `;
-  }
-
-  async function confirmSkill(btn) {
-    const completionId = btn.dataset.completionId;
-    const coachId      = btn.dataset.coachId;
-    App.setBtnLoading(btn, true);
-    try {
-      await SupabaseDB.confirmSkill(completionId, coachId);
-      btn.closest('.list-item').remove();
-      App.showToast('Skill confirmed!');
-    } catch (err) {
-      App.showToast(err.message, 'error');
-      App.setBtnLoading(btn, false);
-    }
-  }
-
-  function attachConfirmHandlers(user) {
-    // Handlers are set via inline onclick to keep this self-contained
   }
 
   async function approveClaim(claimId, btn) {
@@ -231,13 +205,11 @@
   async function renderDiverDashboard(user) {
     const main = document.getElementById('main-content');
 
-    const [stats, recentCompletions, coach] = await Promise.all([
+    const [stats, recentAttempts, coach] = await Promise.all([
       SupabaseDB.getCompletionStats(user.id),
-      SupabaseDB.getRecentCompletions(user.id, 6),
+      SupabaseDB.getRecentTestAttempts(user.id, 6),
       SupabaseDB.getDiverCoach(user.id),
     ]);
-
-    const pct = App.calcProgress(stats.confirmed + stats.selfReported, stats.confirmed + stats.selfReported + 1 || 1);
 
     main.innerHTML = `
       <div class="page-header">
@@ -248,12 +220,16 @@
       <!-- Stats -->
       <div class="card-grid mb-6">
         <div class="stat-card">
-          <div class="stat-value">${stats.confirmed}</div>
-          <div class="stat-label">Skills Confirmed</div>
+          <div class="stat-value" style="color:#3b82f6">${stats.attained}</div>
+          <div class="stat-label">Skills Attained</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: var(--pending)">${stats.selfReported}</div>
-          <div class="stat-label">Self-Reported</div>
+          <div class="stat-value" style="color: var(--pending)">${stats.readyForTest}</div>
+          <div class="stat-label">Ready for Test</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--accent)">${stats.certified}</div>
+          <div class="stat-label">Certified</div>
         </div>
       </div>
 
@@ -269,19 +245,19 @@
       <!-- Recent activity -->
       <div class="content-section">
         <div class="section-title">Recent Activity</div>
-        ${recentCompletions.length === 0
+        ${recentAttempts.length === 0
           ? `<div class="empty-state" style="padding: 28px">
               <div class="empty-state-icon">🎯</div>
-              <p>No skills logged yet. <a href="skills.html">Browse the skills library</a> to get started.</p>
+              <p>No test attempts yet. <a href="progress.html">View your progress</a> to get started.</p>
              </div>`
           : `<div class="card card-sm">
-              ${recentCompletions.map(c => `
+              ${recentAttempts.map(a => `
                 <div class="list-item">
                   <div class="list-item-content">
-                    <div class="list-item-title">${App.escHtml(c.skill?.skill_name ?? `Skill #${c.skill_id}`)}</div>
-                    <div class="list-item-subtitle">${App.formatRelative(c.self_reported_at)}</div>
+                    <div class="list-item-title">${App.escHtml(a.skill?.skill_name ?? `Skill #${a.skill_id}`)}</div>
+                    <div class="list-item-subtitle">${App.formatDate(a.test_date)}</div>
                   </div>
-                  ${App.statusBadgeHtml(c)}
+                  <span class="badge badge-accent">${a.score}/10</span>
                 </div>
               `).join('')}
              </div>`

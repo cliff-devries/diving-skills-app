@@ -537,8 +537,9 @@ h4 { font-size: 0.95rem; font-weight: 600; }
   cursor: pointer;
 }
 .skill-card:hover { border-color: rgba(0,201,167,0.4); background: var(--bg-surface-2); }
-.skill-card.confirmed { border-left: 3px solid var(--accent); }
-.skill-card.self-reported { border-left: 3px solid var(--pending); }
+.skill-card.certified { border-left: 3px solid var(--accent); }
+.skill-card.ready     { border-left: 3px solid var(--pending); }
+.skill-card.attained  { border-left: 3px solid #3b82f6; }
 
 .skill-card-header {
   display: flex;

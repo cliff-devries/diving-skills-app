@@ -277,8 +277,7 @@ const SupabaseDB = {
     const { data, error } = await this.db
       .from('skill_completions')
       .select('*')
-      .eq('diver_id', diverId)
-      .order('self_reported_at', { ascending: false });
+      .eq('diver_id', diverId);
     if (error) { console.error('[SupabaseDB] getCompletions:', error.message); return []; }
     return data ?? [];
   },
@@ -290,62 +289,32 @@ const SupabaseDB = {
     return map;
   },
 
-  async selfReportSkill(diverId, skillId) {
-    const { data, error } = await this.db
-      .from('skill_completions')
-      .upsert(
-        {
-          diver_id:        diverId,
-          skill_id:        skillId,
-          self_reported_at: new Date().toISOString(),
-        },
-        { onConflict: 'diver_id,skill_id' }
-      )
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
+  // Stage-1/2/3 counts for a diver, used on the dashboard and profile page.
+  async getCompletionStats(diverId) {
+    const rows = await this.getCompletions(diverId);
+    return {
+      attained:     rows.filter(r => r.skill_attained).length,
+      readyForTest: rows.filter(r => r.ready_for_test && !r.tested_and_passed).length,
+      certified:    rows.filter(r => r.tested_and_passed).length,
+      total:        rows.length,
+    };
   },
 
-  async confirmSkill(completionId, coachId, notes = '') {
+  // Recent test attempts for a diver, used as "Recent Activity" on the dashboard.
+  async getRecentTestAttempts(diverId, limit = 6) {
     const { data, error } = await this.db
-      .from('skill_completions')
-      .update({
-        coach_confirmed_at: new Date().toISOString(),
-        coach_id:           coachId,
-        notes:              notes,
-      })
-      .eq('id', completionId)
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
-  },
-
-  async unconfirmSkill(completionId) {
-    const { data, error } = await this.db
-      .from('skill_completions')
-      .update({ coach_confirmed_at: null, coach_id: null })
-      .eq('id', completionId)
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
-  },
-
-  async getRecentCompletions(diverId, limit = 6) {
-    const { data, error } = await this.db
-      .from('skill_completions')
+      .from('skill_test_attempts')
       .select(`*, skill:skills (id, skill_name, skill_level)`)
       .eq('diver_id', diverId)
-      .not('self_reported_at', 'is', null)
-      .order('self_reported_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) return [];
+    if (error) { console.error('[SupabaseDB] getRecentTestAttempts:', error.message); return []; }
     return data ?? [];
   },
 
-  async getPendingForCoach(coachId) {
+  // Skills that are ready for testing across a coach's roster (Stage 2 done,
+  // Stage 3 not yet). Used for the coach dashboard/roster "needs testing" queue.
+  async getReadyForTestForCoach(coachId) {
     const roster = await this.getRoster(coachId);
     const diverIds = roster.map(r => r.diver.id);
     if (!diverIds.length) return [];
@@ -360,20 +329,11 @@ const SupabaseDB = {
         )
       `)
       .in('diver_id', diverIds)
-      .not('self_reported_at', 'is', null)
-      .is('coach_confirmed_at', null)
-      .order('self_reported_at', { ascending: false });
-    if (error) { console.error('[SupabaseDB] getPendingForCoach:', error.message); return []; }
+      .eq('ready_for_test', true)
+      .eq('tested_and_passed', false)
+      .order('ready_for_test_at', { ascending: true });
+    if (error) { console.error('[SupabaseDB] getReadyForTestForCoach:', error.message); return []; }
     return data ?? [];
-  },
-
-  async getCompletionStats(diverId) {
-    const rows = await this.getCompletions(diverId);
-    return {
-      confirmed:    rows.filter(r => r.coach_confirmed_at).length,
-      selfReported: rows.filter(r => r.self_reported_at && !r.coach_confirmed_at).length,
-      total:        rows.length,
-    };
   },
 
   // =============================================

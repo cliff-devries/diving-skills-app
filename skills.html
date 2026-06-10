@@ -14,7 +14,7 @@
   <main class="main-content fade-in">
     <div class="page-header">
       <h1>Skills Library</h1>
-      <p>Browse all skills across Levels 0–12. Tap a skill to log it.</p>
+      <p>Browse all skills across Levels 0–12. Tap a skill for details.</p>
     </div>
 
     <!-- Filter bar -->
@@ -196,14 +196,14 @@
 
   function buildSkillCard(skill) {
     const completion = completionMap[skill.id];
-    const status     = App.completionStatus(completion);
-    const cardClass  = status === 'confirmed' ? 'confirmed' : status === 'self-reported' ? 'self-reported' : '';
+    const status     = App.stageStatus(completion);
+    const cardClass  = status === 'none' ? '' : status;
 
     return `
       <div class="skill-card ${cardClass}" data-skill-id="${skill.id}" role="button" tabindex="0">
         <div class="skill-card-header">
           <div class="skill-name">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span title="Requires harness">+</span>' : ''}</div>
-          ${App.statusBadgeHtml(completion)}
+          ${App.stageBadgeHtml(completion)}
         </div>
         ${skill.description
           ? `<div class="skill-description">${App.escHtml(skill.description.slice(0, 100))}${skill.description.length > 100 ? '…' : ''}</div>`
@@ -231,7 +231,7 @@
       ${skill.requiresHarness ? '<span class="badge badge-secondary">+ Harness Required</span>' : ''}
     `;
 
-    document.getElementById('modal-status-badge').innerHTML = App.statusBadgeHtml(completion) || '';
+    document.getElementById('modal-status-badge').innerHTML = App.stageBadgeHtml(completion) || '';
     document.getElementById('modal-description').textContent = skill.description || 'No description available.';
 
     const videoWrap = document.getElementById('modal-video');
@@ -258,40 +258,26 @@
     const area = document.getElementById('modal-action-area');
 
     if (currentUser.role === 'diver') {
-      if (!completion) {
+      const status = App.stageStatus(completion);
+      if (status === 'certified') {
+        area.innerHTML = `<p class="text-secondary text-sm" style="text-align:center">✅ Tested and passed</p>`;
+      } else if (status === 'ready') {
+        area.innerHTML = `<p class="text-pending text-sm" style="text-align:center">⏳ Ready for testing — your coach will test this skill soon.</p>`;
+      } else if (status === 'attained') {
         area.innerHTML = `
-          <button class="btn btn-primary btn-full" onclick="selfReportSkill(${skill.id}, this)">
-            ✋ Mark as Self-Reported
-          </button>
-          <p class="text-xs text-secondary mt-2" style="text-align:center">
-            Your coach will confirm once they've seen you do it.
-          </p>
+          <p class="text-secondary text-sm" style="text-align:center">Marked as attained on ${App.formatDate(completion.skill_attained_at)}.</p>
+          <a href="progress.html" class="btn btn-secondary btn-full mt-2">View on Progress page</a>
         `;
-      } else if (completion.coach_confirmed_at) {
-        area.innerHTML = `<p class="text-secondary text-sm" style="text-align:center">✅ Coach confirmed on ${App.formatDate(completion.coach_confirmed_at)}</p>`;
       } else {
         area.innerHTML = `
-          <p class="text-pending text-sm" style="text-align:center">⏳ Self-reported ${App.formatRelative(completion.self_reported_at)} — awaiting coach confirmation.</p>
+          <p class="text-secondary text-sm mb-2" style="text-align:center">Mark this skill as attained from your Progress page once you can perform it.</p>
+          <a href="progress.html" class="btn btn-primary btn-full">Go to Progress</a>
         `;
       }
     } else if (currentUser.role === 'coach') {
-      area.innerHTML = `<p class="text-secondary text-sm">Manage skill completions from the <a href="roster.html">Roster</a> or <a href="progress.html">Progress</a> pages.</p>`;
+      area.innerHTML = `<p class="text-secondary text-sm">Manage skill progression from the <a href="roster.html">Roster</a> or <a href="progress.html">Progress</a> pages.</p>`;
     } else {
       area.innerHTML = '';
-    }
-  }
-
-  async function selfReportSkill(skillId, btn) {
-    App.setBtnLoading(btn, true);
-    try {
-      const completion = await SupabaseDB.selfReportSkill(currentUser.id, skillId);
-      completionMap[skillId] = completion;
-      App.showToast('Skill logged! Your coach will confirm it soon.');
-      App.closeModal('skill-modal');
-      applyFilters();
-    } catch (err) {
-      App.showToast(err.message, 'error');
-      App.setBtnLoading(btn, false);
     }
   }
 

@@ -165,19 +165,21 @@ const App = {
   },
 
   // =============================================
-  // COMPLETION STATUS HELPERS
+  // STAGE STATUS HELPERS (3-stage skill progression)
   // =============================================
-  completionStatus(completion) {
-    if (!completion)                   return 'none';
-    if (completion.coach_confirmed_at) return 'confirmed';
-    if (completion.self_reported_at)   return 'self-reported';
+  stageStatus(completion) {
+    if (!completion)                  return 'none';
+    if (completion.tested_and_passed) return 'certified';
+    if (completion.ready_for_test)    return 'ready';
+    if (completion.skill_attained)    return 'attained';
     return 'none';
   },
 
-  statusBadgeHtml(completion) {
-    const status = this.completionStatus(completion);
-    if (status === 'confirmed')    return '<span class="badge badge-accent">✓ Confirmed</span>';
-    if (status === 'self-reported') return '<span class="badge badge-pending">⏳ Self-Reported</span>';
+  stageBadgeHtml(completion) {
+    const status = this.stageStatus(completion);
+    if (status === 'certified') return '<span class="badge badge-accent">✓ Certified</span>';
+    if (status === 'ready')     return '<span class="badge badge-pending">Ready for Test</span>';
+    if (status === 'attained')  return '<span class="badge" style="background:rgba(59,130,246,.12);color:#3b82f6">Attained</span>';
     return '';
   },
 
