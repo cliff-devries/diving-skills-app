@@ -396,20 +396,28 @@ const SupabaseDB = {
   // Inserts a new test attempt record (history is never overwritten) and
   // marks the skill_completions row as tested_and_passed.
   async recordTestAttempt({ skillCompletionId, diverId, skillId, coachId, score, testDate, notes }) {
+    const payload = {
+      skill_completion_id: skillCompletionId,
+      diver_id:            diverId,
+      skill_id:            skillId,
+      coach_id:            coachId,
+      score:               score,
+      test_date:           testDate,
+      notes:               notes || '',
+    };
+    const { data: { user: authUser } } = await this.db.auth.getUser();
+    console.log('[SupabaseDB] recordTestAttempt — auth.uid():', authUser?.id);
+    console.log('[SupabaseDB] recordTestAttempt — insert payload:', payload);
+
     const { data: attempt, error: attemptError } = await this.db
       .from('skill_test_attempts')
-      .insert({
-        skill_completion_id: skillCompletionId,
-        diver_id:            diverId,
-        skill_id:            skillId,
-        coach_id:            coachId,
-        score:               score,
-        test_date:           testDate,
-        notes:               notes || '',
-      })
+      .insert(payload)
       .select()
       .single();
-    if (attemptError) throw new Error(attemptError.message);
+    if (attemptError) {
+      console.error('[SupabaseDB] recordTestAttempt — insert error:', attemptError);
+      throw new Error(attemptError.message);
+    }
 
     const { data: completion, error: completionError } = await this.db
       .from('skill_completions')
