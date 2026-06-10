@@ -15,10 +15,32 @@ if (missing.length) {
   process.exit(1);
 }
 
+// Netlify env var values sometimes get pasted with surrounding quotes or
+// trailing whitespace, which breaks the generated string literal below
+// (e.g. SUPABASE_ANON_KEY: ''eyJhbGci...'' -> SyntaxError: Unexpected
+// identifier). Strip a single layer of wrapping quotes and trim whitespace
+// before embedding the value.
+function sanitize(value) {
+  let v = value.trim();
+  if (v.length >= 2) {
+    const first = v[0];
+    const last  = v[v.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      v = v.slice(1, -1).trim();
+    }
+  }
+  return v;
+}
+
+const supabaseUrl     = sanitize(process.env.SUPABASE_URL);
+const supabaseAnonKey = sanitize(process.env.SUPABASE_ANON_KEY);
+
+// JSON.stringify produces a properly quoted + escaped JS string literal,
+// regardless of any special characters in the value.
 const config = `// Auto-generated at build time from Netlify environment variables. Do not edit.
 const CONFIG = {
-  SUPABASE_URL:      '${process.env.SUPABASE_URL}',
-  SUPABASE_ANON_KEY: '${process.env.SUPABASE_ANON_KEY}',
+  SUPABASE_URL:      ${JSON.stringify(supabaseUrl)},
+  SUPABASE_ANON_KEY: ${JSON.stringify(supabaseAnonKey)},
   APP_NAME:          'Dive Drills',
   APP_VERSION:       '1.0.0',
 };
