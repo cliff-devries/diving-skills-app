@@ -375,4 +375,113 @@ const SupabaseDB = {
       total:        rows.length,
     };
   },
+
+  // =============================================
+  // THREE-STAGE SKILL PROGRESSION
+  // =============================================
+
+  // Internal helper: upsert a skill_completions row by (diver_id, skill_id).
+  async _upsertCompletion(diverId, skillId, updates) {
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .upsert(
+        { diver_id: diverId, skill_id: skillId, ...updates },
+        { onConflict: 'diver_id,skill_id' }
+      )
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // Stage 1 — Skill Attained. Settable by the diver (own row) or their coach.
+  async setSkillAttained(diverId, skillId, userId, attained) {
+    const updates = attained
+      ? {
+          skill_attained:    true,
+          skill_attained_at: new Date().toISOString(),
+          skill_attained_by: userId,
+        }
+      : {
+          skill_attained:    false,
+          skill_attained_at: null,
+          skill_attained_by: null,
+          // Cascade: a skill can't be ready for test if it's no longer attained.
+          ready_for_test:    false,
+          ready_for_test_at: null,
+          ready_for_test_by: null,
+        };
+    return this._upsertCompletion(diverId, skillId, updates);
+  },
+
+  // Stage 2 — Ready for Test. Coach only. Requires Stage 1 complete.
+  async setReadyForTest(diverId, skillId, coachId, ready) {
+    const updates = ready
+      ? {
+          ready_for_test:    true,
+          ready_for_test_at: new Date().toISOString(),
+          ready_for_test_by: coachId,
+        }
+      : {
+          ready_for_test:    false,
+          ready_for_test_at: null,
+          ready_for_test_by: null,
+        };
+    return this._upsertCompletion(diverId, skillId, updates);
+  },
+
+  // Stage 3 — Tested and Passed. Coach only. Requires Stages 1 & 2 complete.
+  // Inserts a new test attempt record (history is never overwritten) and
+  // marks the skill_completions row as tested_and_passed.
+  async recordTestAttempt({ skillCompletionId, diverId, skillId, coachId, score, testDate, notes }) {
+    const { data: attempt, error: attemptError } = await this.db
+      .from('skill_test_attempts')
+      .insert({
+        skill_completion_id: skillCompletionId,
+        diver_id:            diverId,
+        skill_id:            skillId,
+        coach_id:            coachId,
+        score:               score,
+        test_date:           testDate,
+        notes:               notes || '',
+      })
+      .select()
+      .single();
+    if (attemptError) throw new Error(attemptError.message);
+
+    const { data: completion, error: completionError } = await this.db
+      .from('skill_completions')
+      .update({ tested_and_passed: true })
+      .eq('id', skillCompletionId)
+      .select()
+      .single();
+    if (completionError) throw new Error(completionError.message);
+
+    return { attempt, completion };
+  },
+
+  // Full attempt history for one skill (most recent first).
+  async getTestAttempts(skillCompletionId) {
+    const { data, error } = await this.db
+      .from('skill_test_attempts')
+      .select('*')
+      .eq('skill_completion_id', skillCompletionId)
+      .order('test_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) { console.error('[SupabaseDB] getTestAttempts:', error.message); return []; }
+    return data ?? [];
+  },
+
+  // All attempts for a diver, used to show "most recent attempt" per skill
+  // on the progress page without an extra round-trip per skill.
+  async getAllTestAttempts(diverId) {
+    const { data, error } = await this.db
+      .from('skill_test_attempts')
+      .select('*')
+      .eq('diver_id', diverId)
+      .order('test_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) { console.error('[SupabaseDB] getAllTestAttempts:', error.message); return []; }
+    return data ?? [];
+  },
 };

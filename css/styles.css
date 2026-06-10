@@ -805,6 +805,99 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* =============================================
+   SKILL STAGE PROGRESSION (3-stage progress page)
+   ============================================= */
+.skill-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.skill-row:last-child { border-bottom: none; }
+
+.skill-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.skill-row-info { min-width: 0; flex: 1; }
+.skill-row-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.harness-icon { font-size: 0.85rem; }
+
+.stage-indicators {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.stage-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+.stage-circle:hover:not(.disabled) { border-color: var(--text-secondary); color: var(--text-primary); }
+.stage-circle.disabled { cursor: not-allowed; opacity: 0.35; }
+
+.stage-circle.stage-1.filled { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+.stage-circle.stage-2.filled { background: var(--pending); border-color: var(--pending); color: #1a1a1a; }
+.stage-circle.stage-3.filled { background: var(--accent); border-color: var(--accent); color: #1a1a1a; }
+
+.test-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.test-panel.open { max-height: 900px; }
+
+.test-panel-inner {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.attempts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-top: 12px;
+}
+.attempts-table th, .attempts-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.attempts-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.attempts-table tr:last-child td { border-bottom: none; }
+
+.level-cert-count {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* =============================================
    ANIMATIONS
    ============================================= */
 .fade-in {

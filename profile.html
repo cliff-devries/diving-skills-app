@@ -200,6 +200,35 @@
               <div class="list-item-subtitle text-capitalize">${Auth.getRoleLabel(user.role)}</div>
             </div>
           </div>
+          <div class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-title">Password</div>
+              <div class="list-item-subtitle">••••••••</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="toggleChangePassword(true)">Change</button>
+          </div>
+
+          <!-- Change password form -->
+          <div id="password-form" class="edit-form">
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input type="password" id="current-password" class="form-input" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" id="new-password" class="form-input" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" id="confirm-password" class="form-input" autocomplete="new-password">
+            </div>
+            <div id="password-alert" class="alert mb-3"></div>
+            <div class="flex gap-3">
+              <button class="btn btn-primary btn-sm" id="password-save-btn" onclick="changePassword()">Update Password</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleChangePassword(false)">Cancel</button>
+            </div>
+          </div>
+
           <div class="list-item" style="border-bottom:none; padding-top:16px">
             <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Sign Out</button>
           </div>
@@ -213,6 +242,60 @@
     document.getElementById('edit-form').style.display = show ? 'block' : 'none';
     document.getElementById('view-mode').style.display  = show ? 'none' : 'block';
     if (show) document.getElementById('edit-name').focus();
+  }
+
+  function toggleChangePassword(show) {
+    const form = document.getElementById('password-form');
+    form.style.display = show ? 'block' : 'none';
+    if (show) {
+      document.getElementById('current-password').focus();
+    } else {
+      document.getElementById('current-password').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('confirm-password').value = '';
+      document.getElementById('password-alert').className = 'alert mb-3';
+    }
+  }
+
+  async function changePassword() {
+    const currentInput = document.getElementById('current-password');
+    const newInput     = document.getElementById('new-password');
+    const confirmInput = document.getElementById('confirm-password');
+    const btn          = document.getElementById('password-save-btn');
+    const alertEl      = document.getElementById('password-alert');
+
+    const currentPassword = currentInput.value;
+    const newPassword     = newInput.value;
+    const confirmPassword = confirmInput.value;
+
+    if (!currentPassword) {
+      alertEl.className   = 'alert alert-error visible mb-3';
+      alertEl.textContent = 'Please enter your current password.';
+      return;
+    }
+    if (newPassword.length < 6) {
+      alertEl.className   = 'alert alert-error visible mb-3';
+      alertEl.textContent = 'New password must be at least 6 characters.';
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alertEl.className   = 'alert alert-error visible mb-3';
+      alertEl.textContent = 'New passwords do not match.';
+      return;
+    }
+    alertEl.className = 'alert mb-3';
+
+    App.setBtnLoading(btn, true);
+    try {
+      await Auth.changePassword(currentPassword, newPassword);
+      toggleChangePassword(false);
+      App.showToast('Password updated!');
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-3';
+      alertEl.textContent = err.message;
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
   }
 
   async function saveProfile() {

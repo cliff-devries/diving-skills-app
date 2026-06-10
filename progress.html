@@ -17,28 +17,11 @@
     }
     .level-skills-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
+      gap: 12px;
       margin-bottom: 16px;
     }
-    .skill-check-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .skill-check-row:last-child { border-bottom: none; }
-    .skill-check-icon {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.85rem;
-      flex-shrink: 0;
-    }
-    .skill-check-icon.confirmed     { background: var(--accent-dim); color: var(--accent); }
-    .skill-check-icon.self-reported { background: var(--pending-dim); color: var(--pending); }
-    .skill-check-icon.none          { background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
   </style>
 </head>
 <body>
@@ -57,16 +40,16 @@
     <!-- Summary stats -->
     <div class="progress-summary">
       <div class="stat-card">
-        <div class="stat-value" id="stat-confirmed">—</div>
-        <div class="stat-label">Confirmed</div>
+        <div class="stat-value" style="color:#3b82f6" id="stat-attained">—</div>
+        <div class="stat-label">Skill Attained</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color:var(--pending)" id="stat-pending">—</div>
-        <div class="stat-label">Self-Reported</div>
+        <div class="stat-value" style="color:var(--pending)" id="stat-ready">—</div>
+        <div class="stat-label">Ready for Test</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="stat-total">—</div>
-        <div class="stat-label">Total Skills</div>
+        <div class="stat-value" id="stat-certified">—</div>
+        <div class="stat-label">Certified</div>
       </div>
     </div>
 
@@ -86,27 +69,6 @@
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
-<!-- Confirm skill modal (coach only) -->
-<div class="modal-overlay" id="confirm-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title">Confirm Skill</h2>
-      <button class="modal-close" onclick="App.closeModal('confirm-modal')">✕</button>
-    </div>
-    <p class="text-secondary text-sm mb-4">
-      Confirming <strong id="confirm-skill-name">this skill</strong> for <strong id="confirm-diver-name">this diver</strong>.
-    </p>
-    <div class="form-group">
-      <label class="form-label">Coach Notes (optional)</label>
-      <textarea id="confirm-notes" class="form-input" rows="3" placeholder="Great job on the entry…" style="resize:vertical"></textarea>
-    </div>
-    <div class="flex gap-3 justify-end">
-      <button class="btn btn-ghost" onclick="App.closeModal('confirm-modal')">Cancel</button>
-      <button class="btn btn-primary" id="confirm-submit-btn" onclick="submitConfirmation()">✓ Confirm Skill</button>
-    </div>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=2"></script>
@@ -115,13 +77,13 @@
 <script src="js/app.js"></script>
 
 <script>
-  let allSkills      = [];
-  let completionMap  = {};
-  let currentUser    = null;
-  let targetDiverId  = null;
-  let targetDiver    = null;
-  let activeLevel    = 0;
-  let pendingConfirm = null;  // { completionId, skillName }
+  let allSkills       = [];
+  let completionMap   = {};
+  let attemptsBySkill = {};
+  let currentUser     = null;
+  let targetDiverId   = null;
+  let targetDiver     = null;
+  let activeLevel     = 0;
 
   (async function initProgressPage() {
     initSupabase();
@@ -146,28 +108,60 @@
         document.getElementById('diver-banner').classList.remove('hidden');
       }
     } else {
+      // Divers can only ever view their own progress.
       targetDiverId = user.id;
     }
 
-    const [skills, cMap] = await Promise.all([
+    const [skills, cMap, attempts] = await Promise.all([
       Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
+      SupabaseDB.getAllTestAttempts(targetDiverId),
     ]);
 
     allSkills     = skills;
     completionMap = cMap;
 
-    updateStats(skills, cMap);
-    buildLevelTabs(skills, cMap);
+    attemptsBySkill = {};
+    attempts.forEach(a => {
+      (attemptsBySkill[a.skill_id] ??= []).push(a);
+    });
+
+    updateStats(skills, completionMap);
+    buildLevelTabs(skills, completionMap);
     renderLevel(activeLevel);
   })();
 
+  // =============================================
+  // PERMISSIONS
+  // =============================================
+  function canSetStage1() {
+    if (currentUser.role === 'coach') return true;
+    return currentUser.role === 'diver' && targetDiverId === currentUser.id;
+  }
+  function canSetStage23() {
+    return currentUser.role === 'coach';
+  }
+
+  // =============================================
+  // STATS / TABS / LEVEL HEADER
+  // =============================================
   function updateStats(skills, cMap) {
-    const confirmed    = Object.values(cMap).filter(c => c.coach_confirmed_at).length;
-    const selfReported = Object.values(cMap).filter(c => c.self_reported_at && !c.coach_confirmed_at).length;
-    document.getElementById('stat-confirmed').textContent = confirmed;
-    document.getElementById('stat-pending').textContent   = selfReported;
-    document.getElementById('stat-total').textContent     = skills.length;
+    const attained = Object.values(cMap).filter(c => c.skill_attained).length;
+    const ready    = Object.values(cMap).filter(c => c.ready_for_test).length;
+    const certified = Object.values(cMap).filter(c => c.tested_and_passed).length;
+    document.getElementById('stat-attained').textContent  = attained;
+    document.getElementById('stat-ready').textContent     = ready;
+    document.getElementById('stat-certified').textContent = certified;
+  }
+
+  function levelStats(level) {
+    const lvlSkills  = allSkills.filter(s => s.level === level);
+    const total      = lvlSkills.length;
+    const attained   = lvlSkills.filter(s => completionMap[s.id]?.skill_attained).length;
+    const ready      = lvlSkills.filter(s => completionMap[s.id]?.ready_for_test).length;
+    const certified  = lvlSkills.filter(s => completionMap[s.id]?.tested_and_passed).length;
+    const pct        = App.calcProgress(certified, total);
+    return { total, attained, ready, certified, pct };
   }
 
   function buildLevelTabs(skills, cMap) {
@@ -175,11 +169,11 @@
     const tabsEl = document.getElementById('level-tabs');
 
     tabsEl.innerHTML = levels.map(lvl => {
-      const lvlSkills    = skills.filter(s => s.level === lvl);
-      const confirmed    = lvlSkills.filter(s => cMap[s.id]?.coach_confirmed_at).length;
-      const selfReported = lvlSkills.filter(s => cMap[s.id]?.self_reported_at && !cMap[s.id]?.coach_confirmed_at).length;
-      const isComplete   = confirmed === lvlSkills.length && lvlSkills.length > 0;
-      const isPartial    = (confirmed + selfReported) > 0;
+      const lvlSkills  = skills.filter(s => s.level === lvl);
+      const certified  = lvlSkills.filter(s => cMap[s.id]?.tested_and_passed).length;
+      const attained   = lvlSkills.filter(s => cMap[s.id]?.skill_attained).length;
+      const isComplete = certified === lvlSkills.length && lvlSkills.length > 0;
+      const isPartial  = !isComplete && attained > 0;
 
       let cls = '';
       if (isComplete) cls = 'complete';
@@ -204,33 +198,53 @@
     renderLevel(level);
   }
 
+  function updateLevelHeader(level) {
+    if (level !== activeLevel) return;
+    const { total, attained, ready, certified, pct } = levelStats(level);
+
+    const fill       = document.getElementById('level-progress-fill');
+    const pctEl      = document.getElementById('level-progress-pct');
+    const countEl    = document.getElementById('level-cert-count');
+    const breakdownEl = document.getElementById('level-breakdown');
+
+    if (fill) {
+      fill.style.width = `${pct}%`;
+      fill.classList.toggle('partial', pct > 0 && pct < 100);
+    }
+    if (pctEl)   pctEl.textContent = `${pct}%`;
+    if (countEl) countEl.textContent = `${certified}/${total} certified`;
+    if (breakdownEl) {
+      breakdownEl.textContent = `${attained} attained · ${ready} ready for test · ${certified} certified`;
+    }
+  }
+
   function renderLevel(level) {
     const container = document.getElementById('level-content');
-    const lvlSkills = allSkills.filter(s => s.level === level);
+    const lvlSkills  = allSkills.filter(s => s.level === level);
 
     if (!lvlSkills.length) {
       container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>No skills found for this level.</p></div>`;
       return;
     }
 
-    const confirmed    = lvlSkills.filter(s => completionMap[s.id]?.coach_confirmed_at).length;
-    const selfReported = lvlSkills.filter(s => completionMap[s.id]?.self_reported_at && !completionMap[s.id]?.coach_confirmed_at).length;
-    const total        = lvlSkills.length;
-    const pct          = App.calcProgress(confirmed + selfReported, total);
+    const { total, attained, ready, certified, pct } = levelStats(level);
 
     container.innerHTML = `
       <div class="card fade-in">
         <div class="level-skills-header">
           <div>
             <h3>${App.getLevelLabel(level)}</h3>
-            <div class="text-sm text-secondary mt-1">
-              ${confirmed} confirmed · ${selfReported} self-reported · ${total - confirmed - selfReported} remaining
+            <div class="text-sm text-secondary mt-1" id="level-breakdown">
+              ${attained} attained · ${ready} ready for test · ${certified} certified
             </div>
           </div>
-          <div class="text-accent" style="font-size:1.5rem;font-weight:800">${pct}%</div>
+          <div class="flex flex-col items-end gap-1">
+            <div class="text-accent" style="font-size:1.5rem;font-weight:800" id="level-progress-pct">${pct}%</div>
+            <div class="level-cert-count" id="level-cert-count">${certified}/${total} certified</div>
+          </div>
         </div>
         <div class="progress-bar-wrap mb-4">
-          <div class="progress-bar-fill ${pct > 0 && confirmed < total ? 'partial' : ''}"
+          <div class="progress-bar-fill ${pct > 0 && pct < 100 ? 'partial' : ''}" id="level-progress-fill"
                style="width: ${pct}%"></div>
         </div>
         <div>
@@ -240,102 +254,226 @@
     `;
   }
 
+  // =============================================
+  // SKILL ROW — three stage indicators + test panel
+  // =============================================
   function buildSkillRow(skill) {
-    const completion = completionMap[skill.id];
-    const status     = App.completionStatus(completion);
+    const completion = completionMap[skill.id] || {};
+    const attempts    = attemptsBySkill[skill.id] || [];
+    const mostRecent  = attempts[0];
 
-    let iconHtml = '';
-    if (status === 'confirmed')      iconHtml = '<div class="skill-check-icon confirmed">✓</div>';
-    else if (status === 'self-reported') iconHtml = '<div class="skill-check-icon self-reported">⏳</div>';
-    else                             iconHtml = '<div class="skill-check-icon none">○</div>';
+    const stage1Filled = !!completion.skill_attained;
+    const stage2Filled = !!completion.ready_for_test;
+    const stage3Filled = !!completion.tested_and_passed;
 
-    let actionHtml = '';
-    if (currentUser.role === 'diver') {
-      if (status === 'none') {
-        actionHtml = `<button class="btn btn-secondary btn-sm" onclick="selfReport(${skill.id}, this)">✋ Log It</button>`;
-      } else if (status === 'self-reported') {
-        actionHtml = `<span class="badge badge-pending">Awaiting Coach</span>`;
-      } else {
-        actionHtml = `<span class="badge badge-accent">✓ Done</span>`;
-      }
-    } else if (currentUser.role === 'coach' && status === 'self-reported') {
-      actionHtml = `
-        <button class="btn btn-primary btn-sm"
-          onclick="openConfirmModal('${completion.id}', '${App.escHtml(skill.name)}')">
-          Confirm
-        </button>
-      `;
-    }
+    // Once a skill is certified, stages 1 & 2 are locked in place.
+    const locked = stage3Filled;
+
+    const stage1Disabled = !canSetStage1() || locked;
+    const stage2Disabled = !canSetStage23() || !stage1Filled || locked;
+    const stage3Disabled = !(stage1Filled && stage2Filled);
+
+    const stage1Click = stage1Disabled ? '' : `onclick="toggleStage1(${skill.id})"`;
+    const stage2Click = stage2Disabled ? '' : `onclick="toggleStage2(${skill.id})"`;
+    const stage3Click = stage3Disabled ? '' : `onclick="toggleTestPanel(${skill.id})"`;
+
+    const harnessIcon = skill.requiresHarness
+      ? '<span class="harness-icon" title="Requires harness">🦺</span>'
+      : '';
+
+    const recentHtml = mostRecent
+      ? `<span class="text-xs text-secondary">Last test: ${formatDateOnly(mostRecent.test_date)} · Score ${Number(mostRecent.score).toFixed(1)}</span>`
+      : '';
 
     return `
-      <div class="skill-check-row">
-        ${iconHtml}
-        <div class="list-item-content">
-          <div class="list-item-title">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span class="text-secondary text-xs">+</span>' : ''}</div>
-          <div class="flex gap-2 mt-1 flex-wrap">
-            <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
-            ${completion?.coach_confirmed_at
-              ? `<span class="text-xs text-secondary">Confirmed ${App.formatDate(completion.coach_confirmed_at)}</span>`
-              : ''}
-            ${completion?.self_reported_at && !completion?.coach_confirmed_at
-              ? `<span class="text-xs text-secondary">Logged ${App.formatRelative(completion.self_reported_at)}</span>`
-              : ''}
+      <div class="skill-row" id="skill-row-${skill.id}">
+        <div class="skill-row-main">
+          <div class="skill-row-info">
+            <div class="skill-row-name">${App.escHtml(skill.name)}${harnessIcon}</div>
+            <div class="flex gap-2 mt-1 flex-wrap items-center">
+              <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
+              ${recentHtml}
+            </div>
+          </div>
+          <div class="stage-indicators">
+            <button class="stage-circle stage-1 ${stage1Filled ? 'filled' : ''} ${stage1Disabled ? 'disabled' : ''}"
+              title="Stage 1: Skill Attained" ${stage1Click}>${stage1Filled ? '✓' : '1'}</button>
+            <button class="stage-circle stage-2 ${stage2Filled ? 'filled' : ''} ${stage2Disabled ? 'disabled' : ''}"
+              title="Stage 2: Ready for Test" ${stage2Click}>${stage2Filled ? '✓' : '2'}</button>
+            <button class="stage-circle stage-3 ${stage3Filled ? 'filled' : ''} ${stage3Disabled ? 'disabled' : ''}"
+              title="Stage 3: Tested &amp; Passed" ${stage3Click}>${stage3Filled ? '✓' : '3'}</button>
           </div>
         </div>
-        ${actionHtml}
+        <div class="test-panel" id="test-panel-${skill.id}">
+          <div class="test-panel-inner">
+            ${buildTestPanelInner(skill, completion, attempts)}
+          </div>
+        </div>
       </div>
     `;
   }
 
-  async function selfReport(skillId, btn) {
+  function buildTestPanelInner(skill, completion, attempts) {
+    const canScore = currentUser.role === 'coach' && completion.skill_attained && completion.ready_for_test;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const formHtml = canScore ? `
+      <div class="form-group">
+        <label class="form-label">Score (0–10)</label>
+        <select id="test-score-${skill.id}" class="form-select">
+          <option value="" disabled selected>Select score…</option>
+          ${scoreOptionsHtml()}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Test Date</label>
+        <input type="date" id="test-date-${skill.id}" class="form-input" value="${today}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="test-notes-${skill.id}" class="form-input" rows="2" style="resize:vertical"
+          placeholder="Coaching notes about this attempt…"></textarea>
+      </div>
+      <button class="btn btn-primary btn-sm" id="test-submit-${skill.id}" onclick="submitTestAttempt(${skill.id})">Submit Test</button>
+      <div class="divider mt-4 mb-2"></div>
+    ` : '';
+
+    const attemptsHtml = attempts.length
+      ? `
+        <div class="text-sm" style="font-weight:600">Previous Attempts</div>
+        <table class="attempts-table">
+          <thead><tr><th>Date</th><th>Score</th><th>Notes</th></tr></thead>
+          <tbody>
+            ${attempts.map(a => `
+              <tr>
+                <td>${formatDateOnly(a.test_date)}</td>
+                <td>${Number(a.score).toFixed(1)}</td>
+                <td>${App.escHtml(a.notes || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+      : '<p class="text-secondary text-sm">No test attempts recorded yet.</p>';
+
+    return formHtml + attemptsHtml;
+  }
+
+  function scoreOptionsHtml() {
+    let html = '';
+    for (let i = 0; i <= 20; i++) {
+      const val = (i * 0.5).toFixed(1);
+      html += `<option value="${val}">${val}</option>`;
+    }
+    return html;
+  }
+
+  // Format a plain YYYY-MM-DD date string without timezone shift.
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return '—';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+  }
+
+  function toggleTestPanel(skillId) {
+    const panel = document.getElementById(`test-panel-${skillId}`);
+    if (panel) panel.classList.toggle('open');
+  }
+
+  function refreshSkillRow(skill, keepOpen = false) {
+    const panelEl = document.getElementById(`test-panel-${skill.id}`);
+    const wasOpen = keepOpen || panelEl?.classList.contains('open');
+
+    const row = document.getElementById(`skill-row-${skill.id}`);
+    if (row) {
+      row.outerHTML = buildSkillRow(skill);
+      if (wasOpen) document.getElementById(`test-panel-${skill.id}`)?.classList.add('open');
+    }
+
+    updateLevelHeader(skill.level);
+    buildLevelTabs(allSkills, completionMap);
+    updateStats(allSkills, completionMap);
+  }
+
+  // =============================================
+  // STAGE ACTIONS
+  // =============================================
+  async function toggleStage1(skillId) {
+    const skill      = allSkills.find(s => s.id === skillId);
+    const completion = completionMap[skillId] || {};
+    try {
+      const updated = await SupabaseDB.setSkillAttained(targetDiverId, skillId, currentUser.id, !completion.skill_attained);
+      completionMap[skillId] = updated;
+      refreshSkillRow(skill);
+      App.showToast(updated.skill_attained ? 'Skill marked as attained!' : 'Skill attained status removed.');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    }
+  }
+
+  async function toggleStage2(skillId) {
+    const skill      = allSkills.find(s => s.id === skillId);
+    const completion = completionMap[skillId] || {};
+    if (!completion.skill_attained) {
+      App.showToast('Stage 1 (Skill Attained) must be set first.', 'error');
+      return;
+    }
+    try {
+      const updated = await SupabaseDB.setReadyForTest(targetDiverId, skillId, currentUser.id, !completion.ready_for_test);
+      completionMap[skillId] = updated;
+      refreshSkillRow(skill);
+      App.showToast(updated.ready_for_test ? 'Marked ready for test!' : 'Ready for test status removed.');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    }
+  }
+
+  async function submitTestAttempt(skillId) {
+    const skill      = allSkills.find(s => s.id === skillId);
+    const completion = completionMap[skillId];
+    const scoreEl = document.getElementById(`test-score-${skillId}`);
+    const dateEl  = document.getElementById(`test-date-${skillId}`);
+    const notesEl = document.getElementById(`test-notes-${skillId}`);
+    const btn     = document.getElementById(`test-submit-${skillId}`);
+
+    const score = scoreEl.value;
+    const date  = dateEl.value;
+    const notes = notesEl.value.trim();
+
+    if (score === '') {
+      App.showToast('Please select a score.', 'error');
+      return;
+    }
+    if (!date) {
+      App.showToast('Please select a test date.', 'error');
+      return;
+    }
+
     App.setBtnLoading(btn, true);
     try {
-      const c = await SupabaseDB.selfReportSkill(targetDiverId, skillId);
-      completionMap[skillId] = c;
-      App.showToast('Skill logged! Your coach will confirm it soon.');
-      renderLevel(activeLevel);
-      buildLevelTabs(allSkills, completionMap);
-      updateStats(allSkills, completionMap);
+      const { attempt, completion: updatedCompletion } = await SupabaseDB.recordTestAttempt({
+        skillCompletionId: completion.id,
+        diverId:           targetDiverId,
+        skillId,
+        coachId:           currentUser.id,
+        score:             parseFloat(score),
+        testDate:          date,
+        notes,
+      });
+
+      completionMap[skillId] = updatedCompletion;
+      attemptsBySkill[skillId] = [attempt, ...(attemptsBySkill[skillId] || [])]
+        .sort((a, b) => b.test_date.localeCompare(a.test_date) || b.created_at.localeCompare(a.created_at));
+
+      refreshSkillRow(skill, true);
+      App.showToast('Test attempt recorded!');
     } catch (err) {
       App.showToast(err.message, 'error');
       App.setBtnLoading(btn, false);
     }
   }
-
-  function openConfirmModal(completionId, skillName) {
-    pendingConfirm = { completionId, skillName };
-    document.getElementById('confirm-skill-name').textContent = skillName;
-    document.getElementById('confirm-diver-name').textContent = targetDiver?.full_name ?? 'this diver';
-    document.getElementById('confirm-notes').value = '';
-    App.openModal('confirm-modal');
-  }
-
-  async function submitConfirmation() {
-    if (!pendingConfirm) return;
-    const btn   = document.getElementById('confirm-submit-btn');
-    const notes = document.getElementById('confirm-notes').value;
-    App.setBtnLoading(btn, true);
-    try {
-      const updated = await SupabaseDB.confirmSkill(pendingConfirm.completionId, currentUser.id, notes);
-      // Update the completion map by finding which skill owns this completion row
-      const skill = allSkills.find(s => completionMap[s.id]?.id === pendingConfirm.completionId);
-      if (skill) completionMap[skill.id] = updated;
-      App.closeModal('confirm-modal');
-      App.showToast('Skill confirmed!');
-      renderLevel(activeLevel);
-      buildLevelTabs(allSkills, completionMap);
-      updateStats(allSkills, completionMap);
-    } catch (err) {
-      App.showToast(err.message, 'error');
-    } finally {
-      App.setBtnLoading(btn, false);
-      pendingConfirm = null;
-    }
-  }
-
-  document.getElementById('confirm-modal').addEventListener('click', function(e) {
-    if (e.target === this) App.closeModal('confirm-modal');
-  });
 </script>
 
 </body>

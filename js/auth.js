@@ -117,6 +117,31 @@ const Auth = {
   },
 
   // =============================================
+  // changePassword() — Re-authenticate with the current
+  // password, then update to the new password.
+  // Throws an Error with a human-readable message on failure.
+  // =============================================
+  async changePassword(currentPassword, newPassword) {
+    if (!this.currentUser) {
+      throw new Error('You must be signed in to change your password.');
+    }
+
+    // Verify the current password by re-authenticating
+    const { error: signInError } = await window.supabaseClient.auth.signInWithPassword({
+      email: this.currentUser.email,
+      password: currentPassword,
+    });
+    if (signInError) {
+      throw new Error('Current password is incorrect.');
+    }
+
+    const { error } = await window.supabaseClient.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  // =============================================
   // logout() — Sign out and return to login page.
   // =============================================
   async logout() {
