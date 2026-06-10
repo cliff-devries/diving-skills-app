@@ -3,12 +3,15 @@
 # =============================================
 
 [build]
+  command = "node scripts/generate-config.js"
   publish = "."
 
-# js/config.js contains the Supabase anon key, which is a PUBLIC key designed
-# for client-side use (see: supabase.com/docs/guides/api/api-keys).
-# Data is protected by RLS policies, not by keeping this key secret.
-# Airtable PAT is server-side only (netlify/functions/airtable-skills.js).
+# js/config.js is generated at build time from the SUPABASE_URL and
+# SUPABASE_ANON_KEY environment variables (see scripts/generate-config.js).
+# The anon key is a PUBLIC key designed for client-side use
+# (see: supabase.com/docs/guides/api/api-keys) — data is protected by RLS
+# policies, not by keeping this key secret. We still omit it from the
+# secrets scanner so the build doesn't get blocked.
 [build.environment]
   SECRETS_SCAN_OMIT_PATHS = "js/config.js"
 

@@ -1,7 +1,9 @@
 # ---- Credentials ----
-# js/config.js is committed — Supabase anon key is a public key designed for
-# client-side use, protected by RLS policies. Airtable PAT is server-side only
-# (netlify/functions/airtable-skills.js reads it from process.env).
+# js/config.js is generated at build time by scripts/generate-config.js from
+# the SUPABASE_URL / SUPABASE_ANON_KEY Netlify environment variables.
+# For local dev, copy js/config.example.js to js/config.js and fill in values,
+# or run `SUPABASE_URL=... SUPABASE_ANON_KEY=... node scripts/generate-config.js`.
+js/config.js
 
 # ---- OS / Editor ----
 .DS_Store
