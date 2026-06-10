@@ -386,6 +386,8 @@ const SupabaseDB = {
           ready_for_test:    false,
           ready_for_test_at: null,
           ready_for_test_by: null,
+          // Cascade: a skill can't be tested and passed if it's no longer ready for test.
+          tested_and_passed: false,
         };
     return this._upsertCompletion(diverId, skillId, updates);
   },
