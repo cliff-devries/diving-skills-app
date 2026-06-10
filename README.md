@@ -1,4 +1,4 @@
-# 🤿 Diving Skills
+# 🤿 Dive Drills
 
 > Skills tracker for competitive divers — Level 0 through Level 12.
 

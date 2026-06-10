@@ -1,5 +1,5 @@
 // =============================================
-// DIVING SKILLS — Authentication
+// DIVE DRILLS — Authentication
 // Handles login, logout, session management,
 // and role-based access control.
 // =============================================

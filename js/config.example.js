@@ -1,5 +1,5 @@
 // =============================================
-// DIVING SKILLS — Configuration Template
+// DIVE DRILLS — Configuration Template
 // Copy this file to js/config.js and fill in your real values.
 // js/config.js is excluded from git — never commit real credentials.
 // =============================================
@@ -21,7 +21,7 @@ const CONFIG = {
   AIRTABLE_SKILLS_TABLE: 'Skills',
 
   // ---- App Settings ----------------------------------------
-  APP_NAME:    'Diving Skills',
+  APP_NAME:    'Dive Drills',
   APP_VERSION: '1.0.0',
 };
 
@@ -32,11 +32,11 @@ const CONFIG = {
 // =============================================
 function initSupabase() {
   if (typeof supabase === 'undefined') {
-    console.error('[DivingSkills] Supabase SDK not found. Check the CDN <script> tag.');
+    console.error('[DiveDrills] Supabase SDK not found. Check the CDN <script> tag.');
     return null;
   }
   if (CONFIG.SUPABASE_URL.includes('your-project-id')) {
-    console.warn('[DivingSkills] Supabase credentials are still placeholders. Update js/config.js.');
+    console.warn('[DiveDrills] Supabase credentials are still placeholders. Update js/config.js.');
   }
   window.supabaseClient = supabase.createClient(
     CONFIG.SUPABASE_URL,

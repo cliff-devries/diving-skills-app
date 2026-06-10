@@ -1,5 +1,5 @@
 // =============================================
-// DIVING SKILLS — App Utilities & Navigation
+// DIVE DRILLS — App Utilities & Navigation
 // Shared helpers used across all pages.
 // =============================================
 
@@ -32,7 +32,7 @@ const App = {
     if (sidebar) {
       sidebar.innerHTML = `
         <div class="sidebar-brand">
-          <div class="brand-name">Diving<span>Skills</span></div>
+          <div class="brand-name">Dive<span>Drills</span></div>
           <div class="brand-tagline">Skills Tracker</div>
         </div>
         <nav class="sidebar-nav">
