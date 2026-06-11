@@ -130,11 +130,15 @@ h4 { font-size: 0.95rem; font-weight: 600; }
   flex-shrink: 0;
 }
 .brand-name {
+  display: inline-block;
   font-size: 1.25rem;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.4px;
+  text-decoration: none;
+  transition: var(--transition);
 }
+.brand-name:hover { opacity: 0.75; text-decoration: none; }
 .brand-name span { color: var(--accent); }
 .brand-tagline {
   font-size: 0.65rem;

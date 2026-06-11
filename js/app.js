@@ -32,7 +32,7 @@ const App = {
     if (sidebar) {
       sidebar.innerHTML = `
         <div class="sidebar-brand">
-          <div class="brand-name">Dive<span>Drills</span></div>
+          <a href="dashboard.html" class="brand-name">Dive<span>Drills</span></a>
           <div class="brand-tagline">Skills Tracker</div>
         </div>
         <nav class="sidebar-nav">
