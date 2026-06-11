@@ -564,6 +564,58 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 }
 
 /* =============================================
+   SKILL TYPE SECTIONS
+   ============================================= */
+.skill-section { margin-bottom: 32px; }
+.skill-section:last-child { margin-bottom: 0; }
+.skill-section + .skill-section {
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.skill-section-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--accent);
+  color: #000;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.skill-section-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.15);
+  color: #000;
+  padding: 2px 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.skill-level-group { margin-bottom: 18px; }
+.skill-level-group:last-child { margin-bottom: 0; }
+
+.skill-level-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+
+/* =============================================
    FILTER BAR
    ============================================= */
 .filter-bar {

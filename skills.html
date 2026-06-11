@@ -95,6 +95,13 @@
   let currentUser   = null;
   let activeSkill   = null;
 
+  // Display order for skill-type sections on the library page.
+  const SECTION_ORDER = [
+    'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
+    'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
+    '1m Springboard', '3m Springboard', 'Platform', 'Pool', 'Games', 'Bonus',
+  ];
+
   (async function initSkillsPage() {
     initSupabase();
     const user = await Auth.init(true);
@@ -184,7 +191,21 @@
       return;
     }
 
-    container.innerHTML = `<div class="skills-list">${skills.map(buildSkillCard).join('')}</div>`;
+    const byType = {};
+    skills.forEach(skill => {
+      const type = skill.type || 'General';
+      (byType[type] ??= []).push(skill);
+    });
+
+    // Known types first (in the standardized order), then any leftover
+    // types not in the list, alphabetically — sections with no skills
+    // are simply never built.
+    const orderedTypes = [
+      ...SECTION_ORDER.filter(t => byType[t]),
+      ...Object.keys(byType).filter(t => !SECTION_ORDER.includes(t)).sort(),
+    ];
+
+    container.innerHTML = orderedTypes.map(type => buildSection(type, byType[type])).join('');
 
     container.querySelectorAll('.skill-card').forEach(card => {
       card.addEventListener('click', () => {
@@ -192,6 +213,36 @@
         if (skill) openSkillModal(skill);
       });
     });
+  }
+
+  function buildSection(type, skillsInType) {
+    const byLevel = {};
+    skillsInType.forEach(skill => {
+      const lvl = skill.level ?? 0;
+      (byLevel[lvl] ??= []).push(skill);
+    });
+
+    const levels = Object.keys(byLevel).map(Number).sort((a, b) => a - b);
+
+    const levelGroupsHtml = levels.map(lvl => {
+      const sorted = byLevel[lvl].slice().sort((a, b) => a.name.localeCompare(b.name));
+      return `
+        <div class="skill-level-group">
+          <div class="skill-level-label">Level ${lvl}</div>
+          <div class="skills-list">${sorted.map(buildSkillCard).join('')}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <section class="skill-section">
+        <div class="skill-section-header">
+          <span>${App.escHtml(type)}</span>
+          <span class="skill-section-count">${skillsInType.length}</span>
+        </div>
+        ${levelGroupsHtml}
+      </section>
+    `;
   }
 
   function buildSkillCard(skill) {
