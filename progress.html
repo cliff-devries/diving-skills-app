@@ -93,9 +93,15 @@
     App.renderNav(user);
 
     const diverParam = App.getParam('diver');
-    if (diverParam && (user.role === 'coach' || user.role === 'parent')) {
+    if (user.role === 'coach' || user.role === 'parent') {
+      // Coaches/parents have no progress of their own — they must arrive
+      // here with a specific diver selected (from the roster or dashboard).
+      if (!diverParam) {
+        window.location.href = 'dashboard.html';
+        return;
+      }
       targetDiverId = diverParam;
-      targetDiver   = await SupabaseDB.getProfile(diverParam);
+      targetDiver   = await SupabaseDB.getProfileById(diverParam);
       if (targetDiver) {
         document.getElementById('page-subtitle').textContent =
           `Showing progress for ${targetDiver.full_name}.`;

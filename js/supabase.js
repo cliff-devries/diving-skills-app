@@ -405,17 +405,12 @@ const SupabaseDB = {
       test_date:           testDate,
       notes:               notes || '',
     };
-    const { data: { user: authUser } } = await this.db.auth.getUser();
-    console.log('[SupabaseDB] recordTestAttempt — auth.uid():', authUser?.id);
-    console.log('[SupabaseDB] recordTestAttempt — insert payload:', payload);
-
     const { data: attempt, error: attemptError } = await this.db
       .from('skill_test_attempts')
       .insert(payload)
       .select()
       .single();
     if (attemptError) {
-      console.error('[SupabaseDB] recordTestAttempt — insert error:', attemptError);
       throw new Error(attemptError.message);
     }
 

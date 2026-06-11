@@ -19,7 +19,7 @@ const App = {
     // Define nav links; filter by role
     const links = [
       { href: 'dashboard.html', icon: '🏠', label: 'Dashboard',     roles: ['coach', 'diver', 'parent'] },
-      { href: 'progress.html',  icon: '📊', label: 'Progress',      roles: ['coach', 'diver', 'parent'] },
+      { href: 'progress.html',  icon: '📊', label: 'Progress',      roles: ['diver'] },
       { href: 'skills.html',    icon: '🎯', label: 'Skills Library', roles: ['coach', 'diver', 'parent'] },
       { href: 'roster.html',    icon: '👥', label: 'Roster',        roles: ['coach'] },
       { href: 'profile.html',   icon: '👤', label: 'Profile',       roles: ['coach', 'diver', 'parent'] },
