@@ -955,6 +955,44 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 }
 
 /* =============================================
+   SKILL TYPE GROUPS (within a level, on Progress page)
+   ============================================= */
+.skill-type-group { margin-top: 18px; }
+.skill-type-group:first-child { margin-top: 0; }
+
+.skill-type-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  margin-bottom: 4px;
+  background: var(--bg-surface-2);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.skill-type-group-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.skill-type-group-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.progress-bar-wrap-sm {
+  width: 56px;
+  height: 5px;
+}
+
+/* =============================================
    ANIMATIONS
    ============================================= */
 .fade-in {

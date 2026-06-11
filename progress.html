@@ -85,6 +85,14 @@
   let targetDiver     = null;
   let activeLevel     = 0;
 
+  // Display order for skill-type groups within each level — matches
+  // the section order on the skills library page.
+  const SECTION_ORDER = [
+    'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
+    'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
+    '1m Springboard', '3m Springboard', 'Platform', 'Pool', 'Games', 'Bonus',
+  ];
+
   (async function initProgressPage() {
     initSupabase();
     const user = await Auth.init(true);
@@ -234,6 +242,7 @@
     }
 
     const { total, attained, ready, certified, pct } = levelStats(level);
+    const groups = groupSkillsByType(lvlSkills);
 
     container.innerHTML = `
       <div class="card fade-in">
@@ -254,10 +263,76 @@
                style="width: ${pct}%"></div>
         </div>
         <div>
-          ${lvlSkills.map(buildSkillRow).join('')}
+          ${groups.map(g => buildTypeGroup(level, g.type, g.skills)).join('')}
         </div>
       </div>
     `;
+  }
+
+  // ---- Group a level's skills by skill type, in standardized order ----
+  function groupSkillsByType(skills) {
+    const byType = {};
+    skills.forEach(skill => {
+      const type = skill.type || 'General';
+      (byType[type] ??= []).push(skill);
+    });
+
+    const orderedTypes = [
+      ...SECTION_ORDER.filter(t => byType[t]),
+      ...Object.keys(byType).filter(t => !SECTION_ORDER.includes(t)).sort(),
+    ];
+
+    return orderedTypes.map(type => ({
+      type,
+      skills: byType[type].slice().sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+  }
+
+  function typeSlug(type) {
+    return (type || 'general').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+  }
+
+  function typeGroupStats(level, type) {
+    const skills    = allSkills.filter(s => s.level === level && (s.type || 'General') === type);
+    const total     = skills.length;
+    const certified = skills.filter(s => completionMap[s.id]?.tested_and_passed).length;
+    const pct       = App.calcProgress(certified, total);
+    return { total, certified, pct };
+  }
+
+  function buildTypeGroup(level, type, skills) {
+    const { total, certified, pct } = typeGroupStats(level, type);
+    const slug = typeSlug(type);
+
+    return `
+      <div class="skill-type-group">
+        <div class="skill-type-group-header">
+          <span class="skill-type-group-name">${App.escHtml(type)}</span>
+          <span class="skill-type-group-progress">
+            <span class="text-xs text-secondary" id="type-progress-count-${slug}">${certified}/${total}</span>
+            <div class="progress-bar-wrap progress-bar-wrap-sm">
+              <div class="progress-bar-fill ${pct > 0 && pct < 100 ? 'partial' : ''}" id="type-progress-fill-${slug}"
+                   style="width: ${pct}%"></div>
+            </div>
+          </span>
+        </div>
+        ${skills.map(buildSkillRow).join('')}
+      </div>
+    `;
+  }
+
+  function updateTypeGroupHeader(level, type) {
+    if (level !== activeLevel) return;
+    const { total, certified, pct } = typeGroupStats(level, type);
+    const slug = typeSlug(type);
+
+    const fill  = document.getElementById(`type-progress-fill-${slug}`);
+    const count = document.getElementById(`type-progress-count-${slug}`);
+    if (fill) {
+      fill.style.width = `${pct}%`;
+      fill.classList.toggle('partial', pct > 0 && pct < 100);
+    }
+    if (count) count.textContent = `${certified}/${total}`;
   }
 
   // =============================================
@@ -399,6 +474,7 @@
     }
 
     updateLevelHeader(skill.level);
+    updateTypeGroupHeader(skill.level, skill.type || 'General');
     buildLevelTabs(allSkills, completionMap);
     updateStats(allSkills, completionMap);
   }
