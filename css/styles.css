@@ -129,16 +129,26 @@ h4 { font-size: 0.95rem; font-weight: 600; }
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: var(--transition);
+}
+.brand-link:hover { opacity: 0.75; text-decoration: none; }
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
 .brand-name {
   display: inline-block;
   font-size: 1.25rem;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.4px;
-  text-decoration: none;
-  transition: var(--transition);
 }
-.brand-name:hover { opacity: 0.75; text-decoration: none; }
 .brand-name span { color: var(--accent); }
 .brand-tagline {
   font-size: 0.65rem;
@@ -794,7 +804,8 @@ h4 { font-size: 0.95rem; font-weight: 600; }
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
 }
 .login-brand { text-align: center; margin-bottom: 32px; }
-.login-logo { font-size: 2.5rem; margin-bottom: 10px; }
+.login-logo { width: 90px; height: 90px; margin: 0 auto 10px; display: block; }
+.inline-icon { height: 1.2em; width: 1.2em; vertical-align: -0.2em; }
 .login-app-name {
   font-size: 1.6rem;
   font-weight: 800;

@@ -32,8 +32,13 @@ const App = {
     if (sidebar) {
       sidebar.innerHTML = `
         <div class="sidebar-brand">
-          <a href="dashboard.html" class="brand-name">Dive<span>Drills</span></a>
-          <div class="brand-tagline">Skills Tracker</div>
+          <a href="dashboard.html" class="brand-link">
+            <img src="assets/icons/diver-icon.svg" alt="" class="brand-icon">
+            <div>
+              <span class="brand-name">Dive<span>Drills</span></span>
+              <div class="brand-tagline">Skills Tracker</div>
+            </div>
+          </a>
         </div>
         <nav class="sidebar-nav">
           ${links.map(l => `

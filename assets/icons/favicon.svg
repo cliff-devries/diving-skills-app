@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Diver in pike position" fill="#00c9a7">
+  <!-- Legs: straight and together, extending toward the lower right -->
+  <rect x="52" y="71" width="49.477" height="22" rx="11" transform="rotate(14.04 52 82)"/>
+  <!-- Torso: bent sharply at the hip, rising toward the head -->
+  <rect x="52" y="70" width="45.706" height="24" rx="12" transform="rotate(-113.2 52 82)"/>
+  <!-- Arms: sweeping from the shoulders toward the toes -->
+  <rect x="34" y="32.5" width="58.14" height="15" rx="7.5" transform="rotate(40.86 34 40)"/>
+  <!-- Head, tucked toward the hands -->
+  <circle cx="26" cy="32" r="17"/>
+</svg>
