@@ -67,9 +67,10 @@ const SupabaseDB = {
   // creates the profile and adds it to the coach's roster.
   // =============================================
 
-  async createUnclaimedDiver({ fullName, email, dateOfBirth, currentLevel, phone, parentGuardian, notes }) {
+  async createUnclaimedDiver({ firstName, lastName, email, dateOfBirth, currentLevel, phone, parentGuardian, notes }) {
     const { data, error } = await this.db.rpc('create_unclaimed_diver', {
-      p_full_name:       fullName,
+      p_first_name:      firstName,
+      p_last_name:       lastName       || null,
       p_email:           email          || null,
       p_date_of_birth:   dateOfBirth    || null,
       p_current_level:   currentLevel   !== '' ? Number(currentLevel) : null,
@@ -237,7 +238,7 @@ const SupabaseDB = {
         id,
         joined_at,
         diver:profiles!roster_diver_id_fkey (
-          id, full_name, email, avatar_url, status, current_level, created_at,
+          id, full_name, first_name, last_name, email, avatar_url, status, current_level, created_at,
           invite_token, invite_token_expires_at, invite_type
         )
       `)
@@ -291,7 +292,7 @@ const SupabaseDB = {
       .select(`
         id,
         diver:profiles!parent_diver_diver_id_fkey (
-          id, full_name, email, avatar_url
+          id, full_name, first_name, last_name, email, avatar_url
         )
       `)
       .eq('parent_id', parentId);
@@ -365,7 +366,7 @@ const SupabaseDB = {
         *,
         skill:skills (id, skill_name, skill_level),
         diver:profiles!skill_completions_diver_id_fkey (
-          id, full_name, avatar_url
+          id, full_name, first_name, last_name, avatar_url
         )
       `)
       .in('diver_id', diverIds)

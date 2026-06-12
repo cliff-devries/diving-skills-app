@@ -68,9 +68,12 @@
       SupabaseDB.getPendingClaimsForCoach(user.id),
     ]);
 
+    roster.sort((a, b) => App.compareNames(a.diver, b.diver));
+    readyForTest.sort((a, b) => App.compareNames(a.diver, b.diver));
+
     main.innerHTML = `
       <div class="page-header">
-        <h1>Welcome back, ${App.escHtml(user.full_name.split(' ')[0])} 👋</h1>
+        <h1>Welcome back, ${App.escHtml(App.firstName(user))} 👋</h1>
         <p>Here's what's happening with your team today.</p>
       </div>
 
@@ -153,7 +156,7 @@
         <a href="progress.html?diver=${p.diver?.id}" class="list-item">
           <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
           <div class="list-item-content">
-            <div class="list-item-title">${App.escHtml(p.diver?.full_name ?? 'Unknown Diver')}</div>
+            <div class="list-item-title">${App.escHtml(p.diver ? App.formatNameLastFirst(p.diver) : 'Unknown Diver')}</div>
             <div class="list-item-subtitle">${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ready since ${App.formatRelative(p.ready_for_test_at)}</div>
           </div>
           <span class="badge badge-pending">Test now →</span>
@@ -167,7 +170,7 @@
       <a href="progress.html?diver=${diver.id}" class="diver-row">
         <div class="avatar-sm">${Auth.getInitials(diver.full_name)}</div>
         <div class="list-item-content">
-          <div class="list-item-title">${App.escHtml(diver.full_name)}</div>
+          <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(diver))}</div>
           <div class="list-item-subtitle">${App.escHtml(diver.email)}</div>
         </div>
         <span>→</span>
@@ -213,7 +216,7 @@
 
     main.innerHTML = `
       <div class="page-header">
-        <h1>Hey, ${App.escHtml(user.full_name.split(' ')[0])} 🏊</h1>
+        <h1>Hey, ${App.escHtml(App.firstName(user))} 🏊</h1>
         <p>${coach ? `Coach: <strong>${App.escHtml(coach.full_name)}</strong>` : 'No coach assigned yet'}</p>
       </div>
 
@@ -273,10 +276,11 @@
     const main = document.getElementById('main-content');
 
     const links = await SupabaseDB.getLinkedDivers(user.id);
+    links.sort((a, b) => App.compareNames(a.diver, b.diver));
 
     main.innerHTML = `
       <div class="page-header">
-        <h1>Hello, ${App.escHtml(user.full_name.split(' ')[0])} 👋</h1>
+        <h1>Hello, ${App.escHtml(App.firstName(user))} 👋</h1>
         <p>Tracking progress for your diver${links.length !== 1 ? 's' : ''}.</p>
       </div>
 

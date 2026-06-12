@@ -106,9 +106,15 @@
       An email address is not required at this stage.
     </p>
 
-    <div class="form-group">
-      <label class="form-label">Full Name <span style="color:var(--danger)">*</span></label>
-      <input type="text" id="new-full-name" class="form-input" placeholder="Jane Smith" autocomplete="off">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">First Name <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="new-first-name" class="form-input" placeholder="Jane" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input type="text" id="new-last-name" class="form-input" placeholder="Smith" autocomplete="off">
+      </div>
     </div>
 
     <div class="form-row">
@@ -242,8 +248,8 @@
       SupabaseDB.getReadyForTestForCoach(currentUser.id),
     ]);
 
-    roster      = rosterData;
-    readyForTest = ready;
+    roster      = rosterData.slice().sort((a, b) => App.compareNames(a.diver, b.diver));
+    readyForTest = ready.slice().sort((a, b) => App.compareNames(a.diver, b.diver));
 
     const unclaimedCount = roster.filter(r => r.diver.status === 'unclaimed' || r.diver.status === 'pending').length;
 
@@ -253,13 +259,13 @@
 
     // Skills ready for testing
     const readySection = document.getElementById('ready-section');
-    if (ready.length > 0) {
+    if (readyForTest.length > 0) {
       readySection.style.display = 'block';
-      document.getElementById('ready-list').innerHTML = ready.map(p => `
+      document.getElementById('ready-list').innerHTML = readyForTest.map(p => `
         <a href="progress.html?diver=${p.diver?.id}" class="list-item">
           <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
           <div class="list-item-content">
-            <div class="list-item-title">${App.escHtml(p.diver?.full_name ?? 'Unknown')}</div>
+            <div class="list-item-title">${App.escHtml(p.diver ? App.formatNameLastFirst(p.diver) : 'Unknown')}</div>
             <div class="list-item-subtitle">
               ${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ready since ${App.formatRelative(p.ready_for_test_at)}
             </div>
@@ -346,7 +352,7 @@
           <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
           <div class="list-item-content">
             <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              ${App.escHtml(diver.full_name)}
+              ${App.escHtml(App.formatNameLastFirst(diver))}
               ${levelHtml}
               ${badgeHtml}
             </div>
@@ -409,7 +415,8 @@
     const btn     = document.getElementById('add-diver-btn');
     const alertEl = document.getElementById('add-diver-alert');
 
-    const fullName      = document.getElementById('new-full-name').value.trim();
+    const firstName     = document.getElementById('new-first-name').value.trim();
+    const lastName      = document.getElementById('new-last-name').value.trim();
     const currentLevel  = document.getElementById('new-current-level').value;
     const dob           = document.getElementById('new-dob').value;
     const phone         = document.getElementById('new-phone').value.trim();
@@ -419,17 +426,21 @@
 
     alertEl.className = 'alert mb-4';
 
-    if (!fullName) {
+    if (!firstName) {
       alertEl.className   = 'alert alert-error visible mb-4';
-      alertEl.textContent = 'Full name is required.';
-      document.getElementById('new-full-name').focus();
+      alertEl.textContent = 'First name is required.';
+      document.getElementById('new-first-name').focus();
       return;
     }
+
+    // Full name auto-generates from first + last name.
+    const fullName = [firstName, lastName].filter(Boolean).join(' ');
 
     App.setBtnLoading(btn, true);
     try {
       await SupabaseDB.createUnclaimedDiver({
-        fullName,
+        firstName,
+        lastName:       lastName    || null,
         email:          email       || null,
         dateOfBirth:    dob         || null,
         currentLevel:   currentLevel !== '' ? currentLevel : null,
@@ -451,7 +462,7 @@
   }
 
   function clearAddDiverForm() {
-    ['new-full-name','new-dob','new-phone','new-email','new-parent','new-notes'].forEach(id => {
+    ['new-first-name','new-last-name','new-dob','new-phone','new-email','new-parent','new-notes'].forEach(id => {
       document.getElementById(id).value = '';
     });
     document.getElementById('new-current-level').value = '';

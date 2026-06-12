@@ -47,7 +47,7 @@ const App = {
           <div class="user-info-nav">
             <div class="avatar-sm">${initials}</div>
             <div class="min-w-0">
-              <div class="user-name-nav truncate">${this.escHtml(user.full_name)}</div>
+              <div class="user-name-nav truncate">${this.escHtml(this.firstName(user))}</div>
               <div class="user-role-nav">${Auth.getRoleLabel(role)}</div>
             </div>
           </div>
@@ -181,6 +181,38 @@ const App = {
     if (status === 'ready')     return '<span class="badge badge-pending">Ready for Test</span>';
     if (status === 'attained')  return '<span class="badge" style="background:rgba(59,130,246,.12);color:#3b82f6">Attained</span>';
     return '';
+  },
+
+  // =============================================
+  // NAME FORMATTING — first_name/last_name aware helpers.
+  // Fall back to splitting full_name for any records that
+  // haven't been backfilled yet.
+  // =============================================
+  firstName(person) {
+    if (!person) return '';
+    if (person.first_name) return person.first_name;
+    return (person.full_name || '').trim().split(/\s+/)[0] || '';
+  },
+
+  // "Last, First" — used in the roster list.
+  formatNameLastFirst(person) {
+    if (!person) return '';
+    const first = person.first_name || '';
+    const last  = person.last_name  || '';
+    if (first && last) return `${last}, ${first}`;
+    if (last || first) return last || first;
+    return person.full_name || '';
+  },
+
+  // Sort comparator: by last_name then first_name (falls back to full_name).
+  compareNames(a, b) {
+    const aLast  = (a?.last_name  || a?.full_name || '').toLowerCase();
+    const bLast  = (b?.last_name  || b?.full_name || '').toLowerCase();
+    if (aLast !== bLast) return aLast < bLast ? -1 : 1;
+    const aFirst = (a?.first_name || '').toLowerCase();
+    const bFirst = (b?.first_name || '').toLowerCase();
+    if (aFirst !== bFirst) return aFirst < bFirst ? -1 : 1;
+    return 0;
   },
 
   // =============================================
