@@ -54,6 +54,15 @@
       margin-bottom: 0;
       min-width: 160px;
     }
+    .roster-controls .search-group {
+      flex: 1 1 220px;
+    }
+    .stage-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -89,18 +98,19 @@
       </div>
     </div>
 
-    <!-- Skills ready for testing -->
-    <div class="content-section" id="ready-section" style="display:none">
-      <div class="section-title">🧪 Ready for Testing</div>
-      <div id="ready-list" class="card card-sm"></div>
-    </div>
-
     <!-- Roster list -->
     <div class="content-section">
-      <div class="section-title">My Divers</div>
+      <div class="flex items-center justify-between mb-2" style="flex-wrap:wrap;gap:8px">
+        <div class="section-title" style="margin-bottom:0">My Divers</div>
+        <div class="text-secondary text-sm" id="roster-count-label"></div>
+      </div>
       <div class="roster-controls">
+        <div class="form-group search-group">
+          <label class="form-label">Search</label>
+          <input type="text" id="search-roster" class="form-input" placeholder="Search by name…" oninput="renderRosterList()">
+        </div>
         <div class="form-group">
-          <label class="form-label">Filter by Gender</label>
+          <label class="form-label">Gender</label>
           <select id="filter-gender" class="form-select" onchange="renderRosterList()">
             <option value="">All</option>
             <option value="Male">Male</option>
@@ -109,11 +119,30 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Sort By</label>
-          <select id="sort-by" class="form-select" onchange="renderRosterList()">
-            <option value="name">Last Name</option>
-            <option value="level">Level</option>
-            <option value="gender">Gender</option>
+          <label class="form-label">Level</label>
+          <select id="filter-level" class="form-select" onchange="renderRosterList()">
+            <option value="">All</option>
+            <option value="0">Level 0</option>
+            <option value="1">Level 1</option>
+            <option value="2">Level 2</option>
+            <option value="3">Level 3</option>
+            <option value="4">Level 4</option>
+            <option value="5">Level 5</option>
+            <option value="6">Level 6</option>
+            <option value="7">Level 7</option>
+            <option value="8">Level 8</option>
+            <option value="9">Level 9</option>
+            <option value="10">Level 10</option>
+            <option value="11">Level 11</option>
+            <option value="12">Level 12</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="filter-status" class="form-select" onchange="renderRosterList()">
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="unclaimed">Unclaimed</option>
           </select>
         </div>
       </div>
@@ -297,7 +326,7 @@
 <script>
   let currentUser     = null;
   let roster          = [];
-  let readyForTest    = [];
+  let completionStats = {};
   let pendingRemove   = null;
   let pendingEditDiver = null;
 
@@ -322,46 +351,24 @@
   })();
 
   async function loadRoster() {
-    const [rosterData, ready] = await Promise.all([
-      SupabaseDB.getRoster(currentUser.id),
-      SupabaseDB.getReadyForTestForCoach(currentUser.id),
-    ]);
+    const rosterData = await SupabaseDB.getRoster(currentUser.id);
+    roster = rosterData.slice().sort((a, b) => App.compareNames(a.diver, b.diver));
+    completionStats = await SupabaseDB.getRosterCompletionStats(roster.map(r => r.diver.id));
 
-    roster      = rosterData.slice().sort((a, b) => App.compareNames(a.diver, b.diver));
-    readyForTest = ready.slice().sort((a, b) => App.compareNames(a.diver, b.diver));
-
-    const unclaimedCount = roster.filter(r => r.diver.status === 'unclaimed' || r.diver.status === 'pending').length;
+    const unclaimedCount = roster.filter(r => r.diver.status !== 'active').length;
+    const readyCount = Object.values(completionStats).reduce((sum, s) => sum + s.readyForTest, 0);
 
     document.getElementById('roster-count').textContent    = roster.length;
-    document.getElementById('ready-count').textContent     = ready.length;
+    document.getElementById('ready-count').textContent     = readyCount;
     document.getElementById('unclaimed-count').textContent = unclaimedCount;
-
-    // Skills ready for testing
-    const readySection = document.getElementById('ready-section');
-    if (readyForTest.length > 0) {
-      readySection.style.display = 'block';
-      document.getElementById('ready-list').innerHTML = readyForTest.map(p => `
-        <a href="progress.html?diver=${p.diver?.id}" class="list-item">
-          <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
-          <div class="list-item-content">
-            <div class="list-item-title">${App.escHtml(p.diver ? App.formatNameLastFirst(p.diver) : 'Unknown')}</div>
-            <div class="list-item-subtitle">
-              ${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ready since ${App.formatRelative(p.ready_for_test_at)}
-            </div>
-          </div>
-          <span class="badge badge-pending">Test now →</span>
-        </a>
-      `).join('');
-    } else {
-      readySection.style.display = 'none';
-    }
 
     renderRosterList();
   }
 
-  // Re-render the roster list applying the current gender filter and sort.
+  // Re-render the roster list applying the current search/filters.
   function renderRosterList() {
-    const rosterEl = document.getElementById('roster-list');
+    const rosterEl   = document.getElementById('roster-list');
+    const countLabel = document.getElementById('roster-count-label');
 
     if (roster.length === 0) {
       rosterEl.innerHTML = `
@@ -371,39 +378,32 @@
           <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">+ Add First Diver</button>
         </div>
       `;
+      countLabel.textContent = '';
       return;
     }
 
+    const search       = document.getElementById('search-roster').value.trim().toLowerCase();
     const genderFilter = document.getElementById('filter-gender').value;
-    const sortBy       = document.getElementById('sort-by').value;
+    const levelFilter  = document.getElementById('filter-level').value;
+    const statusFilter = document.getElementById('filter-status').value;
 
-    let filtered = genderFilter
-      ? roster.filter(r => r.diver.gender === genderFilter)
-      : roster.slice();
+    const filtered = roster.filter(r => {
+      const diver = r.diver;
+      if (genderFilter && diver.gender !== genderFilter) return false;
+      if (levelFilter !== '' && String(diver.current_level) !== levelFilter) return false;
+      if (statusFilter === 'active'    && diver.status !== 'active') return false;
+      if (statusFilter === 'unclaimed' && diver.status === 'active') return false;
+      if (search && !App.formatNameLastFirst(diver).toLowerCase().includes(search)) return false;
+      return true;
+    });
 
-    if (sortBy === 'level') {
-      filtered.sort((a, b) => {
-        const aLevel = a.diver.current_level;
-        const bLevel = b.diver.current_level;
-        if (aLevel == null && bLevel == null) return App.compareNames(a.diver, b.diver);
-        if (aLevel == null) return 1;
-        if (bLevel == null) return -1;
-        if (aLevel !== bLevel) return aLevel - bLevel;
-        return App.compareNames(a.diver, b.diver);
-      });
-    } else if (sortBy === 'gender') {
-      filtered.sort((a, b) => {
-        const aGender = a.diver.gender;
-        const bGender = b.diver.gender;
-        if (aGender == null && bGender == null) return App.compareNames(a.diver, b.diver);
-        if (aGender == null) return 1;
-        if (bGender == null) return -1;
-        if (aGender !== bGender) return aGender < bGender ? -1 : 1;
-        return App.compareNames(a.diver, b.diver);
-      });
-    } else {
-      filtered.sort((a, b) => App.compareNames(a.diver, b.diver));
-    }
+    // Default sort: alphabetical by last name (then first name).
+    filtered.sort((a, b) => App.compareNames(a.diver, b.diver));
+
+    const filtersActive = !!(search || genderFilter || levelFilter !== '' || statusFilter);
+    countLabel.textContent = filtersActive
+      ? `Showing ${filtered.length} of ${roster.length} Divers`
+      : `${roster.length} Divers`;
 
     if (filtered.length === 0) {
       rosterEl.innerHTML = `
@@ -436,6 +436,15 @@
     const genderHtml = diver.gender
       ? `<span class="gender-badge">${App.escHtml(diver.gender)}</span>`
       : '';
+
+    const stats = completionStats[diver.id] ?? { attained: 0, readyForTest: 0, certified: 0 };
+    const stageBadgesHtml = `
+      <div class="stage-badges">
+        <span class="badge badge-secondary">${stats.attained} attained</span>
+        <span class="badge ${stats.readyForTest > 0 ? 'badge-pending' : 'badge-secondary'}">${stats.readyForTest} ready for test</span>
+        <span class="badge ${stats.certified > 0 ? 'badge-accent' : 'badge-secondary'}">${stats.certified} tested &amp; passed</span>
+      </div>
+    `;
 
     // Invite status line (one invite link can be active per profile at a time)
     let inviteHtml = '';
@@ -489,12 +498,13 @@
             <div class="list-item-subtitle">
               ${diver.email ? App.escHtml(diver.email) : '<em>No email on file</em>'}
             </div>
+            ${stageBadgesHtml}
             ${inviteHtml}
           </div>
         ${isActive ? '</a>' : '</div>'}
         <div class="flex gap-2" style="flex-wrap:wrap">
           ${isActive
-            ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">Progress →</a>`
+            ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">View Progress →</a>`
             : `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">Invite Diver</button>`}
           <button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">Invite Parent</button>
           <button class="btn btn-ghost btn-sm"

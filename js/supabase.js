@@ -352,6 +352,27 @@ const SupabaseDB = {
     };
   },
 
+  // Stage-1/2/3 counts for every diver in diverIds, keyed by diver id.
+  // Used by the roster page to summarize each diver's progress in one query.
+  async getRosterCompletionStats(diverIds) {
+    const stats = {};
+    if (!diverIds.length) return stats;
+
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .select('diver_id, skill_attained, ready_for_test, tested_and_passed')
+      .in('diver_id', diverIds);
+    if (error) { console.error('[SupabaseDB] getRosterCompletionStats:', error.message); return stats; }
+
+    for (const row of data ?? []) {
+      const s = stats[row.diver_id] ?? (stats[row.diver_id] = { attained: 0, readyForTest: 0, certified: 0 });
+      if (row.skill_attained) s.attained++;
+      if (row.ready_for_test && !row.tested_and_passed) s.readyForTest++;
+      if (row.tested_and_passed) s.certified++;
+    }
+    return stats;
+  },
+
   // Recent test attempts for a diver, used as "Recent Activity" on the dashboard.
   async getRecentTestAttempts(diverId, limit = 6) {
     const { data, error } = await this.db
