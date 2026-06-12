@@ -69,7 +69,7 @@
     ]);
 
     roster.sort((a, b) => App.compareNames(a.diver, b.diver));
-    readyForTest.sort((a, b) => App.compareNames(a.diver, b.diver));
+    const readyForTestGroups = groupReadyForTest(readyForTest, roster);
 
     main.innerHTML = `
       <div class="page-header">
@@ -120,7 +120,7 @@
       <div class="content-section">
         <div class="section-title">Ready for Testing</div>
         <div id="ready-list">
-          ${renderReadyForTestList(readyForTest)}
+          ${renderReadyForTestList(readyForTestGroups)}
         </div>
       </div>
 
@@ -144,23 +144,48 @@
 
   }
 
-  function renderReadyForTestList(readyForTest) {
-    if (!readyForTest.length) {
+  // Group individual "ready for test" skill rows into one summary per diver,
+  // sorted by how many skills they have ready (most urgent first).
+  function groupReadyForTest(readyForTest, roster) {
+    const levelById = new Map(roster.map(r => [r.diver.id, r.diver.current_level]));
+    const groups = new Map();
+
+    for (const item of readyForTest) {
+      if (!item.diver) continue;
+      const id = item.diver.id;
+      if (!groups.has(id)) {
+        groups.set(id, {
+          diver: item.diver,
+          currentLevel: levelById.get(id) ?? null,
+          count: 0,
+        });
+      }
+      groups.get(id).count++;
+    }
+
+    return [...groups.values()].sort((a, b) =>
+      b.count - a.count || App.compareNames(a.diver, b.diver)
+    );
+  }
+
+  function renderReadyForTestList(groups) {
+    if (!groups.length) {
       return `<div class="empty-state" style="padding: 24px">
         <div class="empty-state-icon">✅</div>
-        <p>No skills awaiting testing — you're all caught up!</p>
+        <p>No skills pending testing</p>
       </div>`;
     }
     return `<div class="card card-sm">
-      ${readyForTest.slice(0, 8).map(p => `
-        <a href="progress.html?diver=${p.diver?.id}" class="list-item">
-          <div class="avatar-sm">${Auth.getInitials(p.diver?.full_name ?? '')}</div>
+      ${groups.map(g => `
+        <div class="list-item">
+          <div class="avatar-sm">${Auth.getInitials(g.diver.full_name)}</div>
           <div class="list-item-content">
-            <div class="list-item-title">${App.escHtml(p.diver ? App.formatNameLastFirst(p.diver) : 'Unknown Diver')}</div>
-            <div class="list-item-subtitle">${App.escHtml(p.skill?.skill_name ?? 'Unknown skill')} · ready since ${App.formatRelative(p.ready_for_test_at)}</div>
+            <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(g.diver))}</div>
+            <div class="list-item-subtitle">${g.count} skill${g.count !== 1 ? 's' : ''} ready for test</div>
           </div>
-          <span class="badge badge-pending">Test now →</span>
-        </a>
+          ${g.currentLevel != null ? `<span class="badge badge-level">L${g.currentLevel}</span>` : ''}
+          <a href="progress.html?diver=${g.diver.id}" class="btn btn-ghost btn-sm">View Progress →</a>
+        </div>
       `).join('')}
     </div>`;
   }
