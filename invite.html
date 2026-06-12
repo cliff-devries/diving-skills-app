@@ -188,7 +188,24 @@
       inviteInfo = null;
     }
 
-    if (!inviteInfo || !inviteInfo.is_valid) {
+    if (!inviteInfo) {
+      console.log('[Invite] No invite found for this token.');
+      showStep('invalid');
+      return;
+    }
+
+    // Compare the invite's expiry (UTC, from Supabase) against the
+    // current time (also UTC — Date.now() is always UTC under the hood).
+    const expiresAt = inviteInfo.invite_token_expires_at ? new Date(inviteInfo.invite_token_expires_at) : null;
+    const now       = new Date();
+    const notExpired = !!expiresAt && expiresAt.getTime() > now.getTime();
+
+    console.log('[Invite] expires_at (raw):', inviteInfo.invite_token_expires_at);
+    console.log('[Invite] expires_at (parsed, UTC):', expiresAt ? expiresAt.toISOString() : null);
+    console.log('[Invite] now (UTC):', now.toISOString());
+    console.log('[Invite] server is_valid:', inviteInfo.is_valid, '| client notExpired:', notExpired);
+
+    if (!notExpired) {
       showStep('invalid');
       return;
     }

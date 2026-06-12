@@ -305,20 +305,34 @@
     // Invite status line (one invite link can be active per profile at a time)
     let inviteHtml = '';
     if (diver.invite_token) {
-      const expired   = !diver.invite_token_expires_at || new Date(diver.invite_token_expires_at) < new Date();
+      const expiresAt = diver.invite_token_expires_at ? new Date(diver.invite_token_expires_at) : null;
+      const now       = new Date();
+      const expired   = !expiresAt || expiresAt.getTime() <= now.getTime();
       const typeLabel = diver.invite_type === 'parent' ? 'Parent' : 'Diver';
+
+      console.log(`[Roster] ${diver.full_name} invite expires_at (raw):`, diver.invite_token_expires_at);
+      console.log(`[Roster] ${diver.full_name} expires_at (parsed, UTC):`, expiresAt ? expiresAt.toISOString() : null);
+      console.log(`[Roster] ${diver.full_name} now (UTC):`, now.toISOString(), '| expired:', expired);
+
+      // TEMP (testing): always show a Regenerate Invite button when a token
+      // exists, regardless of expiry, so links can be refreshed on demand.
+      const regenerateBtn = `
+        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:0.7rem"
+          onclick="generateAndShowInvite('${diver.id}', '${diver.invite_type}')">Regenerate Invite</button>
+      `;
+
       if (expired) {
         inviteHtml = `
           <div class="text-xs mt-1" style="color:var(--pending)">
             ⚠️ ${typeLabel} invite expired
-            <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:0.7rem"
-              onclick="generateAndShowInvite('${diver.id}', '${diver.invite_type}')">Regenerate Invite</button>
+            ${regenerateBtn}
           </div>
         `;
       } else {
         inviteHtml = `
           <div class="text-xs text-secondary mt-1">
             🔗 ${typeLabel} invite sent · expires ${App.formatDate(diver.invite_token_expires_at)}
+            ${regenerateBtn}
           </div>
         `;
       }
