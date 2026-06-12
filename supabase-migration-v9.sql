@@ -5,6 +5,10 @@
 -- client can compare it against the current time directly.
 -- =============================================
 
+-- The return row type is changing (new column added), so the existing
+-- function must be dropped before it can be recreated.
+DROP FUNCTION IF EXISTS public.get_invite_info(TEXT);
+
 CREATE OR REPLACE FUNCTION public.get_invite_info(p_token TEXT)
 RETURNS TABLE (
   diver_name              TEXT,
