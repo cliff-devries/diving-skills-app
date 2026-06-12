@@ -20,6 +20,15 @@
     .status-badge.unclaimed { background: var(--bg-surface-2); color: var(--text-secondary); }
     .status-badge.pending   { background: var(--pending-dim); color: var(--pending); }
     .status-badge.active    { background: var(--accent-dim);  color: var(--accent); }
+    .invite-link-row {
+      display: flex;
+      gap: 8px;
+    }
+    .invite-link-row .form-input {
+      flex: 1;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -167,6 +176,34 @@
 </div>
 
 
+<!-- =============================================
+     INVITE LINK MODAL
+============================================= -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="invite-modal-title">Invite Link</h2>
+      <button class="modal-close" onclick="App.closeModal('invite-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="invite-modal-desc"></p>
+
+    <div class="form-group">
+      <label class="form-label">Shareable Link</label>
+      <div class="invite-link-row">
+        <input type="text" id="invite-link-input" class="form-input" readonly>
+        <button class="btn btn-secondary" onclick="copyInviteLink()">Copy</button>
+      </div>
+    </div>
+
+    <p class="text-xs text-secondary" id="invite-expiry-text"></p>
+
+    <div class="flex gap-3 justify-end mt-4">
+      <button class="btn btn-ghost" onclick="App.closeModal('invite-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=2"></script>
@@ -254,16 +291,41 @@
     const status   = diver.status ?? 'active';
     const isActive = status === 'active';
 
-    const badgeHtml = status !== 'active'
-      ? `<span class="status-badge ${status}">${status === 'pending' ? '⏳ Pending' : '○ Unclaimed'}</span>`
-      : '';
+    const badgeMap = {
+      unclaimed: '<span class="status-badge unclaimed">○ Unclaimed</span>',
+      pending:   '<span class="status-badge pending">⏳ Pending</span>',
+      active:    '<span class="status-badge active">✓ Active</span>',
+    };
+    const badgeHtml = badgeMap[status] ?? '';
 
     const levelHtml = diver.current_level != null
       ? `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>`
       : '';
 
+    // Invite status line (one invite link can be active per profile at a time)
+    let inviteHtml = '';
+    if (diver.invite_token) {
+      const expired   = !diver.invite_token_expires_at || new Date(diver.invite_token_expires_at) < new Date();
+      const typeLabel = diver.invite_type === 'parent' ? 'Parent' : 'Diver';
+      if (expired) {
+        inviteHtml = `
+          <div class="text-xs mt-1" style="color:var(--pending)">
+            ⚠️ ${typeLabel} invite expired
+            <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:0.7rem"
+              onclick="generateAndShowInvite('${diver.id}', '${diver.invite_type}')">Regenerate Invite</button>
+          </div>
+        `;
+      } else {
+        inviteHtml = `
+          <div class="text-xs text-secondary mt-1">
+            🔗 ${typeLabel} invite sent · expires ${App.formatDate(diver.invite_token_expires_at)}
+          </div>
+        `;
+      }
+    }
+
     return `
-      <div class="diver-row" id="diver-row-${diver.id}" style="cursor:default">
+      <div class="diver-row" id="diver-row-${diver.id}" style="cursor:default;flex-wrap:wrap">
         ${isActive
           ? `<a href="progress.html?diver=${diver.id}" style="display:contents;text-decoration:none;color:inherit">`
           : '<div style="display:contents">'}
@@ -277,17 +339,55 @@
             <div class="list-item-subtitle">
               ${diver.email ? App.escHtml(diver.email) : '<em>No email on file</em>'}
             </div>
+            ${inviteHtml}
           </div>
         ${isActive ? '</a>' : '</div>'}
-        <div class="flex gap-2">
+        <div class="flex gap-2" style="flex-wrap:wrap">
           ${isActive
             ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">Progress →</a>`
-            : `<span class="text-xs text-secondary" style="padding:6px 4px">Awaiting signup</span>`}
+            : `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">Invite Diver</button>`}
+          <button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">Invite Parent</button>
           <button class="btn btn-ghost btn-sm"
             onclick="openRemoveModal('${diver.id}', '${App.escHtml(diver.full_name)}')">✕</button>
         </div>
       </div>
     `;
+  }
+
+  // ---- Invite links ----
+  async function generateAndShowInvite(diverId, inviteType) {
+    try {
+      const result = await SupabaseDB.generateInvite(diverId, inviteType);
+      const link    = `${window.location.origin}/invite.html?token=${result.token}`;
+
+      document.getElementById('invite-modal-title').textContent =
+        inviteType === 'parent' ? 'Invite Parent' : 'Invite Diver';
+      document.getElementById('invite-modal-desc').textContent =
+        inviteType === 'parent'
+          ? "Share this link with the diver's parent or guardian. They'll be linked to this diver's account."
+          : 'Share this link with the diver so they can create their own account and start tracking progress.';
+      document.getElementById('invite-link-input').value = link;
+      document.getElementById('invite-expiry-text').textContent =
+        `This link expires on ${App.formatDate(result.expires_at)} (7 days from now). It can only be used once.`;
+
+      App.openModal('invite-modal');
+      await loadRoster();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    }
+  }
+
+  function copyInviteLink() {
+    const input = document.getElementById('invite-link-input');
+    input.select();
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(input.value)
+        .then(() => App.showToast('Invite link copied!'))
+        .catch(() => App.showToast('Could not copy link.', 'error'));
+    } else {
+      document.execCommand('copy');
+      App.showToast('Invite link copied!');
+    }
   }
 
   // ---- Add diver ----
@@ -369,7 +469,7 @@
   }
 
   // Close modals on overlay click
-  ['add-diver-modal', 'remove-modal'].forEach(id => {
+  ['add-diver-modal', 'remove-modal', 'invite-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });

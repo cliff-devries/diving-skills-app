@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dive Drills — Welcome</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .welcome-card {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+    .welcome-stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .welcome-child-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0;
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card fade-in welcome-card">
+
+    <!-- Brand -->
+    <div class="login-brand" style="margin-bottom:20px">
+      <div class="login-logo">🤿</div>
+      <div class="login-app-name">Dive<span>Drills</span></div>
+    </div>
+
+    <div id="welcome-content">
+      <div class="loading-overlay">
+        <div class="loading-spinner loading-spinner-lg"></div>
+        <span>Setting things up…</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/skills.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  (async function initWelcomePage() {
+    initSupabase();
+    const user = await Auth.init(true);
+    if (!user) return;
+
+    const firstName = (user.full_name || 'there').trim().split(/\s+/)[0];
+    const content   = document.getElementById('welcome-content');
+
+    if (user.role === 'parent') {
+      renderParentWelcome(content, firstName, user);
+    } else {
+      await renderDiverWelcome(content, firstName, user);
+    }
+  })();
+
+  async function renderDiverWelcome(content, firstName, user) {
+    let skillCount = '—';
+    try {
+      const skills = await Skills.getAll();
+      skillCount = skills.filter(s => s.level === user.current_level).length;
+    } catch (err) {
+      console.error('[Welcome] Skills.getAll:', err.message);
+    }
+
+    const levelLabel = user.current_level != null ? App.getLevelLabel(user.current_level) : 'Not set yet';
+
+    content.innerHTML = `
+      <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:8px">Welcome, ${App.escHtml(firstName)}! 🎉</h1>
+      <p class="text-secondary text-sm">
+        Dive Drills helps you track your progress through every diving skill, level by level.
+        Mark skills as attained, see what's ready for testing, and watch your certifications add up.
+      </p>
+
+      <div class="welcome-stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">${App.escHtml(String(levelLabel))}</div>
+          <div class="stat-label">Your Current Level</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${skillCount}</div>
+          <div class="stat-label">Skills in Your Level</div>
+        </div>
+      </div>
+
+      <a href="progress.html" class="btn btn-primary btn-full btn-lg mb-3">View My Progress</a>
+      <a href="skills.html" class="btn btn-secondary btn-full">Browse Skills Library</a>
+
+      <div class="divider" style="margin:24px 0"></div>
+      <a href="dashboard.html" class="btn btn-ghost btn-full">Go to Dashboard</a>
+    `;
+  }
+
+  function renderParentWelcome(content, firstName, user) {
+    content.innerHTML = `
+      <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:8px">Welcome, ${App.escHtml(firstName)}! 🎉</h1>
+      <p class="text-secondary text-sm">
+        Dive Drills helps your child track their progress through every diving skill, level by level.
+        As a parent, you can follow along, see what they've mastered, and what's coming up next.
+      </p>
+
+      <div id="child-info"></div>
+
+      <a href="dashboard.html" class="btn btn-ghost btn-full mt-3">Go to Dashboard</a>
+    `;
+
+    loadLinkedDiver(user.id);
+  }
+
+  async function loadLinkedDiver(parentId) {
+    const childInfo = document.getElementById('child-info');
+    const linked = await SupabaseDB.getLinkedDivers(parentId);
+
+    if (!linked.length) {
+      childInfo.innerHTML = `
+        <p class="text-secondary text-sm" style="text-align:center;margin:16px 0">
+          You're not linked to a diver yet. Ask your coach for an invite link.
+        </p>
+      `;
+      return;
+    }
+
+    const diver      = linked[0].diver;
+    const levelLabel = diver.current_level != null ? App.getLevelLabel(diver.current_level) : 'Not set yet';
+
+    childInfo.innerHTML = `
+      <div class="welcome-child-card">
+        <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
+        <div>
+          <div style="font-weight:700">${App.escHtml(diver.full_name)}</div>
+          <div class="text-sm text-secondary">${App.escHtml(String(levelLabel))}</div>
+        </div>
+      </div>
+
+      <a href="progress.html?diver=${diver.id}" class="btn btn-primary btn-full btn-lg mb-3">View Progress</a>
+
+      <p class="text-secondary text-sm">
+        From your dashboard you can view ${App.escHtml(diver.full_name)}'s skill progress, see what's been
+        certified, and check what's ready for testing. You won't be able to mark skills as complete —
+        that's done by ${App.escHtml(diver.full_name)} and their coach.
+      </p>
+    `;
+  }
+</script>
+
+</body>
+</html>

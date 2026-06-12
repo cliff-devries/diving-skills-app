@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dive Drills — Accept Invite</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .invite-card {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+    .invite-step { display: none; }
+    .invite-step.active { display: block; }
+    .invite-welcome {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .invite-diver-name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 16px 0 24px;
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .invite-status-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card fade-in invite-card">
+
+    <!-- Brand -->
+    <div class="login-brand" style="margin-bottom:24px">
+      <div class="login-logo">🤿</div>
+      <div class="login-app-name">Dive<span>Drills</span></div>
+    </div>
+
+    <!-- STEP: Loading -->
+    <div id="step-loading" class="invite-step active">
+      <div class="loading-overlay">
+        <div class="loading-spinner loading-spinner-lg"></div>
+        <span>Checking your invite link…</span>
+      </div>
+    </div>
+
+    <!-- STEP: Invalid / expired -->
+    <div id="step-invalid" class="invite-step">
+      <div class="invite-status-icon">⚠️</div>
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;text-align:center">
+        Invite Link Invalid
+      </h2>
+      <p class="text-secondary text-sm mb-4" style="text-align:center">
+        This invite link is invalid or has expired. Please ask your coach to send you a new invite link.
+      </p>
+      <a href="/index.html" class="btn btn-ghost btn-full">Back to Sign In</a>
+    </div>
+
+    <!-- STEP: Already signed in as someone else -->
+    <div id="step-signed-in" class="invite-step">
+      <div class="invite-status-icon">👋</div>
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;text-align:center">
+        Already Signed In
+      </h2>
+      <p class="text-secondary text-sm mb-4" style="text-align:center">
+        You're currently signed in to a Dive Drills account. To accept this invite, please sign out first.
+      </p>
+      <button class="btn btn-primary btn-full" onclick="signOutAndReload()">Sign Out</button>
+    </div>
+
+    <!-- STEP: Signup form -->
+    <div id="step-form" class="invite-step">
+      <div class="invite-welcome">
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px">
+          Welcome to Dive Drills! 🤿
+        </h2>
+        <p class="text-secondary text-sm" id="form-intro">
+          Your coach has created a profile for you.
+        </p>
+      </div>
+
+      <div class="invite-diver-name">
+        <div class="avatar avatar-md" id="diver-avatar"></div>
+        <div>
+          <div class="text-xs text-secondary">This invite is for</div>
+          <div style="font-weight:700;font-size:1.05rem" id="diver-name"></div>
+        </div>
+      </div>
+
+      <div id="form-alert" class="alert mb-4"></div>
+
+      <form id="signup-form" novalidate>
+
+        <!-- Parent-only fields -->
+        <div id="parent-fields" class="hidden">
+          <div class="form-group">
+            <label class="form-label" for="parent-name">Your Full Name</label>
+            <input type="text" id="parent-name" class="form-input" placeholder="Jane Smith" autocomplete="name">
+            <div class="form-error" id="parent-name-error">Please enter your full name.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="relationship">Relationship to Diver</label>
+            <select id="relationship" class="form-select">
+              <option value="">Select…</option>
+              <option value="Mom">Mom</option>
+              <option value="Dad">Dad</option>
+              <option value="Guardian">Guardian</option>
+            </select>
+            <div class="form-error" id="relationship-error">Please select a relationship.</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="form-input" placeholder="you@example.com"
+                 autocomplete="email" inputmode="email">
+          <div class="form-error" id="email-error">Please enter a valid email address.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" placeholder="••••••••"
+                 autocomplete="new-password">
+          <div class="form-error" id="password-error">Password must be at least 8 characters.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" class="form-input" placeholder="••••••••"
+                 autocomplete="new-password">
+          <div class="form-error" id="confirm-password-error">Passwords do not match.</div>
+        </div>
+
+        <button type="submit" id="signup-btn" class="btn btn-primary btn-full btn-lg mt-2">
+          Create My Account
+        </button>
+      </form>
+    </div>
+
+    <!-- STEP: Check email -->
+    <div id="step-check-email" class="invite-step">
+      <div class="invite-status-icon">📬</div>
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;text-align:center">
+        Check Your Email
+      </h2>
+      <p class="text-secondary text-sm mb-4" style="text-align:center">
+        We've sent a confirmation link to your email address. Click it, then come back to
+        <strong>this same invite link</strong> to finish setting up your account.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js"></script>
+
+<script>
+  let inviteToken = null;
+  let inviteInfo  = null;
+
+  (async function initInvitePage() {
+    initSupabase();
+
+    inviteToken = App.getParam('token');
+    if (!inviteToken) {
+      showStep('invalid');
+      return;
+    }
+
+    try {
+      inviteInfo = await SupabaseDB.getInviteInfo(inviteToken);
+    } catch (err) {
+      console.error('[Invite] getInviteInfo:', err.message);
+      inviteInfo = null;
+    }
+
+    if (!inviteInfo || !inviteInfo.is_valid) {
+      showStep('invalid');
+      return;
+    }
+
+    // Check for a session (e.g. returning after email confirmation)
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    const pendingToken = localStorage.getItem('pending_invite_token');
+
+    if (session && pendingToken === inviteToken) {
+      try {
+        await completeInvite();
+        return;
+      } catch (err) {
+        // Fall through to show the form with the error
+        document.getElementById('form-alert').className   = 'alert alert-error visible mb-4';
+        document.getElementById('form-alert').textContent = err.message;
+      }
+    } else if (session) {
+      showStep('signed-in');
+      return;
+    }
+
+    showForm();
+  })();
+
+  function showStep(name) {
+    document.querySelectorAll('.invite-step').forEach(el => el.classList.remove('active'));
+    document.getElementById(`step-${name}`).classList.add('active');
+  }
+
+  function showForm() {
+    document.getElementById('diver-avatar').textContent = Auth.getInitials(inviteInfo.diver_name);
+    document.getElementById('diver-name').textContent   = inviteInfo.diver_name;
+
+    if (inviteInfo.invite_type === 'parent') {
+      document.getElementById('form-intro').textContent =
+        `Your coach has invited you to follow ${inviteInfo.diver_name}'s progress on Dive Drills.`;
+      document.getElementById('parent-fields').classList.remove('hidden');
+    } else {
+      document.getElementById('form-intro').textContent =
+        'Your coach has created a profile for you. Set up your account to get started.';
+      document.getElementById('parent-fields').classList.add('hidden');
+    }
+
+    showStep('form');
+  }
+
+  async function signOutAndReload() {
+    await window.supabaseClient.auth.signOut();
+    window.location.reload();
+  }
+
+  document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const alertEl = document.getElementById('form-alert');
+    alertEl.className = 'alert mb-4';
+
+    const isParent = inviteInfo.invite_type === 'parent';
+
+    const email           = document.getElementById('email').value.trim();
+    const password        = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    const parentName      = document.getElementById('parent-name').value.trim();
+    const relationship    = document.getElementById('relationship').value;
+
+    let valid = true;
+
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      document.getElementById('email-error').classList.add('visible');
+      valid = false;
+    } else {
+      document.getElementById('email-error').classList.remove('visible');
+    }
+
+    if (!password || password.length < 8) {
+      document.getElementById('password-error').classList.add('visible');
+      valid = false;
+    } else {
+      document.getElementById('password-error').classList.remove('visible');
+    }
+
+    if (password !== confirmPassword) {
+      document.getElementById('confirm-password-error').classList.add('visible');
+      valid = false;
+    } else {
+      document.getElementById('confirm-password-error').classList.remove('visible');
+    }
+
+    if (isParent) {
+      if (!parentName) {
+        document.getElementById('parent-name-error').classList.add('visible');
+        valid = false;
+      } else {
+        document.getElementById('parent-name-error').classList.remove('visible');
+      }
+      if (!relationship) {
+        document.getElementById('relationship-error').classList.add('visible');
+        valid = false;
+      } else {
+        document.getElementById('relationship-error').classList.remove('visible');
+      }
+    }
+
+    if (!valid) return;
+
+    const btn = document.getElementById('signup-btn');
+    App.setBtnLoading(btn, true);
+
+    try {
+      const metadata = isParent
+        ? { full_name: parentName, role: 'parent' }
+        : { claiming: 'true' };
+
+      const { data, error } = await window.supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { data: metadata },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          throw new Error('An account already exists for this email. Please sign in instead.');
+        }
+        throw new Error(error.message);
+      }
+
+      let session = data.session;
+
+      if (!session) {
+        const signInResult = await window.supabaseClient.auth.signInWithPassword({ email, password });
+        session = signInResult.data?.session ?? null;
+      }
+
+      if (!session) {
+        if (isParent) localStorage.setItem('pending_invite_relationship', relationship);
+        localStorage.setItem('pending_invite_token', inviteToken);
+        showStep('check-email');
+        return;
+      }
+
+      await completeInvite(relationship);
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = err.message;
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  });
+
+  async function completeInvite(relationshipOverride) {
+    if (inviteInfo.invite_type === 'parent') {
+      const relationship = relationshipOverride
+        || localStorage.getItem('pending_invite_relationship')
+        || '';
+      await SupabaseDB.completeParentInvite(inviteToken, relationship);
+    } else {
+      await SupabaseDB.completeDiverInvite(inviteToken);
+    }
+    localStorage.removeItem('pending_invite_token');
+    localStorage.removeItem('pending_invite_relationship');
+    window.location.href = '/welcome.html';
+  }
+
+  // Clear field-level errors on input
+  ['email', 'password', 'confirm-password', 'parent-name', 'relationship'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      document.getElementById(`${id}-error`).classList.remove('visible');
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -188,6 +188,45 @@ const SupabaseDB = {
   },
 
   // =============================================
+  // INVITE LINKS (coach-generated diver/parent self-signup)
+  // =============================================
+
+  // Coach generates (or regenerates) an invite for a diver on their roster.
+  // Returns { token, expires_at }.
+  async generateInvite(diverId, inviteType) {
+    const { data, error } = await this.db.rpc('generate_profile_invite', {
+      p_diver_id:    diverId,
+      p_invite_type: inviteType,
+    });
+    if (error) throw new Error(error.message);
+    return data?.[0] ?? null;
+  },
+
+  // Public lookup of an invite token — used by invite.html (no auth required).
+  async getInviteInfo(token) {
+    const { data, error } = await this.db.rpc('get_invite_info', { p_token: token });
+    if (error) throw new Error(error.message);
+    return data?.[0] ?? null;
+  },
+
+  // Diver completes signup: links their new auth account to the unclaimed
+  // profile that owns this token, and consumes the token.
+  async completeDiverInvite(token) {
+    const { error } = await this.db.rpc('complete_diver_invite', { p_token: token });
+    if (error) throw new Error(error.message);
+  },
+
+  // Parent completes signup: links their (newly-created) parent profile to
+  // the diver named in this token via parent_diver, and consumes the token.
+  async completeParentInvite(token, relationship) {
+    const { error } = await this.db.rpc('complete_parent_invite', {
+      p_token:        token,
+      p_relationship: relationship,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  // =============================================
   // ROSTER
   // =============================================
 
@@ -198,7 +237,8 @@ const SupabaseDB = {
         id,
         joined_at,
         diver:profiles!roster_diver_id_fkey (
-          id, full_name, email, avatar_url, status, current_level, created_at
+          id, full_name, email, avatar_url, status, current_level, created_at,
+          invite_token, invite_token_expires_at, invite_type
         )
       `)
       .eq('coach_id', coachId)
