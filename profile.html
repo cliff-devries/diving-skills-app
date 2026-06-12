@@ -208,6 +208,18 @@
           </div>
           <div class="list-item">
             <div class="list-item-content">
+              <div class="list-item-title">Gender</div>
+              <div class="list-item-subtitle">${user.gender ? App.escHtml(user.gender) : 'Not set'}</div>
+            </div>
+            <select id="gender-select" class="form-select" style="max-width:140px" onchange="updateGender(this.value)">
+              <option value="">Not set</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="list-item">
+            <div class="list-item-content">
               <div class="list-item-title">Password</div>
               <div class="list-item-subtitle">••••••••</div>
             </div>
@@ -241,6 +253,19 @@
         </div>
       </div>
     `;
+
+    document.getElementById('gender-select').value = user.gender || '';
+  }
+
+  async function updateGender(gender) {
+    try {
+      await SupabaseDB.updateProfile(currentUser.id, { gender: gender || null });
+      currentUser.gender = gender || null;
+      await renderProfile(currentUser);
+      App.showToast('Gender updated!');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    }
   }
 
   function toggleEdit(show) {

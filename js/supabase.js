@@ -67,7 +67,7 @@ const SupabaseDB = {
   // creates the profile and adds it to the coach's roster.
   // =============================================
 
-  async createUnclaimedDiver({ firstName, lastName, email, dateOfBirth, currentLevel, phone, parentGuardian, notes }) {
+  async createUnclaimedDiver({ firstName, lastName, email, dateOfBirth, currentLevel, phone, parentGuardian, notes, gender }) {
     const { data, error } = await this.db.rpc('create_unclaimed_diver', {
       p_first_name:      firstName,
       p_last_name:       lastName       || null,
@@ -77,9 +77,20 @@ const SupabaseDB = {
       p_phone:           phone          || null,
       p_parent_guardian: parentGuardian || null,
       p_notes:           notes          || null,
+      p_gender:          gender         || null,
     });
     if (error) throw new Error(error.message);
     return data; // returns new profile UUID
+  },
+
+  // Coach edits the gender of a diver on their roster (covers active,
+  // claimed profiles which the coach can't update directly via RLS).
+  async updateDiverGender(diverId, gender) {
+    const { error } = await this.db.rpc('update_diver_gender', {
+      p_diver_id: diverId,
+      p_gender:   gender || null,
+    });
+    if (error) throw new Error(error.message);
   },
 
   // Search unclaimed/pending profiles by diver name (and optionally coach name).
@@ -238,7 +249,7 @@ const SupabaseDB = {
         id,
         joined_at,
         diver:profiles!roster_diver_id_fkey (
-          id, full_name, first_name, last_name, email, avatar_url, status, current_level, created_at,
+          id, full_name, first_name, last_name, gender, email, avatar_url, status, current_level, created_at,
           invite_token, invite_token_expires_at, invite_type
         )
       `)

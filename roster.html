@@ -35,6 +35,24 @@
       gap: 12px;
     }
     @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+    .gender-badge {
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .roster-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .roster-controls .form-group {
+      margin-bottom: 0;
+      min-width: 160px;
+    }
   </style>
 </head>
 <body>
@@ -79,6 +97,25 @@
     <!-- Roster list -->
     <div class="content-section">
       <div class="section-title">My Divers</div>
+      <div class="roster-controls">
+        <div class="form-group">
+          <label class="form-label">Filter by Gender</label>
+          <select id="filter-gender" class="form-select" onchange="renderRosterList()">
+            <option value="">All</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sort By</label>
+          <select id="sort-by" class="form-select" onchange="renderRosterList()">
+            <option value="name">Last Name</option>
+            <option value="level">Level</option>
+            <option value="gender">Gender</option>
+          </select>
+        </div>
+      </div>
       <div id="roster-list">
         <div class="loading-overlay">
           <div class="loading-spinner loading-spinner-lg"></div>
@@ -119,26 +156,36 @@
 
     <div class="form-row">
       <div class="form-group">
+        <label class="form-label">Gender <span style="color:var(--danger)">*</span></label>
+        <select id="new-gender" class="form-select">
+          <option value="">Select…</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Current Level</label>
         <select id="new-current-level" class="form-select">
           <option value="">Select level…</option>
         </select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Date of Birth</label>
-        <input type="date" id="new-dob" class="form-input">
-      </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
+        <label class="form-label">Date of Birth</label>
+        <input type="date" id="new-dob" class="form-input">
+      </div>
+      <div class="form-group">
         <label class="form-label">Phone Number</label>
         <input type="tel" id="new-phone" class="form-input" placeholder="(555) 123-4567">
       </div>
-      <div class="form-group">
-        <label class="form-label">Email (optional)</label>
-        <input type="email" id="new-email" class="form-input" placeholder="diver@example.com">
-      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Email (optional)</label>
+      <input type="email" id="new-email" class="form-input" placeholder="diver@example.com">
     </div>
 
     <div class="form-group">
@@ -183,6 +230,36 @@
 
 
 <!-- =============================================
+     EDIT DIVER MODAL
+============================================= -->
+<div class="modal-overlay" id="edit-diver-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Diver</h2>
+      <button class="modal-close" onclick="App.closeModal('edit-diver-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="edit-diver-name"></p>
+
+    <div class="form-group">
+      <label class="form-label">Gender</label>
+      <select id="edit-gender" class="form-select">
+        <option value="">Not set</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <div id="edit-diver-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('edit-diver-modal')">Cancel</button>
+      <button class="btn btn-primary" id="edit-diver-btn" onclick="saveDiverEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
      INVITE LINK MODAL
 ============================================= -->
 <div class="modal-overlay" id="invite-modal">
@@ -217,10 +294,11 @@
 <script src="js/app.js"></script>
 
 <script>
-  let currentUser    = null;
-  let roster         = [];
-  let readyForTest   = [];
-  let pendingRemove  = null;
+  let currentUser     = null;
+  let roster          = [];
+  let readyForTest    = [];
+  let pendingRemove   = null;
+  let pendingEditDiver = null;
 
   (async function initRosterPage() {
     initSupabase();
@@ -277,8 +355,13 @@
       readySection.style.display = 'none';
     }
 
-    // Roster list
+    renderRosterList();
+  }
+
+  // Re-render the roster list applying the current gender filter and sort.
+  function renderRosterList() {
     const rosterEl = document.getElementById('roster-list');
+
     if (roster.length === 0) {
       rosterEl.innerHTML = `
         <div class="empty-state">
@@ -287,8 +370,49 @@
           <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">+ Add First Diver</button>
         </div>
       `;
+      return;
+    }
+
+    const genderFilter = document.getElementById('filter-gender').value;
+    const sortBy       = document.getElementById('sort-by').value;
+
+    let filtered = genderFilter
+      ? roster.filter(r => r.diver.gender === genderFilter)
+      : roster.slice();
+
+    if (sortBy === 'level') {
+      filtered.sort((a, b) => {
+        const aLevel = a.diver.current_level;
+        const bLevel = b.diver.current_level;
+        if (aLevel == null && bLevel == null) return App.compareNames(a.diver, b.diver);
+        if (aLevel == null) return 1;
+        if (bLevel == null) return -1;
+        if (aLevel !== bLevel) return aLevel - bLevel;
+        return App.compareNames(a.diver, b.diver);
+      });
+    } else if (sortBy === 'gender') {
+      filtered.sort((a, b) => {
+        const aGender = a.diver.gender;
+        const bGender = b.diver.gender;
+        if (aGender == null && bGender == null) return App.compareNames(a.diver, b.diver);
+        if (aGender == null) return 1;
+        if (bGender == null) return -1;
+        if (aGender !== bGender) return aGender < bGender ? -1 : 1;
+        return App.compareNames(a.diver, b.diver);
+      });
     } else {
-      rosterEl.innerHTML = roster.map(r => renderDiverRow(r)).join('');
+      filtered.sort((a, b) => App.compareNames(a.diver, b.diver));
+    }
+
+    if (filtered.length === 0) {
+      rosterEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <p>No divers match this filter.</p>
+        </div>
+      `;
+    } else {
+      rosterEl.innerHTML = filtered.map(r => renderDiverRow(r)).join('');
     }
   }
 
@@ -306,6 +430,10 @@
 
     const levelHtml = diver.current_level != null
       ? `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>`
+      : '';
+
+    const genderHtml = diver.gender
+      ? `<span class="gender-badge">${App.escHtml(diver.gender)}</span>`
       : '';
 
     // Invite status line (one invite link can be active per profile at a time)
@@ -354,6 +482,7 @@
             <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
               ${App.escHtml(App.formatNameLastFirst(diver))}
               ${levelHtml}
+              ${genderHtml}
               ${badgeHtml}
             </div>
             <div class="list-item-subtitle">
@@ -367,6 +496,8 @@
             ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">Progress →</a>`
             : `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">Invite Diver</button>`}
           <button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">Invite Parent</button>
+          <button class="btn btn-ghost btn-sm"
+            onclick="openEditDiverModal('${diver.id}', '${App.escHtml(App.formatNameLastFirst(diver))}', ${diver.gender ? `'${diver.gender}'` : 'null'})">Edit</button>
           <button class="btn btn-ghost btn-sm"
             onclick="openRemoveModal('${diver.id}', '${App.escHtml(diver.full_name)}')">✕</button>
         </div>
@@ -417,6 +548,7 @@
 
     const firstName     = document.getElementById('new-first-name').value.trim();
     const lastName      = document.getElementById('new-last-name').value.trim();
+    const gender        = document.getElementById('new-gender').value;
     const currentLevel  = document.getElementById('new-current-level').value;
     const dob           = document.getElementById('new-dob').value;
     const phone         = document.getElementById('new-phone').value.trim();
@@ -430,6 +562,13 @@
       alertEl.className   = 'alert alert-error visible mb-4';
       alertEl.textContent = 'First name is required.';
       document.getElementById('new-first-name').focus();
+      return;
+    }
+
+    if (!gender) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = 'Gender is required.';
+      document.getElementById('new-gender').focus();
       return;
     }
 
@@ -447,6 +586,7 @@
         phone:          phone       || null,
         parentGuardian: parent      || null,
         notes:          notes       || null,
+        gender,
       });
 
       App.closeModal('add-diver-modal');
@@ -466,6 +606,7 @@
       document.getElementById(id).value = '';
     });
     document.getElementById('new-current-level').value = '';
+    document.getElementById('new-gender').value = '';
     document.getElementById('add-diver-alert').className = 'alert mb-4';
   }
 
@@ -493,8 +634,38 @@
     }
   }
 
+  // ---- Edit diver (gender) ----
+  function openEditDiverModal(diverId, diverName, currentGender) {
+    pendingEditDiver = diverId;
+    document.getElementById('edit-diver-name').textContent = `Editing ${diverName}`;
+    document.getElementById('edit-gender').value = currentGender || '';
+    document.getElementById('edit-diver-alert').className = 'alert mb-4';
+    App.openModal('edit-diver-modal');
+  }
+
+  async function saveDiverEdit() {
+    if (!pendingEditDiver) return;
+    const btn     = document.getElementById('edit-diver-btn');
+    const alertEl = document.getElementById('edit-diver-alert');
+    const gender  = document.getElementById('edit-gender').value;
+
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.updateDiverGender(pendingEditDiver, gender || null);
+      App.closeModal('edit-diver-modal');
+      App.showToast('Diver updated.');
+      await loadRoster();
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = err.message;
+    } finally {
+      App.setBtnLoading(btn, false);
+      pendingEditDiver = null;
+    }
+  }
+
   // Close modals on overlay click
-  ['add-diver-modal', 'remove-modal', 'invite-modal'].forEach(id => {
+  ['add-diver-modal', 'remove-modal', 'invite-modal', 'edit-diver-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });
