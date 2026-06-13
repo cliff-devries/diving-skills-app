@@ -102,30 +102,6 @@
           </div>
         </div>
       `;
-    } else if (user.role === 'coach') {
-      const roster = await SupabaseDB.getRoster(user.id);
-      roster.sort((a, b) => App.compareNames(a.diver, b.diver));
-      extraHtml = `
-        <div class="content-section">
-          <div class="section-title">My Roster (${roster.length} diver${roster.length !== 1 ? 's' : ''})</div>
-          <div class="card card-sm">
-            ${roster.length === 0
-              ? `<p class="text-secondary text-sm">No divers yet. <a href="roster.html">Add divers</a>.</p>`
-              : roster.slice(0, 5).map(r => `
-                  <div class="list-item">
-                    <div class="avatar-sm">${Auth.getInitials(r.diver.full_name)}</div>
-                    <div class="list-item-content">
-                      <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(r.diver))}</div>
-                      <div class="list-item-subtitle">${App.escHtml(r.diver.email)}</div>
-                    </div>
-                    <a href="progress.html?diver=${r.diver.id}" class="btn btn-ghost btn-sm">View →</a>
-                  </div>
-                `).join('')
-            }
-            ${roster.length > 5 ? `<div class="mt-3"><a href="roster.html" class="btn btn-ghost btn-sm">View all ${roster.length} divers →</a></div>` : ''}
-          </div>
-        </div>
-      `;
     } else if (user.role === 'parent') {
       const links = await SupabaseDB.getLinkedDivers(user.id);
       links.sort((a, b) => App.compareNames(a.diver, b.diver));
