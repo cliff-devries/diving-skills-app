@@ -6,24 +6,26 @@
 
 const Skills = {
 
-  // ---- Fetch all skills, ordered by level then name ----
+  // ---- Fetch all skills, ordered by curriculum order ----
   async getAll() {
     const { data, error } = await window.supabaseClient
       .from('skills')
       .select('*')
+      .order('skill_order', { ascending: true })
       .order('skill_level', { ascending: true })
       .order('skill_name',  { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []).map(Skills._normalize);
   },
 
-  // ---- Fetch skills for a single level ----
+  // ---- Fetch skills for a single level, ordered by curriculum order ----
   async getByLevel(level) {
     const { data, error } = await window.supabaseClient
       .from('skills')
       .select('*')
       .eq('skill_level', level)
-      .order('skill_name', { ascending: true });
+      .order('skill_order', { ascending: true })
+      .order('skill_name',  { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []).map(Skills._normalize);
   },
@@ -45,6 +47,7 @@ const Skills = {
       id:              row.id,
       name:            row.skill_name,
       level:           row.skill_level,
+      order:           row.skill_order,
       type:            row.skill_type        || 'General',
       description:     row.skill_description || '',
       category:        row.skill_category    || '',

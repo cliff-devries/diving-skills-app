@@ -285,7 +285,7 @@
 
     return orderedTypes.map(type => ({
       type,
-      skills: byType[type].slice().sort((a, b) => a.name.localeCompare(b.name)),
+      skills: byType[type].slice().sort((a, b) => App.compareSkillOrder(a, b)),
     }));
   }
 

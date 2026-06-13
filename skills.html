@@ -226,7 +226,7 @@
     const levels = Object.keys(byLevel).map(Number).sort((a, b) => a - b);
 
     const levelGroupsHtml = levels.map(lvl => {
-      const sorted = byLevel[lvl].slice().sort((a, b) => a.name.localeCompare(b.name));
+      const sorted = byLevel[lvl].slice().sort((a, b) => App.compareSkillOrder(a, b));
       return `
         <div class="skill-level-group">
           <div class="skill-level-label">Level ${lvl}</div>

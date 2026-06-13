@@ -209,6 +209,15 @@ const App = {
     return person.full_name || '';
   },
 
+  // Sort comparator: by skill_order (curriculum order), falling back to
+  // name for any skills that haven't been assigned an order yet.
+  compareSkillOrder(a, b) {
+    const aOrder = a?.order ?? Infinity;
+    const bOrder = b?.order ?? Infinity;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (a?.name || '').localeCompare(b?.name || '');
+  },
+
   // Sort comparator: by last_name then first_name (falls back to full_name).
   compareNames(a, b) {
     const aLast  = (a?.last_name  || a?.full_name || '').toLowerCase();
