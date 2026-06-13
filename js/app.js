@@ -137,6 +137,27 @@ const App = {
   },
 
   // =============================================
+  // IMAGE LIGHTBOX — full-size view for skill photo thumbnails
+  // =============================================
+  openImageLightbox(url) {
+    if (!url) return;
+    let overlay = document.getElementById('image-lightbox');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'image-lightbox';
+      overlay.className = 'image-lightbox';
+      overlay.innerHTML = '<img alt="">';
+      overlay.addEventListener('click', () => overlay.classList.remove('visible'));
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') overlay.classList.remove('visible');
+      });
+      document.body.appendChild(overlay);
+    }
+    overlay.querySelector('img').src = url;
+    overlay.classList.add('visible');
+  },
+
+  // =============================================
   // DATE / TIME FORMATTING
   // =============================================
   formatDate(str) {

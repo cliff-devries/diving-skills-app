@@ -41,6 +41,15 @@ const Skills = {
     return Skills._normalize(data);
   },
 
+  // ---- Update a skill (coach only — enforced by RLS) ----
+  async update(id, fields) {
+    const { error } = await window.supabaseClient
+      .from('skills')
+      .update(fields)
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
   // ---- Normalize a DB row into a clean skill object ----
   _normalize(row) {
     return {
@@ -52,6 +61,7 @@ const Skills = {
       description:     row.skill_description || '',
       category:        row.skill_category    || '',
       videoUrl:        row.video_url         || null,
+      photoUrl:        row.photo_url         || null,
       coachingNotes:   row.coaching_notes    || '',
       requiresHarness: row.requires_harness  || false,
     };

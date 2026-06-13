@@ -567,6 +567,49 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 .skill-meta { display: flex; align-items: center; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
 
 /* =============================================
+   SKILL PHOTO THUMBNAILS + LIGHTBOX
+   ============================================= */
+.skill-card-body { display: flex; gap: 12px; }
+.skill-card-content { flex: 1; min-width: 0; }
+
+.skill-thumb {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.skill-thumb:hover { border-color: rgba(0,201,167,0.4); }
+
+@media (max-width: 480px) {
+  .skill-thumb { width: 60px; height: 60px; }
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition);
+}
+.image-lightbox.visible { opacity: 1; visibility: visible; }
+.image-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-md);
+  cursor: zoom-out;
+}
+
+/* =============================================
    SKILLS GRID
    ============================================= */
 .skills-list { display: flex; flex-direction: column; gap: 10px; }

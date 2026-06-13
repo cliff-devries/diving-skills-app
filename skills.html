@@ -209,9 +209,17 @@
     container.innerHTML = orderedTypes.map(type => buildSection(type, byType[type])).join('');
 
     container.querySelectorAll('.skill-card').forEach(card => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.skill-thumb')) return;
         const skill = allSkills.find(s => s.id === Number(card.dataset.skillId));
         if (skill) openSkillModal(skill);
+      });
+    });
+
+    container.querySelectorAll('.skill-thumb').forEach(thumb => {
+      thumb.addEventListener('click', (e) => {
+        e.stopPropagation();
+        App.openImageLightbox(thumb.dataset.lightboxUrl);
       });
     });
   }
@@ -253,18 +261,25 @@
 
     return `
       <div class="skill-card ${cardClass}" data-skill-id="${skill.id}" role="button" tabindex="0">
-        <div class="skill-card-header">
-          <div class="skill-name">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span title="Requires harness">+</span>' : ''}</div>
-          ${App.stageBadgeHtml(completion)}
-        </div>
-        ${skill.description
-          ? `<div class="skill-description">${App.escHtml(skill.description.slice(0, 100))}${skill.description.length > 100 ? '…' : ''}</div>`
-          : ''}
-        <div class="skill-meta">
-          <span class="badge badge-level">L${skill.level ?? '?'}</span>
-          <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
-          ${skill.videoUrl ? '<span class="badge badge-accent">▶ Video</span>' : ''}
-          ${skill.requiresHarness ? '<span class="badge badge-secondary">+ Harness</span>' : ''}
+        <div class="skill-card-body">
+          ${skill.photoUrl
+            ? `<img class="skill-thumb" src="${App.escHtml(skill.photoUrl)}" alt="" loading="lazy" data-lightbox-url="${App.escHtml(skill.photoUrl)}">`
+            : ''}
+          <div class="skill-card-content">
+            <div class="skill-card-header">
+              <div class="skill-name">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span title="Requires harness">+</span>' : ''}</div>
+              ${App.stageBadgeHtml(completion)}
+            </div>
+            ${skill.description
+              ? `<div class="skill-description">${App.escHtml(skill.description.slice(0, 100))}${skill.description.length > 100 ? '…' : ''}</div>`
+              : ''}
+            <div class="skill-meta">
+              <span class="badge badge-level">L${skill.level ?? '?'}</span>
+              <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
+              ${skill.videoUrl ? '<span class="badge badge-accent">▶ Video</span>' : ''}
+              ${skill.requiresHarness ? '<span class="badge badge-secondary">+ Harness</span>' : ''}
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -327,9 +342,88 @@
         `;
       }
     } else if (currentUser.role === 'coach') {
-      area.innerHTML = `<p class="text-secondary text-sm">Manage skill progression from the <a href="roster.html">Roster</a> or <a href="progress.html">Progress</a> pages.</p>`;
+      area.innerHTML = `
+        <p class="text-secondary text-sm mb-2">Manage skill progression from the <a href="roster.html">Roster</a> or <a href="progress.html">Progress</a> pages.</p>
+        <button class="btn btn-secondary btn-sm" onclick="openSkillEditForm(${skill.id})">✏️ Edit Skill</button>
+        <div id="skill-edit-form" class="hidden"></div>
+      `;
     } else {
       area.innerHTML = '';
+    }
+  }
+
+  // =============================================
+  // COACH — EDIT SKILL (Video URL / Skill Photo URL)
+  // =============================================
+  function openSkillEditForm(skillId) {
+    const skill = allSkills.find(s => s.id === skillId);
+    if (!skill) return;
+
+    const form = document.getElementById('skill-edit-form');
+    form.innerHTML = `
+      <div class="divider mt-3 mb-3"></div>
+      <div class="form-group">
+        <label class="form-label">Video URL</label>
+        <input type="url" id="edit-video-url" class="form-input" placeholder="https://..." value="${App.escHtml(skill.videoUrl || '')}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Skill Photo URL</label>
+        <input type="url" id="edit-photo-url" class="form-input" placeholder="https://..." value="${App.escHtml(skill.photoUrl || '')}">
+        <div id="edit-photo-preview" class="mt-2"></div>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-primary btn-sm" id="save-skill-edit-btn" onclick="saveSkillEdit(${skillId})">Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeSkillEditForm()">Cancel</button>
+      </div>
+    `;
+    form.classList.remove('hidden');
+
+    document.getElementById('edit-photo-url').addEventListener('input', updateEditPhotoPreview);
+    updateEditPhotoPreview();
+  }
+
+  function updateEditPhotoPreview() {
+    const url     = document.getElementById('edit-photo-url').value.trim();
+    const preview = document.getElementById('edit-photo-preview');
+
+    if (!url) { preview.innerHTML = ''; return; }
+
+    preview.innerHTML = `<img alt="" class="skill-thumb" loading="lazy">`;
+    const img = preview.querySelector('img');
+    img.src = url;
+    img.addEventListener('click', () => App.openImageLightbox(url));
+  }
+
+  function closeSkillEditForm() {
+    const form = document.getElementById('skill-edit-form');
+    form.classList.add('hidden');
+    form.innerHTML = '';
+  }
+
+  async function saveSkillEdit(skillId) {
+    const btn = document.getElementById('save-skill-edit-btn');
+    App.setBtnLoading(btn, true);
+
+    try {
+      const videoUrl = document.getElementById('edit-video-url').value.trim();
+      const photoUrl = document.getElementById('edit-photo-url').value.trim();
+
+      await Skills.update(skillId, {
+        video_url: videoUrl || null,
+        photo_url: photoUrl || null,
+      });
+
+      const skill = allSkills.find(s => s.id === skillId);
+      skill.videoUrl = videoUrl || null;
+      skill.photoUrl = photoUrl || null;
+
+      App.showToast('Skill updated.');
+      closeSkillEditForm();
+      openSkillModal(skill);
+      applyFilters();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
     }
   }
 
