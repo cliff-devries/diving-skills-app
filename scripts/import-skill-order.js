@@ -4,6 +4,11 @@ console.log('Script starting...');
 // Update skill_order on public.skills from skill_order.csv
 //
 // Usage:
+//   node scripts/import-skill-order.js [path-to-csv]
+//
+// Reads SUPABASE_SERVICE_ROLE_KEY from .env.local in the project root
+// (one KEY=value per line — see .env.local for the expected format).
+// You can also pass it via environment variable instead:
 //   SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-skill-order.js [path-to-csv]
 //
 // Defaults to skill_order.csv (underscore) in the project root.
@@ -24,9 +29,34 @@ function skillKey(name, level) {
   return `${name.trim().toLowerCase()}|${level}`;
 }
 
+// ---- Load KEY=value pairs from .env.local into process.env (without overwriting
+// any vars already set in the environment) ----
+function loadEnvLocal() {
+  const envPath = path.join(__dirname, '..', '.env.local');
+  if (!fs.existsSync(envPath)) return;
+
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
+
 async function main() {
   const { parse } = require('csv-parse/sync');
   const { createClient } = require('@supabase/supabase-js');
+
+  loadEnvLocal();
 
   // ---- Load credentials from config.js via regex (avoids eval) ----
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
@@ -41,12 +71,14 @@ async function main() {
   const SUPABASE_URL = extractConfig('SUPABASE_URL');
 
   // Service role key bypasses RLS — required to update skills rows.
-  // Pass it via environment variable: SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-skill-order.js
+  // Set it in .env.local (SUPABASE_SERVICE_ROLE_KEY=...) or pass it via
+  // environment variable: SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-skill-order.js
   const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!SERVICE_ROLE_KEY) {
     throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY environment variable is required.\n' +
-      'Usage: SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-skill-order.js [path-to-csv]'
+      'SUPABASE_SERVICE_ROLE_KEY is not set.\n' +
+      'Add it to .env.local (SUPABASE_SERVICE_ROLE_KEY=...) or pass it via\n' +
+      'environment variable: SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-skill-order.js [path-to-csv]'
     );
   }
 
