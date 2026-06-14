@@ -673,41 +673,41 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 }
 
 /* =============================================
-   TAB BAR — Testing Skills / Supplemental Skills switcher
+   SKILL VIEW TOGGLE — Testing Skills / Supplemental Skills
+   Styled to match .skill-section-header.
    ============================================= */
-.tab-bar {
+.skill-view-toggle {
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 24px;
 }
-.tab-btn {
+.skill-view-btn {
   flex: 1;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 12px 24px;
-  border-radius: var(--radius-sm);
+  padding: 10px 16px;
   border: 1px solid var(--border);
-  border-bottom: 3px solid transparent;
+  border-radius: var(--radius-md);
   background: var(--bg-surface-2);
   color: var(--text-secondary);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   cursor: pointer;
   transition: var(--transition);
 }
-.tab-btn:hover { color: var(--text-primary); border-color: var(--accent); }
-.tab-btn.active {
+.skill-view-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+.skill-view-btn.active {
   background: var(--accent);
   border-color: var(--accent);
-  border-bottom-color: var(--accent-hover);
   color: #000;
+  box-shadow: var(--shadow-card);
 }
 
 @media (max-width: 480px) {
-  .tab-bar { gap: 6px; }
-  .tab-btn { padding: 12px 8px; font-size: 0.85rem; }
+  .skill-view-toggle { gap: 6px; }
+  .skill-view-btn { padding: 10px 8px; font-size: 0.85rem; }
 }
 
 /* =============================================

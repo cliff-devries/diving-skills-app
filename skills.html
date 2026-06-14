@@ -19,9 +19,9 @@
     </div>
 
     <!-- Curriculum / Supplemental tabs -->
-    <div class="tab-bar" id="skill-tabs">
-      <button class="tab-btn active" data-tab="curriculum" onclick="selectTab('curriculum')">Testing Skills</button>
-      <button class="tab-btn" data-tab="supplemental" onclick="selectTab('supplemental')">Supplemental Skills</button>
+    <div class="skill-view-toggle" id="skill-tabs">
+      <button class="skill-view-btn active" data-tab="curriculum" onclick="selectTab('curriculum')">Testing Skills</button>
+      <button class="skill-view-btn" data-tab="supplemental" onclick="selectTab('supplemental')">Supplemental Skills</button>
     </div>
 
     <!-- Filter bar -->
@@ -173,7 +173,7 @@
 
   function selectTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    document.querySelectorAll('.skill-view-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     });
     applyFilters();
@@ -390,14 +390,15 @@
         <div id="edit-photo-preview" class="mt-2"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Include in Curriculum Testing</label>
+        <label class="form-label">Supplemental Skill</label>
         <div class="flex items-center gap-2">
           <label class="toggle-switch">
-            <input type="checkbox" id="edit-is-testable" ${skill.isTestable ? 'checked' : ''}>
+            <input type="checkbox" id="edit-is-testable" ${skill.isTestable ? '' : 'checked'}>
             <span class="toggle-slider"></span>
           </label>
-          <span id="testable-label" class="text-sm text-secondary">${skill.isTestable ? 'Curriculum' : 'Supplemental'}</span>
+          <span class="text-sm text-secondary">Supplemental Skill</span>
         </div>
+        <div class="text-secondary text-sm mt-1">When checked this skill will appear in Supplemental Skills only and will not count toward level certification</div>
       </div>
       <div class="flex gap-2">
         <button class="btn btn-primary btn-sm" id="save-skill-edit-btn" onclick="saveSkillEdit(${skillId})">Save</button>
@@ -412,9 +413,9 @@
   }
 
   async function toggleIsTestable(skillId) {
-    const checkbox  = document.getElementById('edit-is-testable');
-    const label     = document.getElementById('testable-label');
-    const isTestable = checkbox.checked;
+    const checkbox       = document.getElementById('edit-is-testable');
+    const isSupplemental = checkbox.checked;
+    const isTestable      = !isSupplemental;
 
     checkbox.disabled = true;
     try {
@@ -422,12 +423,11 @@
 
       const skill = allSkills.find(s => s.id === skillId);
       skill.isTestable = isTestable;
-      label.textContent = isTestable ? 'Curriculum' : 'Supplemental';
 
-      App.showToast(isTestable ? 'Skill set to Curriculum.' : 'Skill set to Supplemental.');
+      App.showToast(isSupplemental ? 'Skill set to Supplemental.' : 'Skill set to Testing Skill.');
       applyFilters();
     } catch (err) {
-      checkbox.checked = !isTestable;
+      checkbox.checked = !isSupplemental;
       App.showToast(err.message, 'error');
     } finally {
       checkbox.disabled = false;
