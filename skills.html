@@ -18,10 +18,13 @@
       <p>Browse all skills across Levels 0–12. Tap a skill for details.</p>
     </div>
 
-    <!-- Curriculum / Supplemental tabs -->
-    <div class="skill-view-toggle" id="skill-tabs">
-      <button class="skill-view-btn active" data-tab="curriculum" onclick="selectTab('curriculum')">Testing Skills</button>
-      <button class="skill-view-btn" data-tab="supplemental" onclick="selectTab('supplemental')">Supplemental Skills</button>
+    <!-- Curriculum / Supplemental tabs + Create Skill (coach only) -->
+    <div class="skills-toolbar">
+      <div class="skill-view-toggle" id="skill-tabs">
+        <button class="skill-view-btn active" data-tab="curriculum" onclick="selectTab('curriculum')">Testing Skills</button>
+        <button class="skill-view-btn" data-tab="supplemental" onclick="selectTab('supplemental')">Supplemental Skills</button>
+      </div>
+      <button class="btn btn-primary hidden" id="create-skill-btn" onclick="openCreateSkillModal()">+ Create Skill</button>
     </div>
 
     <!-- Filter bar -->
@@ -89,6 +92,80 @@
   </div>
 </div>
 
+<!-- Create Skill Modal (coach only) -->
+<div class="modal-overlay" id="create-skill-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h2 class="modal-title">Create Skill</h2>
+      <button class="modal-close" onclick="closeCreateSkillModal()" aria-label="Close">✕</button>
+    </div>
+
+    <div id="create-skill-alert" class="alert mb-3"></div>
+
+    <div class="form-group">
+      <label class="form-label">Skill Name *</label>
+      <input type="text" id="create-skill-name" class="form-input" placeholder="e.g. Forward Dive Pike">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Skill Type *</label>
+      <select id="create-skill-type" class="form-select" style="width:100%">
+        <option value="">Select a type…</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Skill Category *</label>
+      <input type="text" id="create-skill-category" class="form-input" placeholder="e.g. Forward">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Skill Level</label>
+      <input type="number" id="create-skill-level" class="form-input" min="0" max="12" value="0">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Skill Order</label>
+      <input type="number" id="create-skill-order" class="form-input" value="10000">
+      <div class="text-secondary text-sm mt-1">Current skills range from 10 to 6440. Use 10000 to add at the end, or enter a specific number to place within the curriculum.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Skill Description</label>
+      <textarea id="create-skill-description" class="form-input" rows="3" style="resize:vertical"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Photo URL</label>
+      <input type="url" id="create-skill-photo-url" class="form-input" placeholder="https://media.divedrills.com/dive-photos/skill-name.jpg">
+      <div id="create-skill-photo-preview" class="mt-2"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Video URL</label>
+      <input type="url" id="create-skill-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4">
+      <div id="create-skill-video-status" class="text-sm mt-1"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Supplemental Skill</label>
+      <div class="flex items-center gap-2">
+        <label class="toggle-switch">
+          <input type="checkbox" id="create-skill-is-supplemental" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="text-sm text-secondary">Supplemental Skill</span>
+      </div>
+      <div class="text-secondary text-sm mt-1">When checked this skill will appear in Supplemental Skills only and will not count toward level certification</div>
+    </div>
+
+    <div class="flex gap-2 mt-2">
+      <button class="btn btn-primary" id="create-skill-submit-btn" onclick="submitCreateSkill()">Create Skill</button>
+      <button class="btn btn-ghost" onclick="closeCreateSkillModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=2"></script>
@@ -124,6 +201,11 @@
 
     allSkills     = skills;
     completionMap = cMap;
+
+    if (user.role === 'coach') {
+      document.getElementById('create-skill-btn').classList.remove('hidden');
+      populateSkillTypeOptions();
+    }
 
     if (skills.length === 0) return;
 
@@ -483,9 +565,128 @@
     if (e.target === this) App.closeModal('skill-modal');
   });
 
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') App.closeModal('skill-modal');
+  document.getElementById('create-skill-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCreateSkillModal();
   });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      App.closeModal('skill-modal');
+      App.closeModal('create-skill-modal');
+    }
+  });
+
+  // =============================================
+  // COACH — CREATE SKILL
+  // =============================================
+  function populateSkillTypeOptions() {
+    const typeSel = document.getElementById('create-skill-type');
+    SECTION_ORDER.forEach(type => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = type;
+      typeSel.appendChild(opt);
+    });
+  }
+
+  function openCreateSkillModal() {
+    document.getElementById('create-skill-name').value        = '';
+    document.getElementById('create-skill-type').value        = '';
+    document.getElementById('create-skill-category').value    = '';
+    document.getElementById('create-skill-level').value       = '0';
+    document.getElementById('create-skill-order').value       = '10000';
+    document.getElementById('create-skill-description').value = '';
+    document.getElementById('create-skill-photo-url').value   = '';
+    document.getElementById('create-skill-video-url').value   = '';
+    document.getElementById('create-skill-is-supplemental').checked = true;
+    document.getElementById('create-skill-photo-preview').innerHTML = '';
+    document.getElementById('create-skill-video-status').innerHTML  = '';
+    App.hideAlert('create-skill-alert');
+    App.openModal('create-skill-modal');
+  }
+
+  function closeCreateSkillModal() {
+    App.closeModal('create-skill-modal');
+  }
+
+  function updateCreateSkillPhotoPreview() {
+    const url     = document.getElementById('create-skill-photo-url').value.trim();
+    const preview = document.getElementById('create-skill-photo-preview');
+
+    if (!url) { preview.innerHTML = ''; return; }
+
+    preview.innerHTML = `<img alt="" class="skill-thumb" loading="lazy">`;
+    const img = preview.querySelector('img');
+    img.src = url;
+    img.addEventListener('click', () => App.openImageLightbox(url));
+  }
+
+  function updateCreateSkillVideoStatus() {
+    const input  = document.getElementById('create-skill-video-url');
+    const status = document.getElementById('create-skill-video-status');
+    const url    = input.value.trim();
+
+    if (!url) { status.textContent = ''; status.className = 'text-sm mt-1'; return; }
+
+    if (input.checkValidity()) {
+      status.textContent = '✓ Valid video URL';
+      status.className   = 'text-sm mt-1 text-accent';
+    } else {
+      status.textContent = 'Please enter a valid URL.';
+      status.className   = 'text-sm mt-1 text-danger';
+    }
+  }
+
+  document.getElementById('create-skill-photo-url').addEventListener('input', updateCreateSkillPhotoPreview);
+  document.getElementById('create-skill-video-url').addEventListener('input', updateCreateSkillVideoStatus);
+
+  async function submitCreateSkill() {
+    const name        = document.getElementById('create-skill-name').value.trim();
+    const type        = document.getElementById('create-skill-type').value;
+    const category    = document.getElementById('create-skill-category').value.trim();
+    const level       = document.getElementById('create-skill-level').value;
+    const order       = document.getElementById('create-skill-order').value;
+    const description = document.getElementById('create-skill-description').value.trim();
+    const photoUrl    = document.getElementById('create-skill-photo-url').value.trim();
+    const videoUrl    = document.getElementById('create-skill-video-url').value.trim();
+    const isSupplemental = document.getElementById('create-skill-is-supplemental').checked;
+
+    if (!name || !type || !category) {
+      App.showAlert('create-skill-alert', 'Skill Name, Skill Type, and Skill Category are required.');
+      return;
+    }
+
+    const btn = document.getElementById('create-skill-submit-btn');
+    App.setBtnLoading(btn, true);
+    App.hideAlert('create-skill-alert');
+
+    try {
+      const skill = await Skills.create({
+        skill_name:        name,
+        skill_type:        type,
+        skill_category:    category,
+        skill_level:       level === '' ? 0 : Number(level),
+        skill_order:       order === '' ? 10000 : Number(order),
+        skill_description: description || null,
+        photo_url:         photoUrl || null,
+        video_url:         videoUrl || null,
+        is_testable:       !isSupplemental,
+      });
+
+      allSkills.push(skill);
+      activeTab = skill.isTestable ? 'curriculum' : 'supplemental';
+      document.querySelectorAll('.skill-view-btn').forEach(btnEl => {
+        btnEl.classList.toggle('active', btnEl.dataset.tab === activeTab);
+      });
+
+      App.showToast('Skill created successfully!');
+      closeCreateSkillModal();
+      applyFilters();
+    } catch (err) {
+      App.showAlert('create-skill-alert', err.message);
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
 </script>
 
 </body>

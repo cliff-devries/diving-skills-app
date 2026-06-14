@@ -50,6 +50,17 @@ const Skills = {
     if (error) throw new Error(error.message);
   },
 
+  // ---- Create a new skill (coach only — enforced by RLS) ----
+  async create(fields) {
+    const { data, error } = await window.supabaseClient
+      .from('skills')
+      .insert(fields)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return Skills._normalize(data);
+  },
+
   // ---- Normalize a DB row into a clean skill object ----
   _normalize(row) {
     return {
