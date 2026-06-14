@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dive Drills — Statistics & Reports</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+  <!-- Sidebar (desktop) -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main content -->
+  <main class="main-content fade-in" id="main-content">
+    <div class="loading-overlay">
+      <div class="loading-spinner loading-spinner-lg"></div>
+      <span>Loading…</span>
+    </div>
+  </main>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
+
+<script>
+  (async function initStats() {
+    initSupabase();
+
+    const user = await Auth.init(true);
+    if (!user) return;
+
+    App.renderNav(user);
+
+    const main = document.getElementById('main-content');
+    main.innerHTML = `
+      <div class="page-header">
+        <h1>Statistics & Reports</h1>
+        <p>Club-wide statistics and reports.</p>
+      </div>
+
+      <div class="empty-state">
+        <div class="empty-state-icon">📊</div>
+        <p>Statistics & Reports are coming soon.</p>
+      </div>
+    `;
+  })();
+</script>
+
+</body>
+</html>

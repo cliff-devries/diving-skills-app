@@ -524,4 +524,31 @@ const SupabaseDB = {
     if (error) { console.error('[SupabaseDB] getAllTestAttempts:', error.message); return []; }
     return data ?? [];
   },
+
+  // =============================================
+  // CLUB SETTINGS (club-wide manual values, e.g. team rankings)
+  // =============================================
+
+  // Fetch a map of setting_key -> setting_value for the given keys.
+  async getClubSettings(keys) {
+    const { data, error } = await this.db
+      .from('club_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', keys);
+    if (error) { console.error('[SupabaseDB] getClubSettings:', error.message); return {}; }
+    const map = {};
+    (data ?? []).forEach(row => { map[row.setting_key] = row.setting_value; });
+    return map;
+  },
+
+  // Coach-only (enforced by RLS) — create or update a club setting.
+  async setClubSetting(key, value, userId) {
+    const { error } = await this.db
+      .from('club_settings')
+      .upsert(
+        { setting_key: key, setting_value: value, updated_by: userId, updated_at: new Date().toISOString() },
+        { onConflict: 'setting_key' }
+      );
+    if (error) throw new Error(error.message);
+  },
 };

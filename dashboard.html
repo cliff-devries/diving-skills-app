@@ -59,14 +59,19 @@
   // =============================================
   // COACH DASHBOARD
   // =============================================
+  let coachUserId = null;
+
   async function renderCoachDashboard(user) {
     const main = document.getElementById('main-content');
+    coachUserId = user.id;
 
-    // Load roster, skills ready for testing, and pending profile claims in parallel
-    const [roster, readyForTest, claims] = await Promise.all([
+    // Load roster, skills ready for testing, pending profile claims, and
+    // club settings (manual rankings) in parallel.
+    const [roster, readyForTest, claims, clubSettings] = await Promise.all([
       SupabaseDB.getRoster(user.id),
       SupabaseDB.getReadyForTestForCoach(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
+      SupabaseDB.getClubSettings(['usa_diving_ranking', 'aau_diving_ranking']),
     ]);
 
     roster.sort((a, b) => App.compareNames(a.diver, b.diver));
@@ -74,12 +79,12 @@
 
     main.innerHTML = `
       <div class="page-header">
-        <h1>Welcome back, ${App.escHtml(App.firstName(user))} 👋</h1>
-        <p>Here's what's happening with your team today.</p>
+        <h1>Carpe Divum, ${App.escHtml(App.firstName(user))}! 👋</h1>
+        <p>Welcome to the Upstate Diving Skills Tracker. Today is a great day to seize the sky.</p>
       </div>
 
       <!-- Stat cards -->
-      <div class="card-grid mb-6">
+      <div class="card-grid-4 mb-6">
         <div class="stat-card">
           <div class="stat-value">${roster.length}</div>
           <div class="stat-label">Divers on Roster</div>
@@ -90,6 +95,15 @@
           </div>
           <div class="stat-label">Ready for Testing</div>
         </div>
+        ${rankingCardHtml('usa_diving_ranking', 'USA Diving Ranking', clubSettings.usa_diving_ranking)}
+        ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking)}
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Statistics & Reports -->
+      <div class="content-section">
+        <a href="stats.html" class="btn btn-secondary">📊 Statistics & Reports</a>
       </div>
 
       <!-- Pending profile claims -->
@@ -124,25 +138,58 @@
           ${renderReadyForTestList(readyForTestGroups)}
         </div>
       </div>
+    `;
 
-      <!-- Roster preview -->
-      <div class="content-section">
-        <div class="card-header" style="margin-bottom: 14px">
-          <div class="section-title" style="margin-bottom:0">Your Roster</div>
-          <a href="roster.html" class="btn btn-ghost btn-sm">View All →</a>
+  }
+
+  // =============================================
+  // EDITABLE RANKING CARDS (USA / AAU Diving Ranking)
+  // =============================================
+  function rankingCardHtml(key, label, value) {
+    const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
+    const display  = hasValue ? App.escHtml(String(value)) : '--';
+
+    return `
+      <div class="stat-card">
+        <div class="stat-value" id="ranking-value-${key}">${display}</div>
+        <div class="flex items-center justify-between">
+          <div class="stat-label">${label}</div>
+          <button class="icon-btn-edit" onclick="editRanking('${key}')" aria-label="Edit ${App.escHtml(label)}" title="Edit ${App.escHtml(label)}">✏️</button>
         </div>
-        <div id="roster-preview">
-          ${roster.length === 0
-            ? `<div class="empty-state">
-                <div class="empty-state-icon">👥</div>
-                <p>No divers yet. <a href="roster.html">Add divers to your roster</a>.</p>
-               </div>`
-            : roster.slice(0, 5).map(r => renderDiverRow(r.diver)).join('')
-          }
+        <div class="ranking-edit-row hidden" id="ranking-edit-${key}">
+          <input type="text" class="form-input" id="ranking-input-${key}" placeholder="e.g. 12" value="${hasValue ? App.escHtml(String(value)) : ''}">
+          <button class="btn btn-primary btn-sm" id="ranking-save-${key}" onclick="saveRanking('${key}', '${label}')">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelRanking('${key}')">Cancel</button>
         </div>
       </div>
     `;
+  }
 
+  function editRanking(key) {
+    document.getElementById(`ranking-edit-${key}`).classList.remove('hidden');
+    document.getElementById(`ranking-input-${key}`).focus();
+  }
+
+  function cancelRanking(key) {
+    document.getElementById(`ranking-edit-${key}`).classList.add('hidden');
+  }
+
+  async function saveRanking(key, label) {
+    const input = document.getElementById(`ranking-input-${key}`);
+    const btn   = document.getElementById(`ranking-save-${key}`);
+    const value = input.value.trim();
+
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.setClubSetting(key, value, coachUserId);
+      document.getElementById(`ranking-value-${key}`).textContent = value || '--';
+      document.getElementById(`ranking-edit-${key}`).classList.add('hidden');
+      App.showToast(`${label} updated.`);
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
   }
 
   // Group individual "ready for test" skill rows into one summary per diver,
@@ -189,19 +236,6 @@
         </div>
       `).join('')}
     </div>`;
-  }
-
-  function renderDiverRow(diver) {
-    return `
-      <a href="progress.html?diver=${diver.id}" class="diver-row">
-        <div class="avatar-sm">${Auth.getInitials(diver.full_name)}</div>
-        <div class="list-item-content">
-          <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(diver))}</div>
-          <div class="list-item-subtitle">${App.escHtml(diver.email)}</div>
-        </div>
-        <span>→</span>
-      </a>
-    `;
   }
 
   async function approveClaim(claimId, btn) {
