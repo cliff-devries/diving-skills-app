@@ -25,6 +25,9 @@ const App = {
       { href: 'profile.html',   icon: '👤', label: 'Profile',       roles: ['coach', 'diver', 'parent'] },
     ].filter(l => l.roles.includes(role));
 
+    // Reports — visible to every role, always pinned to the end of the nav.
+    const reportsLink = { href: 'stats.html', icon: '📈', label: 'Reports' };
+
     const isActive = href => currentPage === href ? 'active' : '';
 
     // ---- Sidebar ----
@@ -47,6 +50,11 @@ const App = {
               <span>${l.label}</span>
             </a>
           `).join('')}
+          <div class="sidebar-nav-divider"></div>
+          <a href="${reportsLink.href}" class="nav-item ${isActive(reportsLink.href)}">
+            <span class="nav-icon">${reportsLink.icon}</span>
+            <span>${reportsLink.label}</span>
+          </a>
         </nav>
         <div class="sidebar-footer">
           <div class="user-info-nav">
@@ -69,7 +77,12 @@ const App = {
           <span class="nav-icon">${l.icon}</span>
           <span>${l.label}</span>
         </a>
-      `).join('');
+      `).join('') + `
+        <a href="${reportsLink.href}" class="bottom-nav-item bottom-nav-item-reports ${isActive(reportsLink.href)}">
+          <span class="nav-icon">${reportsLink.icon}</span>
+          <span>${reportsLink.label}</span>
+        </a>
+      `;
     }
   },
 
