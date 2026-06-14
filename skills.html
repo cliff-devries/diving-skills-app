@@ -531,6 +531,12 @@
         <input type="url" id="edit-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4" value="${App.escHtml(skill.videoUrl || '')}">
         <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.mp4</div>
       </div>
+      <div class="section-title mb-2" style="font-size:0.7rem">Advanced</div>
+      <div class="form-group">
+        <label class="form-label text-sm">Skill Order</label>
+        <input type="number" id="edit-skill-order" class="form-input" value="${skill.order ?? ''}">
+        <div class="text-secondary text-sm mt-1">Controls display order within the curriculum. Current curriculum range is 10 to 6440. Coach-created skills start at 10000.</div>
+      </div>
       <div class="form-group">
         <div class="flex items-center gap-2">
           <label class="toggle-switch">
@@ -577,18 +583,21 @@
     App.setBtnLoading(btn, true);
 
     try {
+      const skill          = allSkills.find(s => s.id === skillId);
       const level          = document.getElementById('edit-skill-level').value;
       const description    = document.getElementById('edit-skill-description').value.trim();
       const coachingNotes  = document.getElementById('edit-coaching-notes').value.trim();
       const photoUrl       = document.getElementById('edit-photo-url').value.trim();
       const videoUrl       = document.getElementById('edit-video-url').value.trim();
       const isTestable     = !document.getElementById('edit-is-testable').checked;
+      const order          = document.getElementById('edit-skill-order').value;
 
       await Skills.update(skillId, {
         skill_name:        name,
         skill_type:        type,
         skill_category:    category || null,
         skill_level:       level === '' ? 0 : Number(level),
+        skill_order:       order === '' ? skill.order : Number(order),
         skill_description: description || null,
         coaching_notes:    coachingNotes || null,
         photo_url:         photoUrl || null,
@@ -596,11 +605,11 @@
         is_testable:       isTestable,
       });
 
-      const skill = allSkills.find(s => s.id === skillId);
       skill.name          = name;
       skill.type          = type;
       skill.category      = category;
       skill.level         = level === '' ? 0 : Number(level);
+      skill.order         = order === '' ? skill.order : Number(order);
       skill.description   = description;
       skill.coachingNotes = coachingNotes;
       skill.photoUrl      = photoUrl || null;
