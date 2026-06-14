@@ -331,6 +331,69 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 @media (min-width: 500px)  { .card-grid-3 { grid-template-columns: repeat(2, 1fr); gap: 24px; } }
 @media (min-width: 900px)  { .card-grid-3 { grid-template-columns: repeat(3, 1fr); } }
 
+/* Club Goals banner */
+.club-goals-banner {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+.club-goals-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.club-goals-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 700px) {
+  .club-goals-grid { grid-template-columns: 1fr 1fr; gap: 0; }
+  .club-goal { padding: 0 24px; }
+  .club-goal:first-child { padding-left: 0; }
+  .club-goal:last-child  { padding-right: 0; border-left: 1px solid var(--border); }
+}
+.club-goal-title {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.club-goal-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.club-goal-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.progress-bar-pct {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 36px;
+  text-align: right;
+}
+
 /* Stat card */
 .stat-card {
   background: var(--bg-surface);

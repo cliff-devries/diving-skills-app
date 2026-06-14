@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Drills — Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=4">
+  <link rel="stylesheet" href="css/styles.css?v=5">
 </head>
 <body>
 
@@ -92,6 +92,11 @@
         <p>Welcome to the Upstate Diving Skills Tracker. Today is a great day to seize the sky.</p>
       </div>
 
+      <!-- Club Goals -->
+      <div class="mb-6">
+        ${clubGoalsBannerHtml(roster.length, clubSettings.usa_diving_ranking)}
+      </div>
+
       <!-- Row 1 -->
       <div class="card-grid-3 mb-6">
         <div class="stat-card">
@@ -171,6 +176,62 @@
       </div>
     `;
 
+  }
+
+  // =============================================
+  // CLUB GOALS BANNER
+  // =============================================
+  const ROSTER_GOAL = 200;
+  const RANKING_GOAL = 10;
+  const RANKING_FLOOR = 200;
+
+  function clubGoalsBannerHtml(rosterCount, usaRanking) {
+    const rosterPct = Math.min(100, Math.round((rosterCount / ROSTER_GOAL) * 100));
+
+    const hasRanking = usaRanking !== null && usaRanking !== undefined && String(usaRanking).trim() !== '';
+    const rankingNum = hasRanking ? Number(usaRanking) : null;
+    const validRanking = hasRanking && !isNaN(rankingNum);
+
+    let rankingPct = 0;
+    let rankingAchieved = false;
+    if (validRanking) {
+      if (rankingNum <= RANKING_GOAL) {
+        rankingPct = 100;
+        rankingAchieved = true;
+      } else if (rankingNum >= RANKING_FLOOR) {
+        rankingPct = 0;
+      } else {
+        rankingPct = Math.round(((RANKING_FLOOR - rankingNum) / (RANKING_FLOOR - RANKING_GOAL)) * 100);
+      }
+    }
+
+    const goal2Value = validRanking
+      ? `Currently Ranked #${App.escHtml(String(usaRanking))} — Goal: Top ${RANKING_GOAL}${rankingAchieved ? ' ✅' : ''}`
+      : 'Not yet ranked';
+
+    return `
+      <div class="club-goals-banner">
+        <div class="club-goals-label">🎯 Club Goals</div>
+        <div class="club-goals-grid">
+          <div class="club-goal">
+            <div class="club-goal-title">Divers on Roster</div>
+            <div class="club-goal-value">${rosterCount} / ${ROSTER_GOAL} Divers</div>
+            <div class="club-goal-progress">
+              <div class="progress-bar"><div class="progress-bar-fill" style="width: ${rosterPct}%"></div></div>
+              <div class="progress-bar-pct">${rosterPct}%</div>
+            </div>
+          </div>
+          <div class="club-goal">
+            <div class="club-goal-title">USA Diving Nationals</div>
+            <div class="club-goal-value">${goal2Value}</div>
+            <div class="club-goal-progress">
+              <div class="progress-bar"><div class="progress-bar-fill" style="width: ${rankingPct}%"></div></div>
+              ${validRanking ? `<div class="progress-bar-pct">${rankingPct}%</div>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   // =============================================
