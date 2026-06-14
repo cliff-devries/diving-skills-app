@@ -50,6 +50,20 @@ const Skills = {
     if (error) throw new Error(error.message);
   },
 
+  // ---- Get the next auto-assigned order number for a new skill ----
+  // Returns the highest skill_order >= 10000, plus 10 (or 10000 if none exist).
+  async getNextOrder() {
+    const { data, error } = await window.supabaseClient
+      .from('skills')
+      .select('skill_order')
+      .gte('skill_order', 10000)
+      .order('skill_order', { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const highest = data?.length ? data[0].skill_order : 9990;
+    return highest + 10;
+  },
+
   // ---- Create a new skill (coach only — enforced by RLS) ----
   async create(fields) {
     const { data, error } = await window.supabaseClient
