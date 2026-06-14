@@ -133,7 +133,8 @@
       SupabaseDB.getAllTestAttempts(targetDiverId),
     ]);
 
-    allSkills     = skills;
+    // Supplemental skills never appear in the progress tracker.
+    allSkills     = skills.filter(s => s.isTestable);
     completionMap = cMap;
 
     attemptsBySkill = {};
@@ -161,9 +162,10 @@
   // STATS / TABS / LEVEL HEADER
   // =============================================
   function updateStats(skills, cMap) {
-    const attained = Object.values(cMap).filter(c => c.skill_attained).length;
-    const ready    = Object.values(cMap).filter(c => c.ready_for_test).length;
-    const certified = Object.values(cMap).filter(c => c.tested_and_passed).length;
+    const completions = skills.map(s => cMap[s.id]).filter(Boolean);
+    const attained   = completions.filter(c => c.skill_attained).length;
+    const ready      = completions.filter(c => c.ready_for_test).length;
+    const certified  = completions.filter(c => c.tested_and_passed).length;
     document.getElementById('stat-attained').textContent  = attained;
     document.getElementById('stat-ready').textContent     = ready;
     document.getElementById('stat-certified').textContent = certified;

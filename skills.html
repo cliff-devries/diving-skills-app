@@ -18,6 +18,12 @@
       <p>Browse all skills across Levels 0–12. Tap a skill for details.</p>
     </div>
 
+    <!-- Curriculum / Supplemental tabs -->
+    <div class="tab-bar" id="skill-tabs">
+      <button class="tab-btn active" data-tab="curriculum" onclick="selectTab('curriculum')">Curriculum</button>
+      <button class="tab-btn" data-tab="supplemental" onclick="selectTab('supplemental')">Supplemental</button>
+    </div>
+
     <!-- Filter bar -->
     <div class="filter-bar">
       <div class="search-wrap">
@@ -95,6 +101,7 @@
   let completionMap = {};
   let currentUser   = null;
   let activeSkill   = null;
+  let activeTab     = 'curriculum';
 
   // Display order for skill-type sections on the library page.
   const SECTION_ORDER = [
@@ -121,7 +128,7 @@
     if (skills.length === 0) return;
 
     populateFilters(skills);
-    renderSkills(skills);
+    applyFilters();
     attachFilterListeners();
   })();
 
@@ -164,12 +171,21 @@
     });
   }
 
+  function selectTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    applyFilters();
+  }
+
   function applyFilters() {
     const search = document.getElementById('search').value;
     const level  = document.getElementById('filter-level').value;
     const type   = document.getElementById('filter-type').value;
 
-    const filtered = Skills.filterSkills(allSkills, { level, type, search });
+    const tabSkills = allSkills.filter(s => activeTab === 'curriculum' ? s.isTestable : !s.isTestable);
+    const filtered  = Skills.filterSkills(tabSkills, { level, type, search });
     renderSkills(filtered);
 
     const hasFilters = search || level || type;
@@ -373,6 +389,16 @@
         <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.jpg</div>
         <div id="edit-photo-preview" class="mt-2"></div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Include in Curriculum Testing</label>
+        <div class="flex items-center gap-2">
+          <label class="toggle-switch">
+            <input type="checkbox" id="edit-is-testable" ${skill.isTestable ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+          <span id="testable-label" class="text-sm text-secondary">${skill.isTestable ? 'Curriculum' : 'Supplemental'}</span>
+        </div>
+      </div>
       <div class="flex gap-2">
         <button class="btn btn-primary btn-sm" id="save-skill-edit-btn" onclick="saveSkillEdit(${skillId})">Save</button>
         <button class="btn btn-ghost btn-sm" onclick="closeSkillEditForm()">Cancel</button>
@@ -381,7 +407,31 @@
     form.classList.remove('hidden');
 
     document.getElementById('edit-photo-url').addEventListener('input', updateEditPhotoPreview);
+    document.getElementById('edit-is-testable').addEventListener('change', () => toggleIsTestable(skillId));
     updateEditPhotoPreview();
+  }
+
+  async function toggleIsTestable(skillId) {
+    const checkbox  = document.getElementById('edit-is-testable');
+    const label     = document.getElementById('testable-label');
+    const isTestable = checkbox.checked;
+
+    checkbox.disabled = true;
+    try {
+      await Skills.update(skillId, { is_testable: isTestable });
+
+      const skill = allSkills.find(s => s.id === skillId);
+      skill.isTestable = isTestable;
+      label.textContent = isTestable ? 'Curriculum' : 'Supplemental';
+
+      App.showToast(isTestable ? 'Skill set to Curriculum.' : 'Skill set to Supplemental.');
+      applyFilters();
+    } catch (err) {
+      checkbox.checked = !isTestable;
+      App.showToast(err.message, 'error');
+    } finally {
+      checkbox.disabled = false;
+    }
   }
 
   function updateEditPhotoPreview() {

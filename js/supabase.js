@@ -328,7 +328,7 @@ const SupabaseDB = {
   async getCompletions(diverId) {
     const { data, error } = await this.db
       .from('skill_completions')
-      .select('*')
+      .select('*, skill:skills(is_testable)')
       .eq('diver_id', diverId);
     if (error) { console.error('[SupabaseDB] getCompletions:', error.message); return []; }
     return data ?? [];
@@ -342,8 +342,9 @@ const SupabaseDB = {
   },
 
   // Stage-1/2/3 counts for a diver, used on the dashboard and profile page.
+  // Only counts testable (curriculum) skills — supplemental skills are excluded.
   async getCompletionStats(diverId) {
-    const rows = await this.getCompletions(diverId);
+    const rows = (await this.getCompletions(diverId)).filter(r => r.skill?.is_testable !== false);
     return {
       attained:     rows.filter(r => r.skill_attained).length,
       readyForTest: rows.filter(r => r.ready_for_test && !r.tested_and_passed).length,
@@ -387,6 +388,7 @@ const SupabaseDB = {
 
   // Skills that are ready for testing across a coach's roster (Stage 2 done,
   // Stage 3 not yet). Used for the coach dashboard/roster "needs testing" queue.
+  // Only includes testable (curriculum) skills — supplemental skills are excluded.
   async getReadyForTestForCoach(coachId) {
     const roster = await this.getRoster(coachId);
     const diverIds = roster.map(r => r.diver.id);
@@ -396,7 +398,7 @@ const SupabaseDB = {
       .from('skill_completions')
       .select(`
         *,
-        skill:skills (id, skill_name, skill_level),
+        skill:skills (id, skill_name, skill_level, is_testable),
         diver:profiles!skill_completions_diver_id_fkey (
           id, full_name, first_name, last_name, avatar_url
         )
@@ -406,7 +408,7 @@ const SupabaseDB = {
       .eq('tested_and_passed', false)
       .order('ready_for_test_at', { ascending: true });
     if (error) { console.error('[SupabaseDB] getReadyForTestForCoach:', error.message); return []; }
-    return data ?? [];
+    return (data ?? []).filter(r => r.skill?.is_testable !== false);
   },
 
   // =============================================

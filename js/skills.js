@@ -64,6 +64,7 @@ const Skills = {
       photoUrl:        row.photo_url         || null,
       coachingNotes:   row.coaching_notes    || '',
       requiresHarness: row.requires_harness  || false,
+      isTestable:      row.is_testable       !== false,
     };
   },
 
