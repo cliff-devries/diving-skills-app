@@ -429,18 +429,15 @@
         `;
       }
     } else if (currentUser.role === 'coach') {
-      area.innerHTML = `
-        <p class="text-secondary text-sm mb-2">Manage skill progression from the <a href="roster.html">Roster</a> or <a href="progress.html">Progress</a> pages.</p>
-        <button class="btn btn-secondary btn-sm" onclick="openSkillEditForm(${skill.id})">✏️ Edit Skill</button>
-        <div id="skill-edit-form" class="hidden"></div>
-      `;
+      area.innerHTML = `<div id="skill-edit-form"></div>`;
+      openSkillEditForm(skill.id);
     } else {
       area.innerHTML = '';
     }
   }
 
   // =============================================
-  // COACH — EDIT SKILL (Video URL / Skill Photo URL)
+  // COACH — EDIT SKILL
   // =============================================
   function openSkillEditForm(skillId) {
     const skill = allSkills.find(s => s.id === skillId);
@@ -450,6 +447,16 @@
     form.innerHTML = `
       <div class="divider mt-3 mb-3"></div>
       <div class="form-group">
+        <label class="form-label">Skill Name *</label>
+        <input type="text" id="edit-skill-name" class="form-input" value="${App.escHtml(skill.name)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Skill Type *</label>
+        <select id="edit-skill-type" class="form-select" style="width:100%">
+          ${SECTION_ORDER.map(type => `<option value="${type}" ${skill.type === type ? 'selected' : ''}>${type}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Skill Category</label>
         <select id="edit-skill-category" class="form-select" style="width:100%">
           <option value="">None / Not applicable</option>
@@ -457,18 +464,29 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Video URL</label>
-        <input type="url" id="edit-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4" value="${App.escHtml(skill.videoUrl || '')}">
-        <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.mp4</div>
+        <label class="form-label">Skill Level</label>
+        <input type="number" id="edit-skill-level" class="form-input" min="0" max="12" value="${skill.level ?? 0}">
       </div>
       <div class="form-group">
-        <label class="form-label">Skill Photo URL</label>
+        <label class="form-label">Skill Description</label>
+        <textarea id="edit-skill-description" class="form-input" rows="3" style="resize:vertical">${App.escHtml(skill.description || '')}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Coaching Notes</label>
+        <textarea id="edit-coaching-notes" class="form-input" rows="3" style="resize:vertical">${App.escHtml(skill.coachingNotes || '')}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Photo URL</label>
         <input type="url" id="edit-photo-url" class="form-input" placeholder="https://media.divedrills.com/dive-photos/skill-name.jpg" value="${App.escHtml(skill.photoUrl || '')}">
         <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.jpg</div>
         <div id="edit-photo-preview" class="mt-2"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Supplemental Skill</label>
+        <label class="form-label">Video URL</label>
+        <input type="url" id="edit-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4" value="${App.escHtml(skill.videoUrl || '')}">
+        <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.mp4</div>
+      </div>
+      <div class="form-group">
         <div class="flex items-center gap-2">
           <label class="toggle-switch">
             <input type="checkbox" id="edit-is-testable" ${skill.isTestable ? '' : 'checked'}>
@@ -480,36 +498,11 @@
       </div>
       <div class="flex gap-2">
         <button class="btn btn-primary btn-sm" id="save-skill-edit-btn" onclick="saveSkillEdit(${skillId})">Save</button>
-        <button class="btn btn-ghost btn-sm" onclick="closeSkillEditForm()">Cancel</button>
       </div>
     `;
-    form.classList.remove('hidden');
 
     document.getElementById('edit-photo-url').addEventListener('input', updateEditPhotoPreview);
-    document.getElementById('edit-is-testable').addEventListener('change', () => toggleIsTestable(skillId));
     updateEditPhotoPreview();
-  }
-
-  async function toggleIsTestable(skillId) {
-    const checkbox       = document.getElementById('edit-is-testable');
-    const isSupplemental = checkbox.checked;
-    const isTestable      = !isSupplemental;
-
-    checkbox.disabled = true;
-    try {
-      await Skills.update(skillId, { is_testable: isTestable });
-
-      const skill = allSkills.find(s => s.id === skillId);
-      skill.isTestable = isTestable;
-
-      App.showToast(isSupplemental ? 'Skill set to Supplemental.' : 'Skill set to Testing Skill.');
-      applyFilters();
-    } catch (err) {
-      checkbox.checked = !isSupplemental;
-      App.showToast(err.message, 'error');
-    } finally {
-      checkbox.disabled = false;
-    }
   }
 
   function updateEditPhotoPreview() {
@@ -524,35 +517,51 @@
     img.addEventListener('click', () => App.openImageLightbox(url));
   }
 
-  function closeSkillEditForm() {
-    const form = document.getElementById('skill-edit-form');
-    form.classList.add('hidden');
-    form.innerHTML = '';
-  }
-
   async function saveSkillEdit(skillId) {
     const btn      = document.getElementById('save-skill-edit-btn');
+    const name     = document.getElementById('edit-skill-name').value.trim();
+    const type     = document.getElementById('edit-skill-type').value;
     const category = document.getElementById('edit-skill-category').value;
+
+    if (!name || !type) {
+      App.showToast('Skill Name and Skill Type are required.', 'error');
+      return;
+    }
 
     App.setBtnLoading(btn, true);
 
     try {
-      const videoUrl = document.getElementById('edit-video-url').value.trim();
-      const photoUrl = document.getElementById('edit-photo-url').value.trim();
+      const level          = document.getElementById('edit-skill-level').value;
+      const description    = document.getElementById('edit-skill-description').value.trim();
+      const coachingNotes  = document.getElementById('edit-coaching-notes').value.trim();
+      const photoUrl       = document.getElementById('edit-photo-url').value.trim();
+      const videoUrl       = document.getElementById('edit-video-url').value.trim();
+      const isTestable     = !document.getElementById('edit-is-testable').checked;
 
       await Skills.update(skillId, {
-        skill_category: category || null,
-        video_url:      videoUrl || null,
-        photo_url:      photoUrl || null,
+        skill_name:        name,
+        skill_type:        type,
+        skill_category:    category || null,
+        skill_level:       level === '' ? 0 : Number(level),
+        skill_description: description || null,
+        coaching_notes:    coachingNotes || null,
+        photo_url:         photoUrl || null,
+        video_url:         videoUrl || null,
+        is_testable:       isTestable,
       });
 
       const skill = allSkills.find(s => s.id === skillId);
-      skill.category = category;
-      skill.videoUrl  = videoUrl || null;
-      skill.photoUrl  = photoUrl || null;
+      skill.name          = name;
+      skill.type          = type;
+      skill.category      = category;
+      skill.level         = level === '' ? 0 : Number(level);
+      skill.description   = description;
+      skill.coachingNotes = coachingNotes;
+      skill.photoUrl      = photoUrl || null;
+      skill.videoUrl      = videoUrl || null;
+      skill.isTestable    = isTestable;
 
       App.showToast('Skill updated.');
-      closeSkillEditForm();
       openSkillModal(skill);
       applyFilters();
     } catch (err) {
