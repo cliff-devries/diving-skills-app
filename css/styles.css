@@ -673,13 +673,14 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 }
 
 /* =============================================
-   SKILLS TOOLBAR — view toggle + Create Skill (coach only)
+   SKILLS TOOLBAR — Testing Skills / Supplemental Skills / Create Skill
+   All three buttons share .btn sizing; Create Skill keeps .btn-primary.
    ============================================= */
 .skills-toolbar {
   display: flex;
   align-items: stretch;
   gap: 10px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .skills-toolbar .skill-view-toggle { flex: 1; margin-bottom: 0; }
 .skills-toolbar #create-skill-btn { flex-shrink: 0; }
@@ -690,36 +691,37 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 
 /* =============================================
    SKILL VIEW TOGGLE — Testing Skills / Supplemental Skills
-   Styled to match .skill-section-header.
+   Styled to match .btn / .btn-primary (same shape as Create Skill).
    ============================================= */
 .skill-view-toggle {
   display: flex;
   gap: 10px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 .skill-view-btn {
   flex: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
   background: var(--bg-surface-2);
   color: var(--text-secondary);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
   transition: var(--transition);
 }
-.skill-view-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+.skill-view-btn:hover { color: var(--text-primary); }
 .skill-view-btn.active {
   background: var(--accent);
-  border-color: var(--accent);
   color: #000;
-  box-shadow: var(--shadow-card);
 }
+.skill-view-btn.active:hover { background: var(--accent-hover); color: #000; }
 
 @media (max-width: 480px) {
   .skill-view-toggle { gap: 6px; }
