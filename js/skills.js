@@ -45,9 +45,18 @@ const Skills = {
   async update(id, fields) {
     const { error } = await window.supabaseClient
       .from('skills')
-      .update(fields)
+      .update(Skills._blankOptionalFields(fields))
       .eq('id', id);
     if (error) throw new Error(error.message);
+  },
+
+  // ---- Convert null to '' for optional text columns that are NOT NULL ----
+  _blankOptionalFields(fields) {
+    const result = { ...fields };
+    ['skill_description', 'coaching_notes', 'photo_url', 'video_url'].forEach(key => {
+      if (key in result && result[key] == null) result[key] = '';
+    });
+    return result;
   },
 
   // ---- Get the next auto-assigned order number for a new skill ----
@@ -68,7 +77,7 @@ const Skills = {
   async create(fields) {
     const { data, error } = await window.supabaseClient
       .from('skills')
-      .insert(fields)
+      .insert(Skills._blankOptionalFields(fields))
       .select()
       .single();
     if (error) throw new Error(error.message);
