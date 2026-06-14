@@ -115,9 +115,9 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Skill Category *</label>
+      <label class="form-label">Skill Category</label>
       <select id="create-skill-category" class="form-select" style="width:100%">
-        <option value="">Select a category…</option>
+        <option value="">None / Not applicable</option>
       </select>
     </div>
 
@@ -450,9 +450,9 @@
     form.innerHTML = `
       <div class="divider mt-3 mb-3"></div>
       <div class="form-group">
-        <label class="form-label">Skill Category *</label>
+        <label class="form-label">Skill Category</label>
         <select id="edit-skill-category" class="form-select" style="width:100%">
-          <option value="">Select a category…</option>
+          <option value="">None / Not applicable</option>
           ${SKILL_CATEGORIES.map(category => `<option value="${category}" ${skill.category === category ? 'selected' : ''}>${category}</option>`).join('')}
         </select>
       </div>
@@ -534,11 +534,6 @@
     const btn      = document.getElementById('save-skill-edit-btn');
     const category = document.getElementById('edit-skill-category').value;
 
-    if (!category) {
-      App.showToast('Skill Category is required.', 'error');
-      return;
-    }
-
     App.setBtnLoading(btn, true);
 
     try {
@@ -546,7 +541,7 @@
       const photoUrl = document.getElementById('edit-photo-url').value.trim();
 
       await Skills.update(skillId, {
-        skill_category: category,
+        skill_category: category || null,
         video_url:      videoUrl || null,
         photo_url:      photoUrl || null,
       });
@@ -667,8 +662,8 @@
     const photoUrl    = document.getElementById('create-skill-photo-url').value.trim();
     const videoUrl    = document.getElementById('create-skill-video-url').value.trim();
 
-    if (!name || !type || !category) {
-      App.showAlert('create-skill-alert', 'Skill Name, Skill Type, and Skill Category are required.');
+    if (!name || !type) {
+      App.showAlert('create-skill-alert', 'Skill Name and Skill Type are required.');
       return;
     }
 
@@ -680,7 +675,7 @@
       const skill = await Skills.create({
         skill_name:        name,
         skill_type:        type,
-        skill_category:    category,
+        skill_category:    category || null,
         skill_level:       level === '' ? 0 : Number(level),
         skill_order:       order === '' ? 10000 : Number(order),
         skill_description: description || null,
