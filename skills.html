@@ -124,11 +124,7 @@
       <input type="number" id="create-skill-level" class="form-input" min="0" max="12" value="0">
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Skill Order</label>
-      <input type="number" id="create-skill-order" class="form-input" value="10000">
-      <div class="text-secondary text-sm mt-1">Auto-assigned order number. Change only if you want to place this skill within the existing curriculum (current curriculum range: 10 to 6440).</div>
-    </div>
+    <input type="hidden" id="create-skill-order" value="10000">
 
     <div class="form-group">
       <label class="form-label">Skill Description</label>
@@ -145,18 +141,6 @@
       <label class="form-label">Video URL</label>
       <input type="url" id="create-skill-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4">
       <div id="create-skill-video-status" class="text-sm mt-1"></div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Supplemental Skill</label>
-      <div class="flex items-center gap-2">
-        <label class="toggle-switch">
-          <input type="checkbox" id="create-skill-is-supplemental" checked>
-          <span class="toggle-slider"></span>
-        </label>
-        <span class="text-sm text-secondary">Supplemental Skill</span>
-      </div>
-      <div class="text-secondary text-sm mt-1">When checked this skill will appear in Supplemental Skills only and will not count toward level certification</div>
     </div>
 
     <div class="flex gap-2 mt-2">
@@ -597,7 +581,6 @@
     document.getElementById('create-skill-description').value = '';
     document.getElementById('create-skill-photo-url').value   = '';
     document.getElementById('create-skill-video-url').value   = '';
-    document.getElementById('create-skill-is-supplemental').checked = true;
     document.getElementById('create-skill-photo-preview').innerHTML = '';
     document.getElementById('create-skill-video-status').innerHTML  = '';
     App.hideAlert('create-skill-alert');
@@ -655,7 +638,6 @@
     const description = document.getElementById('create-skill-description').value.trim();
     const photoUrl    = document.getElementById('create-skill-photo-url').value.trim();
     const videoUrl    = document.getElementById('create-skill-video-url').value.trim();
-    const isSupplemental = document.getElementById('create-skill-is-supplemental').checked;
 
     if (!name || !type || !category) {
       App.showAlert('create-skill-alert', 'Skill Name, Skill Type, and Skill Category are required.');
@@ -676,7 +658,7 @@
         skill_description: description || null,
         photo_url:         photoUrl || null,
         video_url:         videoUrl || null,
-        is_testable:       !isSupplemental,
+        is_testable:       false,
       });
 
       allSkills.push(skill);
