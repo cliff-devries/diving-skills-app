@@ -223,7 +223,8 @@
       levelSel.appendChild(opt);
     });
 
-    Skills.uniqueTypes(skills).forEach(t => {
+    const presentTypes = new Set(skills.map(s => s.type));
+    SECTION_ORDER.filter(t => presentTypes.has(t)).forEach(t => {
       const opt = document.createElement('option');
       opt.value = opt.textContent = t;
       typeSel.appendChild(opt);
