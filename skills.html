@@ -116,7 +116,9 @@
 
     <div class="form-group">
       <label class="form-label">Skill Category *</label>
-      <input type="text" id="create-skill-category" class="form-input" placeholder="e.g. Forward">
+      <select id="create-skill-category" class="form-select" style="width:100%">
+        <option value="">Select a category…</option>
+      </select>
     </div>
 
     <div class="form-group">
@@ -170,6 +172,9 @@
     'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
     '1m Springboard', '3m Springboard', 'Platform', 'Pool', 'Games', 'Bonus',
   ];
+
+  // Standardized skill category options (Create/Edit Skill forms).
+  const SKILL_CATEGORIES = ['Forward', 'Back', 'Reverse', 'Inward', 'Twist', 'Armstand'];
 
   (async function initSkillsPage() {
     initSupabase();
@@ -445,6 +450,13 @@
     form.innerHTML = `
       <div class="divider mt-3 mb-3"></div>
       <div class="form-group">
+        <label class="form-label">Skill Category *</label>
+        <select id="edit-skill-category" class="form-select" style="width:100%">
+          <option value="">Select a category…</option>
+          ${SKILL_CATEGORIES.map(category => `<option value="${category}" ${skill.category === category ? 'selected' : ''}>${category}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Video URL</label>
         <input type="url" id="edit-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4" value="${App.escHtml(skill.videoUrl || '')}">
         <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.mp4</div>
@@ -519,7 +531,14 @@
   }
 
   async function saveSkillEdit(skillId) {
-    const btn = document.getElementById('save-skill-edit-btn');
+    const btn      = document.getElementById('save-skill-edit-btn');
+    const category = document.getElementById('edit-skill-category').value;
+
+    if (!category) {
+      App.showToast('Skill Category is required.', 'error');
+      return;
+    }
+
     App.setBtnLoading(btn, true);
 
     try {
@@ -527,13 +546,15 @@
       const photoUrl = document.getElementById('edit-photo-url').value.trim();
 
       await Skills.update(skillId, {
-        video_url: videoUrl || null,
-        photo_url: photoUrl || null,
+        skill_category: category,
+        video_url:      videoUrl || null,
+        photo_url:      photoUrl || null,
       });
 
       const skill = allSkills.find(s => s.id === skillId);
-      skill.videoUrl = videoUrl || null;
-      skill.photoUrl = photoUrl || null;
+      skill.category = category;
+      skill.videoUrl  = videoUrl || null;
+      skill.photoUrl  = photoUrl || null;
 
       App.showToast('Skill updated.');
       closeSkillEditForm();
@@ -569,6 +590,13 @@
       const opt = document.createElement('option');
       opt.value = opt.textContent = type;
       typeSel.appendChild(opt);
+    });
+
+    const categorySel = document.getElementById('create-skill-category');
+    SKILL_CATEGORIES.forEach(category => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = category;
+      categorySel.appendChild(opt);
     });
   }
 
