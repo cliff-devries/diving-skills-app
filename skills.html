@@ -70,25 +70,38 @@
       <button class="modal-close" onclick="App.closeModal('skill-modal')" aria-label="Close">✕</button>
     </div>
 
-    <div id="modal-status-badge" class="mb-4"></div>
+    <div id="skill-detail-view">
+      <div id="modal-skill-order" class="text-secondary mb-3" style="font-size:0.7rem"></div>
 
-    <div id="modal-description" class="text-sm text-secondary mb-4" style="line-height:1.6"></div>
+      <div id="modal-status-badge" class="mb-4"></div>
 
-    <div id="modal-video" class="mb-4 hidden">
-      <div class="section-title mb-2">Video</div>
-      <a id="modal-video-link" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
-        ▶ Watch Video
-      </a>
+      <div class="content-section">
+        <div class="section-title mb-2">Description</div>
+        <div id="modal-description" class="text-sm text-secondary" style="line-height:1.6"></div>
+      </div>
+
+      <div id="modal-coaching" class="content-section hidden">
+        <div class="section-title mb-2">Coaching Notes</div>
+        <div id="modal-coaching-text" class="text-sm text-secondary" style="line-height:1.6"></div>
+      </div>
+
+      <div id="modal-photo" class="content-section hidden">
+        <div class="section-title mb-2">Photo</div>
+        <img id="modal-photo-img" alt="" class="modal-photo-full">
+      </div>
+
+      <div id="modal-video" class="content-section hidden">
+        <div class="section-title mb-2">Video</div>
+        <div id="modal-video-name" class="text-sm mb-2" style="font-weight:600"></div>
+        <video id="modal-video-player" class="modal-video-player" controls playsinline></video>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="modal-action-area"></div>
     </div>
 
-    <div id="modal-coaching" class="hidden">
-      <div class="section-title mb-2">Coaching Notes</div>
-      <div id="modal-coaching-text" class="text-sm text-secondary" style="line-height:1.6"></div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div id="modal-action-area"></div>
+    <div id="skill-edit-form" class="hidden"></div>
   </div>
 </div>
 
@@ -379,34 +392,63 @@
 
     document.getElementById('modal-skill-name').textContent = skill.name;
 
+    const testBadge = skill.isTestable
+      ? '<span class="badge badge-accent">Testing Skill</span>'
+      : '<span class="badge badge-secondary">Supplemental Skill</span>';
+
     document.getElementById('modal-skill-meta').innerHTML = `
       <span class="badge badge-level">Level ${skill.level ?? '?'}</span>
       <span class="badge badge-secondary">${App.escHtml(skill.type)}</span>
       ${skill.category ? `<span class="badge badge-secondary">${App.escHtml(skill.category)}</span>` : ''}
+      ${testBadge}
       ${skill.requiresHarness ? '<span class="badge badge-secondary">+ Harness Required</span>' : ''}
     `;
+
+    document.getElementById('modal-skill-order').textContent = `Skill Order: ${skill.order ?? '—'}`;
 
     document.getElementById('modal-status-badge').innerHTML = App.stageBadgeHtml(completion) || '';
     document.getElementById('modal-description').textContent = skill.description || 'No description available.';
 
-    const videoWrap = document.getElementById('modal-video');
-    if (skill.videoUrl) {
-      document.getElementById('modal-video-link').href = skill.videoUrl;
-      videoWrap.classList.remove('hidden');
-    } else {
-      videoWrap.classList.add('hidden');
-    }
-
     const coachingWrap = document.getElementById('modal-coaching');
-    if (skill.coachingNotes && currentUser.role === 'coach') {
+    if (skill.coachingNotes) {
       document.getElementById('modal-coaching-text').textContent = skill.coachingNotes;
       coachingWrap.classList.remove('hidden');
     } else {
       coachingWrap.classList.add('hidden');
     }
 
+    const photoWrap = document.getElementById('modal-photo');
+    if (skill.photoUrl) {
+      document.getElementById('modal-photo-img').src = skill.photoUrl;
+      photoWrap.classList.remove('hidden');
+    } else {
+      photoWrap.classList.add('hidden');
+    }
+
+    const videoWrap   = document.getElementById('modal-video');
+    const videoPlayer = document.getElementById('modal-video-player');
+    if (skill.videoUrl) {
+      document.getElementById('modal-video-name').textContent = skill.name;
+      videoPlayer.src = skill.videoUrl;
+      videoWrap.classList.remove('hidden');
+    } else {
+      videoPlayer.removeAttribute('src');
+      videoWrap.classList.add('hidden');
+    }
+
     renderModalActions(skill, completion);
+    showSkillDetailView();
     App.openModal('skill-modal');
+  }
+
+  // Toggle between the read-only detail view and the edit form.
+  function showSkillDetailView() {
+    document.getElementById('skill-detail-view').classList.remove('hidden');
+    document.getElementById('skill-edit-form').classList.add('hidden');
+  }
+  function showSkillEditView() {
+    document.getElementById('skill-detail-view').classList.add('hidden');
+    document.getElementById('skill-edit-form').classList.remove('hidden');
   }
 
   function renderModalActions(skill, completion) {
@@ -430,8 +472,7 @@
         `;
       }
     } else if (currentUser.role === 'coach') {
-      area.innerHTML = `<div id="skill-edit-form"></div>`;
-      openSkillEditForm(skill.id);
+      area.innerHTML = `<button class="btn btn-primary btn-full" onclick="openSkillEditForm(${skill.id})">Edit Skill</button>`;
     } else {
       area.innerHTML = '';
     }
@@ -446,7 +487,10 @@
 
     const form = document.getElementById('skill-edit-form');
     form.innerHTML = `
-      <div class="divider mt-3 mb-3"></div>
+      <div class="flex items-center justify-between mb-3">
+        <h3>Edit Skill</h3>
+        <button class="btn btn-ghost btn-sm" onclick="showSkillDetailView()">Cancel</button>
+      </div>
       <div class="form-group">
         <label class="form-label">Skill Name *</label>
         <input type="text" id="edit-skill-name" class="form-input" value="${App.escHtml(skill.name)}">
@@ -504,6 +548,7 @@
 
     document.getElementById('edit-photo-url').addEventListener('input', updateEditPhotoPreview);
     updateEditPhotoPreview();
+    showSkillEditView();
   }
 
   function updateEditPhotoPreview() {

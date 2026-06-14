@@ -855,6 +855,23 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 }
 .modal-close:hover { background: var(--border); color: var(--text-primary); }
 
+.modal-photo-full {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.modal-video-player {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
 /* =============================================
    AVATAR
    ============================================= */
