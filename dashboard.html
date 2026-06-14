@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Drills — Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=3">
+  <link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 <body>
 
@@ -28,7 +28,7 @@
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=3"></script>
+<script src="js/supabase.js?v=4"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=3"></script>
 
@@ -65,13 +65,22 @@
     const main = document.getElementById('main-content');
     coachUserId = user.id;
 
-    // Load roster, skills ready for testing, pending profile claims, and
-    // club settings (manual rankings) in parallel.
-    const [roster, readyForTest, claims, clubSettings] = await Promise.all([
+    // Load roster, skills ready for testing, pending profile claims, club
+    // settings (manual rankings), and the new dashboard metric counts in
+    // parallel.
+    const [
+      roster, readyForTest, claims, clubSettings,
+      fullLevelsReadyToTest, totalSkillsReadyToTest,
+      skillsAttainedThisMonth, totalSkillsAttained,
+    ] = await Promise.all([
       SupabaseDB.getRoster(user.id),
       SupabaseDB.getReadyForTestForCoach(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
       SupabaseDB.getClubSettings(['usa_diving_ranking', 'aau_diving_ranking']),
+      SupabaseDB.getFullLevelsReadyToTest(user.id),
+      SupabaseDB.getTotalSkillsReadyToTest(user.id),
+      SupabaseDB.getSkillsAttainedThisMonth(user.id),
+      SupabaseDB.getTotalSkillsAttained(user.id),
     ]);
 
     roster.sort((a, b) => App.compareNames(a.diver, b.diver));
@@ -83,18 +92,40 @@
         <p>Welcome to the Upstate Diving Skills Tracker. Today is a great day to seize the sky.</p>
       </div>
 
-      <!-- Stat cards -->
-      <div class="card-grid-4 mb-6">
+      <!-- Row 1 -->
+      <div class="card-grid-3 mb-6">
         <div class="stat-card">
           <div class="stat-value">${roster.length}</div>
           <div class="stat-label">Divers on Roster</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: ${readyForTest.length ? 'var(--pending)' : 'var(--accent)'}">
-            ${readyForTest.length}
+          <div class="stat-value" style="color: ${fullLevelsReadyToTest ? 'var(--pending)' : 'var(--accent)'}">
+            ${fullLevelsReadyToTest}
           </div>
-          <div class="stat-label">Ready for Testing</div>
+          <div class="stat-label">Full Levels Ready to Test</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: ${totalSkillsReadyToTest ? 'var(--pending)' : 'var(--accent)'}">
+            ${totalSkillsReadyToTest}
+          </div>
+          <div class="stat-label">Skills Ready to Test</div>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="card-grid-2 mb-6">
+        <div class="stat-card">
+          <div class="stat-value" style="color:#3b82f6">${skillsAttainedThisMonth}</div>
+          <div class="stat-label">Skills Attained This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#3b82f6">${totalSkillsAttained}</div>
+          <div class="stat-label">Total Skills Attained</div>
+        </div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="card-grid-2 mb-6">
         ${rankingCardHtml('usa_diving_ranking', 'USA Diving Ranking', clubSettings.usa_diving_ranking)}
         ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking)}
       </div>

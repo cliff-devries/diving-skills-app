@@ -411,6 +411,108 @@ const SupabaseDB = {
     return (data ?? []).filter(r => r.skill?.is_testable !== false);
   },
 
+  // Count of divers on a coach's roster who have at least one curriculum
+  // level where EVERY testable skill is both Stage 1 (attained) and Stage 2
+  // (ready for test) — i.e. a full level ready to be tested.
+  async getFullLevelsReadyToTest(coachId) {
+    const roster = await this.getRoster(coachId);
+    const diverIds = roster.map(r => r.diver.id);
+    if (!diverIds.length) return 0;
+
+    const { data: skills, error: skillsError } = await this.db
+      .from('skills')
+      .select('id, skill_level, is_testable')
+      .eq('is_testable', true);
+    if (skillsError) { console.error('[SupabaseDB] getFullLevelsReadyToTest:', skillsError.message); return 0; }
+
+    const levelSkillIds = new Map();
+    (skills ?? []).forEach(s => {
+      if (s.skill_level === null || s.skill_level === undefined) return;
+      if (!levelSkillIds.has(s.skill_level)) levelSkillIds.set(s.skill_level, new Set());
+      levelSkillIds.get(s.skill_level).add(s.id);
+    });
+
+    const { data: completions, error: completionsError } = await this.db
+      .from('skill_completions')
+      .select('diver_id, skill_id, skill:skills(is_testable)')
+      .in('diver_id', diverIds)
+      .eq('skill_attained', true)
+      .eq('ready_for_test', true);
+    if (completionsError) { console.error('[SupabaseDB] getFullLevelsReadyToTest:', completionsError.message); return 0; }
+
+    const diverReadySkills = new Map();
+    (completions ?? []).forEach(c => {
+      if (c.skill?.is_testable === false) return;
+      if (!diverReadySkills.has(c.diver_id)) diverReadySkills.set(c.diver_id, new Set());
+      diverReadySkills.get(c.diver_id).add(c.skill_id);
+    });
+
+    let count = 0;
+    for (const diverId of diverIds) {
+      const ready = diverReadySkills.get(diverId) ?? new Set();
+      for (const skillIds of levelSkillIds.values()) {
+        if (skillIds.size === 0) continue;
+        if ([...skillIds].every(id => ready.has(id))) { count++; break; }
+      }
+    }
+    return count;
+  },
+
+  // Total count of skill_completions rows across a coach's roster where
+  // ready_for_test = true, for testable (curriculum) skills only.
+  async getTotalSkillsReadyToTest(coachId) {
+    const roster = await this.getRoster(coachId);
+    const diverIds = roster.map(r => r.diver.id);
+    if (!diverIds.length) return 0;
+
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .select('skill:skills(is_testable)')
+      .in('diver_id', diverIds)
+      .eq('ready_for_test', true);
+    if (error) { console.error('[SupabaseDB] getTotalSkillsReadyToTest:', error.message); return 0; }
+    return (data ?? []).filter(r => r.skill?.is_testable !== false).length;
+  },
+
+  // Count of skill_completions across a coach's roster where skill_attained
+  // = true and skill_attained_at falls within the current calendar month,
+  // for testable (curriculum) skills only.
+  async getSkillsAttainedThisMonth(coachId) {
+    const roster = await this.getRoster(coachId);
+    const diverIds = roster.map(r => r.diver.id);
+    if (!diverIds.length) return 0;
+
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .select('skill_attained_at, skill:skills(is_testable)')
+      .in('diver_id', diverIds)
+      .eq('skill_attained', true)
+      .gte('skill_attained_at', start)
+      .lt('skill_attained_at', end);
+    if (error) { console.error('[SupabaseDB] getSkillsAttainedThisMonth:', error.message); return 0; }
+    return (data ?? []).filter(r => r.skill?.is_testable !== false).length;
+  },
+
+  // Cumulative all-time count of skill_completions across a coach's roster
+  // where skill_attained = true, for testable (curriculum) skills only.
+  async getTotalSkillsAttained(coachId) {
+    const roster = await this.getRoster(coachId);
+    const diverIds = roster.map(r => r.diver.id);
+    if (!diverIds.length) return 0;
+
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .select('skill:skills(is_testable)')
+      .in('diver_id', diverIds)
+      .eq('skill_attained', true);
+    if (error) { console.error('[SupabaseDB] getTotalSkillsAttained:', error.message); return 0; }
+    return (data ?? []).filter(r => r.skill?.is_testable !== false).length;
+  },
+
   // =============================================
   // THREE-STAGE SKILL PROGRESSION
   // =============================================
