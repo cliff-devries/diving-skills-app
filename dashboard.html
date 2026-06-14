@@ -195,14 +195,8 @@
     let rankingPct = 0;
     let rankingAchieved = false;
     if (validRanking) {
-      if (rankingNum <= RANKING_GOAL) {
-        rankingPct = 100;
-        rankingAchieved = true;
-      } else if (rankingNum >= RANKING_FLOOR) {
-        rankingPct = 0;
-      } else {
-        rankingPct = Math.round(((RANKING_FLOOR - rankingNum) / (RANKING_FLOOR - RANKING_GOAL)) * 100);
-      }
+      rankingPct = Math.min(100, Math.max(0, Math.round(((RANKING_FLOOR - rankingNum) / RANKING_FLOOR) * 100)));
+      rankingAchieved = rankingNum <= RANKING_GOAL;
     }
 
     const goal2Value = validRanking
