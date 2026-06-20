@@ -69,13 +69,14 @@
     // settings (manual rankings), and the new dashboard metric counts in
     // parallel.
     const [
-      roster, readyForTest, claims, clubSettings,
+      roster, readyForTest, claims, pendingCoaches, clubSettings,
       fullLevelsReadyToTest, totalSkillsReadyToTest,
       skillsAttainedThisMonth, totalSkillsAttained,
     ] = await Promise.all([
       SupabaseDB.getRoster(user.id),
       SupabaseDB.getReadyForTestForCoach(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
+      SupabaseDB.getPendingCoaches(),
       SupabaseDB.getClubSettings(['usa_diving_ranking', 'aau_diving_ranking']),
       SupabaseDB.getFullLevelsReadyToTest(user.id),
       SupabaseDB.getTotalSkillsReadyToTest(user.id),
@@ -141,6 +142,31 @@
       <div class="content-section">
         <a href="stats.html" class="btn btn-secondary">📊 Statistics & Reports</a>
       </div>
+
+      <!-- Pending coach requests -->
+      ${pendingCoaches.length ? `
+      <div class="content-section">
+        <div class="section-title" style="color:var(--pending)">👤 Pending Coach Requests</div>
+        <div class="card card-sm" id="pending-coaches-list">
+          ${pendingCoaches.map(c => `
+            <div class="list-item" id="pending-coach-${c.id}">
+              <div class="avatar-sm">${Auth.getInitials(c.full_name ?? '')}</div>
+              <div class="list-item-content">
+                <div class="list-item-title">${App.escHtml(c.full_name ?? 'Unknown')}</div>
+                <div class="list-item-subtitle">
+                  ${App.escHtml(c.email ?? '')} · Requested ${App.formatRelative(c.created_at)}
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn btn-primary btn-sm"
+                  onclick="approveCoach('${c.id}', this)">Approve</button>
+                <button class="btn btn-sm" style="background:var(--danger,#e05252);color:#fff;"
+                  onclick="rejectCoach('${c.id}', this)">Reject</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
 
       <!-- Pending profile claims -->
       ${claims.length ? `
@@ -322,6 +348,30 @@
         </div>
       `).join('')}
     </div>`;
+  }
+
+  async function approveCoach(profileId, btn) {
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.approveCoach(profileId);
+      document.getElementById(`pending-coach-${profileId}`)?.remove();
+      App.showToast('Coach approved successfully.');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  async function rejectCoach(profileId, btn) {
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.rejectCoach(profileId);
+      document.getElementById(`pending-coach-${profileId}`)?.remove();
+      App.showToast('Coach request rejected.');
+    } catch (err) {
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
   }
 
   async function approveClaim(claimId, btn) {

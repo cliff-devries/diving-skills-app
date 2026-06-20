@@ -653,4 +653,40 @@ const SupabaseDB = {
       );
     if (error) throw new Error(error.message);
   },
+
+  // =============================================
+  // PENDING COACH REQUESTS
+  // =============================================
+
+  // Called right after auth.signUp() on coach-signup.html. The caller must
+  // have an active session (email confirmation disabled) so auth.uid() is set.
+  async createPendingCoachProfile(firstName, lastName, email) {
+    const { data, error } = await this.db.rpc('create_pending_coach_profile', {
+      p_first_name: firstName,
+      p_last_name:  lastName || null,
+      p_email:      email,
+    });
+    if (error) throw new Error(error.message);
+    return data; // returns new profile UUID
+  },
+
+  // Returns all profiles with role='pending_coach' and status='pending'.
+  // Coach-only — enforced inside the SECURITY DEFINER RPC.
+  async getPendingCoaches() {
+    const { data, error } = await this.db.rpc('get_pending_coaches');
+    if (error) { console.error('[SupabaseDB] getPendingCoaches:', error.message); return []; }
+    return data ?? [];
+  },
+
+  // Sets role='coach' and status='active' for the given profile.
+  async approveCoach(profileId) {
+    const { error } = await this.db.rpc('approve_coach', { p_profile_id: profileId });
+    if (error) throw new Error(error.message);
+  },
+
+  // Sets status='rejected' for the given profile (auth account is kept).
+  async rejectCoach(profileId) {
+    const { error } = await this.db.rpc('reject_coach', { p_profile_id: profileId });
+    if (error) throw new Error(error.message);
+  },
 };

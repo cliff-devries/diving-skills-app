@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dive Drills — Coach Sign Up">
+  <title>Dive Drills — Coach Sign Up</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css?v=5">
+  <style>
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+    .login-divider::before,
+    .login-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+    .login-footer a { color: var(--text-secondary); }
+    .login-footer a:hover { color: var(--accent); }
+    .success-box {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 16px;
+      padding: 8px 0;
+    }
+    .success-box.visible { display: flex; }
+    .success-icon {
+      font-size: 3rem;
+      line-height: 1;
+    }
+    .success-box h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .success-box p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.55;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 400px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card fade-in">
+
+    <!-- Brand -->
+    <div class="login-brand">
+      <img src="assets/icons/diver-icon.svg" alt="Dive Drills" class="login-logo">
+      <div class="login-app-name">Dive<span>Drills</span></div>
+      <div class="login-subtitle">Request coach access</div>
+    </div>
+
+    <!-- Alert -->
+    <div id="signup-alert" class="alert alert-error mb-4" role="alert"></div>
+
+    <!-- Success state (replaces form on submit) -->
+    <div id="success-box" class="success-box">
+      <div class="success-icon">✅</div>
+      <h2>Request submitted!</h2>
+      <p>The head coach will review your application and you will receive access shortly.</p>
+      <a href="index.html" class="btn btn-secondary btn-full mt-2">Back to Sign In</a>
+    </div>
+
+    <!-- Form -->
+    <form id="signup-form" novalidate>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="first-name">First Name</label>
+          <input
+            id="first-name"
+            type="text"
+            class="form-input"
+            placeholder="Jane"
+            autocomplete="given-name"
+            required
+          >
+          <div class="form-error" id="first-name-error">First name is required.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="last-name">Last Name</label>
+          <input
+            id="last-name"
+            type="text"
+            class="form-input"
+            placeholder="Smith"
+            autocomplete="family-name"
+            required
+          >
+          <div class="form-error" id="last-name-error">Last name is required.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input
+          id="email"
+          type="email"
+          class="form-input"
+          placeholder="you@example.com"
+          autocomplete="email"
+          inputmode="email"
+          required
+        >
+        <div class="form-error" id="email-error">Please enter a valid email address.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          class="form-input"
+          placeholder="••••••••"
+          autocomplete="new-password"
+          required
+          minlength="8"
+        >
+        <div class="form-error" id="password-error">Password must be at least 8 characters.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="confirm-password">Confirm Password</label>
+        <input
+          id="confirm-password"
+          type="password"
+          class="form-input"
+          placeholder="••••••••"
+          autocomplete="new-password"
+          required
+        >
+        <div class="form-error" id="confirm-password-error">Passwords do not match.</div>
+      </div>
+
+      <button type="submit" id="signup-btn" class="btn btn-primary btn-full btn-lg mt-2">
+        Request Coach Access
+      </button>
+
+    </form>
+
+    <div class="login-footer">
+      <p>Already have an account? <a href="index.html">Sign in</a></p>
+    </div>
+
+  </div>
+</div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- App scripts -->
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=4"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js?v=3"></script>
+
+<script>
+  (async function initCoachSignup() {
+    initSupabase();
+
+    // If already signed in as an active user, redirect to dashboard
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (session) {
+      const profile = await SupabaseDB.getProfile(session.user.id);
+      if (profile && profile.role !== 'pending_coach' && profile.status === 'active') {
+        window.location.href = '/dashboard.html';
+        return;
+      }
+    }
+
+    const form            = document.getElementById('signup-form');
+    const signupBtn       = document.getElementById('signup-btn');
+    const alertEl         = document.getElementById('signup-alert');
+    const successBox      = document.getElementById('success-box');
+    const firstNameInput  = document.getElementById('first-name');
+    const lastNameInput   = document.getElementById('last-name');
+    const emailInput      = document.getElementById('email');
+    const passwordInput   = document.getElementById('password');
+    const confirmInput    = document.getElementById('confirm-password');
+
+    function showError(message) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = message;
+    }
+
+    function clearError() {
+      alertEl.className = 'alert alert-error mb-4';
+    }
+
+    function setFieldError(fieldId, errorId, show) {
+      document.getElementById(errorId).classList.toggle('visible', show);
+    }
+
+    // Clear individual field errors on input
+    firstNameInput.addEventListener('input', () => setFieldError('first-name', 'first-name-error', false));
+    lastNameInput.addEventListener('input',  () => setFieldError('last-name',  'last-name-error',  false));
+    emailInput.addEventListener('input',     () => setFieldError('email',      'email-error',      false));
+    passwordInput.addEventListener('input',  () => setFieldError('password',   'password-error',   false));
+    confirmInput.addEventListener('input',   () => setFieldError('confirm-password', 'confirm-password-error', false));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+
+      const firstName = firstNameInput.value.trim();
+      const lastName  = lastNameInput.value.trim();
+      const email     = emailInput.value.trim();
+      const password  = passwordInput.value;
+      const confirm   = confirmInput.value;
+
+      // Field validation
+      let hasError = false;
+
+      if (!firstName) {
+        setFieldError('first-name', 'first-name-error', true);
+        hasError = true;
+      }
+      if (!lastName) {
+        setFieldError('last-name', 'last-name-error', true);
+        hasError = true;
+      }
+      if (!email || !/\S+@\S+\.\S+/.test(email)) {
+        setFieldError('email', 'email-error', true);
+        hasError = true;
+      }
+      if (!password || password.length < 8) {
+        setFieldError('password', 'password-error', true);
+        hasError = true;
+      }
+      if (password !== confirm) {
+        setFieldError('confirm-password', 'confirm-password-error', true);
+        hasError = true;
+      }
+
+      if (hasError) return;
+
+      App.setBtnLoading(signupBtn, true);
+
+      try {
+        // Create Supabase auth account
+        const { data, error: signUpError } = await window.supabaseClient.auth.signUp({
+          email:    email.toLowerCase(),
+          password: password,
+        });
+
+        if (signUpError) {
+          if (signUpError.message.includes('already registered')) {
+            showError('An account with this email already exists. Try signing in instead.');
+          } else {
+            showError(signUpError.message);
+          }
+          App.setBtnLoading(signupBtn, false);
+          return;
+        }
+
+        if (!data.session) {
+          // Email confirmation is required in Supabase project settings.
+          // The profile can't be created until the user confirms and gets a session.
+          // Show a message prompting them to confirm their email.
+          form.classList.add('hidden');
+          document.querySelector('.login-footer').classList.add('hidden');
+          successBox.querySelector('p').textContent =
+            'Please check your email to confirm your account. Once confirmed, contact your head coach to get access set up.';
+          successBox.classList.add('visible');
+          return;
+        }
+
+        // Session available — create the pending coach profile
+        await SupabaseDB.createPendingCoachProfile(firstName, lastName, email);
+
+        // Sign out so the pending coach can't access protected pages
+        await window.supabaseClient.auth.signOut();
+
+        // Show success state
+        form.classList.add('hidden');
+        document.querySelector('.login-footer').classList.add('hidden');
+        successBox.classList.add('visible');
+
+      } catch (err) {
+        showError(err.message);
+        App.setBtnLoading(signupBtn, false);
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>

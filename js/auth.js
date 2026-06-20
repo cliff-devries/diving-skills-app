@@ -60,6 +60,16 @@ const Auth = {
       return null;
     }
 
+    // Pending/rejected coaches never get access to any protected page
+    if (profile.role === 'pending_coach') {
+      await window.supabaseClient.auth.signOut();
+      if (!window.location.pathname.endsWith('index.html') &&
+          window.location.pathname !== '/') {
+        window.location.href = '/index.html';
+      }
+      return null;
+    }
+
     // Active profile required — pending/unclaimed divers can't log in yet
     if (profile.status === 'pending') {
       await window.supabaseClient.auth.signOut();
@@ -109,6 +119,18 @@ const Auth = {
     if (!profile) {
       await window.supabaseClient.auth.signOut();
       throw new Error('Account setup is incomplete. Please contact your coach.');
+    }
+
+    // Pending coach — awaiting admin approval
+    if (profile.role === 'pending_coach' && profile.status === 'pending') {
+      await window.supabaseClient.auth.signOut();
+      throw new Error('Your coach account is pending approval. Please check back soon or contact your head coach.');
+    }
+
+    // Rejected coach
+    if (profile.role === 'pending_coach' && profile.status === 'rejected') {
+      await window.supabaseClient.auth.signOut();
+      throw new Error('Your coach request was not approved. Please contact the head coach for more information.');
     }
 
     this.currentUser    = profile;
