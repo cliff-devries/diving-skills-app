@@ -1,11 +1,13 @@
 -- =============================================
 -- DIVING SKILLS — Migration v17: Coach self-signup flow
 -- Run this ONCE in the Supabase SQL Editor on an existing database.
+-- Safe to re-run: all statements are idempotent.
 --
 -- What this does:
 --   1. Adds 'pending_coach' as an allowed value for the role column.
---   2. Creates RPC create_pending_coach_profile — called by coach-signup.html
---      immediately after auth.signUp() to create a pending profile row.
+--   2. Adds an RLS INSERT policy so a newly signed-up user can insert
+--      their own pending_coach profile row (direct table insert from JS,
+--      no RPC required; works when email confirmation is disabled).
 --   3. Creates RPC get_pending_coaches — coaches only, returns profiles
 --      where role = 'pending_coach' and status = 'pending'.
 --   4. Creates RPC approve_coach — sets role='coach', status='active'.
@@ -16,9 +18,8 @@
 -- 1. EXTEND THE ROLE CONSTRAINT
 -- =============================================
 
--- Drop the existing role CHECK constraint (created in supabase-setup.sql).
--- The constraint name varies by Postgres version; the DO block handles both
--- possible names safely.
+-- Drop the existing role CHECK constraint so we can replace it.
+-- The name varies by Postgres version; this DO block finds it safely.
 DO $$
 DECLARE
   v_constraint TEXT;
@@ -42,47 +43,24 @@ ALTER TABLE public.profiles
   CHECK (role IN ('coach', 'diver', 'parent', 'pending_coach'));
 
 -- =============================================
--- 2. create_pending_coach_profile
---    Called right after auth.signUp() — the caller already has an active
---    session so auth.uid() is set. SECURITY DEFINER bypasses RLS.
+-- 2. RLS INSERT POLICY — pending coach self-signup
+--    Allows a newly authenticated user (session established immediately
+--    after auth.signUp() when email confirmation is disabled) to insert
+--    exactly one profile row tied to their own auth UID, with role locked
+--    to 'pending_coach' and status locked to 'pending'.
 -- =============================================
-CREATE OR REPLACE FUNCTION public.create_pending_coach_profile(
-  p_first_name TEXT,
-  p_last_name  TEXT,
-  p_email      TEXT
-)
-RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_profile_id UUID;
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
-  END IF;
 
-  INSERT INTO public.profiles (
-    auth_user_id,
-    first_name,
-    last_name,
-    email,
-    role,
-    status
-  ) VALUES (
-    auth.uid(),
-    TRIM(p_first_name),
-    NULLIF(TRIM(COALESCE(p_last_name, '')), ''),
-    LOWER(TRIM(p_email)),
-    'pending_coach',
-    'pending'
-  )
-  RETURNING id INTO v_profile_id;
+DROP POLICY IF EXISTS "profiles: pending_coach self-insert" ON public.profiles;
 
-  RETURN v_profile_id;
-END;
-$$;
+CREATE POLICY "profiles: pending_coach self-insert"
+  ON public.profiles
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND auth.uid() = auth_user_id
+    AND role = 'pending_coach'
+    AND status = 'pending'
+  );
 
 -- =============================================
 -- 3. get_pending_coaches

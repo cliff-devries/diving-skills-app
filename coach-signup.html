@@ -264,50 +264,54 @@
 
       App.setBtnLoading(signupBtn, true);
 
-      try {
-        // Create Supabase auth account
-        const { data, error: signUpError } = await window.supabaseClient.auth.signUp({
-          email:    email.toLowerCase(),
-          password: password,
-        });
+      // Step 1 — create the Supabase auth account
+      const { data, error: signUpError } = await window.supabaseClient.auth.signUp({
+        email:    email.toLowerCase(),
+        password: password,
+      });
 
-        if (signUpError) {
-          if (signUpError.message.includes('already registered')) {
-            showError('An account with this email already exists. Try signing in instead.');
-          } else {
-            showError(signUpError.message);
-          }
-          App.setBtnLoading(signupBtn, false);
-          return;
+      if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
+          showError('An account with this email already exists. Try signing in instead.');
+        } else {
+          showError(signUpError.message);
         }
-
-        if (!data.session) {
-          // Email confirmation is required in Supabase project settings.
-          // The profile can't be created until the user confirms and gets a session.
-          // Show a message prompting them to confirm their email.
-          form.classList.add('hidden');
-          document.querySelector('.login-footer').classList.add('hidden');
-          successBox.querySelector('p').textContent =
-            'Please check your email to confirm your account. Once confirmed, contact your head coach to get access set up.';
-          successBox.classList.add('visible');
-          return;
-        }
-
-        // Session available — create the pending coach profile
-        await SupabaseDB.createPendingCoachProfile(firstName, lastName, email);
-
-        // Sign out so the pending coach can't access protected pages
-        await window.supabaseClient.auth.signOut();
-
-        // Show success state
-        form.classList.add('hidden');
-        document.querySelector('.login-footer').classList.add('hidden');
-        successBox.classList.add('visible');
-
-      } catch (err) {
-        showError(err.message);
         App.setBtnLoading(signupBtn, false);
+        return;
       }
+
+      if (!data.session) {
+        // Supabase returned no session — email confirmation is enabled in the
+        // project settings. Profile creation requires a live session; the user
+        // must confirm their email before we can proceed.
+        showError(
+          'Email confirmation is required by the server. Please disable "Confirm email" ' +
+          'in your Supabase Authentication settings and try again, or contact your administrator.'
+        );
+        App.setBtnLoading(signupBtn, false);
+        return;
+      }
+
+      // Step 2 — insert the pending_coach profile row
+      try {
+        await SupabaseDB.createPendingCoachProfile(firstName, lastName, email, data.user.id);
+      } catch (profileErr) {
+        // Auth account was created but profile insert failed. Sign out so the
+        // dangling auth account doesn't block a future retry.
+        await window.supabaseClient.auth.signOut();
+        showError('Could not save your profile: ' + profileErr.message +
+          '. Please try again or contact your administrator.');
+        App.setBtnLoading(signupBtn, false);
+        return;
+      }
+
+      // Step 3 — sign out (pending coaches can't use the app yet)
+      await window.supabaseClient.auth.signOut();
+
+      // Show success state
+      form.classList.add('hidden');
+      document.querySelector('.login-footer').classList.add('hidden');
+      successBox.classList.add('visible');
     });
   })();
 </script>

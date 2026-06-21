@@ -658,16 +658,30 @@ const SupabaseDB = {
   // PENDING COACH REQUESTS
   // =============================================
 
-  // Called right after auth.signUp() on coach-signup.html. The caller must
-  // have an active session (email confirmation disabled) so auth.uid() is set.
-  async createPendingCoachProfile(firstName, lastName, email) {
-    const { data, error } = await this.db.rpc('create_pending_coach_profile', {
-      p_first_name: firstName,
-      p_last_name:  lastName || null,
-      p_email:      email,
-    });
+  // Called right after auth.signUp() on coach-signup.html.
+  // Requires an active session (email confirmation must be disabled in Supabase).
+  // Inserts directly into profiles — allowed by the RLS INSERT policy added in v17.
+  async createPendingCoachProfile(firstName, lastName, email, authUserId) {
+    const first    = firstName.trim();
+    const last     = (lastName || '').trim() || null;
+    const fullName = [first, last].filter(Boolean).join(' ');
+
+    const { data, error } = await this.db
+      .from('profiles')
+      .insert({
+        auth_user_id: authUserId,
+        first_name:   first,
+        last_name:    last,
+        full_name:    fullName,
+        email:        email.trim().toLowerCase(),
+        role:         'pending_coach',
+        status:       'pending',
+      })
+      .select()
+      .single();
+
     if (error) throw new Error(error.message);
-    return data; // returns new profile UUID
+    return data;
   },
 
   // Returns all profiles with role='pending_coach' and status='pending'.
