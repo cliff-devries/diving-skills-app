@@ -32,6 +32,22 @@
     }
     .login-footer a { color: var(--text-secondary); }
     .login-footer a:hover { color: var(--accent); }
+    .notice-pending-coach {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(13, 148, 136, 0.12);
+      border: 1px solid rgba(13, 148, 136, 0.35);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      color: #5eead4;
+    }
+    .notice-pending-coach.visible { display: flex; }
+    .notice-pending-coach .notice-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+    .notice-pending-coach p { margin: 0; }
   </style>
 </head>
 <body>
@@ -44,6 +60,12 @@
       <img src="assets/icons/diver-icon.svg" alt="Dive Drills" class="login-logo">
       <div class="login-app-name">Dive<span>Drills</span></div>
       <div class="login-subtitle">Skills tracker for competitive divers</div>
+    </div>
+
+    <!-- Pending-coach notice — shown after email confirmation or re-login attempt -->
+    <div id="pending-coach-notice" class="notice-pending-coach" role="status">
+      <span class="notice-icon">✅</span>
+      <p>Email confirmed! Your coach account request has been submitted. The head coach will review your application and you will receive access shortly. You do not need to log in again until you are approved.</p>
     </div>
 
     <!-- Alert -->
@@ -115,6 +137,13 @@
       return;
     }
 
+    // Show pending-coach notice if redirected here after signup confirmation
+    // or after a login attempt by an unapproved pending coach.
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') === 'pending_coach') {
+      document.getElementById('pending-coach-notice').classList.add('visible');
+    }
+
     // ---- Form submission ----
     const form       = document.getElementById('login-form');
     const loginBtn   = document.getElementById('login-btn');
@@ -160,6 +189,10 @@
         // Redirect to dashboard on success
         window.location.href = '/dashboard.html';
       } catch (err) {
+        if (err.pendingCoach) {
+          window.location.href = '/index.html?status=pending_coach';
+          return;
+        }
         showError(err.message);
         App.setBtnLoading(loginBtn, false);
       }

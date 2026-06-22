@@ -75,7 +75,7 @@ const Auth = {
       await window.supabaseClient.auth.signOut();
       if (!window.location.pathname.endsWith('index.html') &&
           window.location.pathname !== '/') {
-        window.location.href = '/index.html';
+        window.location.href = '/index.html?status=pending_coach';
       }
       return null;
     }
@@ -85,7 +85,7 @@ const Auth = {
       await window.supabaseClient.auth.signOut();
       if (!window.location.pathname.endsWith('index.html') &&
           window.location.pathname !== '/') {
-        window.location.href = '/index.html';
+        window.location.href = '/index.html?status=pending_coach';
       }
       return null;
     }
@@ -142,7 +142,9 @@ const Auth = {
     // and show the pending-approval message. Migration v18 fixes the DB rows.
     if (profile && profile.role === 'diver' && data.user.user_metadata?.requested_role === 'coach') {
       await window.supabaseClient.auth.signOut();
-      throw new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+      const e = new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+      e.pendingCoach = true;
+      throw e;
     }
 
     if (!profile) {
@@ -162,7 +164,9 @@ const Auth = {
           throw new Error('Could not create your coach profile. Please try again or contact support.');
         }
         await window.supabaseClient.auth.signOut();
-        throw new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+        const pendingE = new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+        pendingE.pendingCoach = true;
+        throw pendingE;
       }
       await window.supabaseClient.auth.signOut();
       throw new Error('Account setup is incomplete. Please contact your coach.');
@@ -171,7 +175,9 @@ const Auth = {
     // Pending coach — awaiting admin approval
     if (profile.role === 'pending_coach' && profile.status === 'pending') {
       await window.supabaseClient.auth.signOut();
-      throw new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+      const pendingE = new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+      pendingE.pendingCoach = true;
+      throw pendingE;
     }
 
     // Rejected coach
