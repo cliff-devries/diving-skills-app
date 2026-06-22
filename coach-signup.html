@@ -264,58 +264,68 @@
 
       App.setBtnLoading(signupBtn, true);
 
-      // Create the Supabase auth account.
-      // Store first_name, last_name, and requested_role in user_metadata so
-      // auth.js can read them after email confirmation to create the profile.
-      const { data, error: signUpError } = await window.supabaseClient.auth.signUp({
-        email:    email.toLowerCase(),
-        password: password,
-        options: {
-          data: {
-            requested_role: 'coach',
-            first_name:     firstName,
-            last_name:      lastName,
+      try {
+        // Create the Supabase auth account.
+        // Store first_name, last_name, and requested_role in user_metadata so
+        // auth.js can read them after email confirmation to create the profile.
+        const { data, error: signUpError } = await window.supabaseClient.auth.signUp({
+          email:    email.toLowerCase(),
+          password: password,
+          options: {
+            data: {
+              requested_role: 'coach',
+              first_name:     firstName,
+              last_name:      lastName,
+            },
           },
-        },
-      });
+        });
 
-      if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          showError('An account with this email already exists. Try signing in instead.');
-        } else {
-          showError(signUpError.message);
+        if (signUpError) {
+          console.log('Signup error full object:', JSON.stringify(signUpError));
+          const msg = signUpError?.message || signUpError?.error_description || JSON.stringify(signUpError) || 'An unexpected error occurred. Please try again.';
+          if (msg.includes('already registered')) {
+            showError('An account with this email already exists. Try signing in instead.');
+          } else {
+            showError(msg);
+          }
+          App.setBtnLoading(signupBtn, false);
+          return;
         }
+
+        // If email confirmation is disabled, signUp() returns a session immediately.
+        // Sign them out — the pending_coach profile is created by auth.js on first login.
+        if (data.session) {
+          await window.supabaseClient.auth.signOut();
+        }
+
+        // Show success with a message appropriate to whether an email was sent.
+        const titleEl   = document.getElementById('success-title');
+        const messageEl = document.getElementById('success-message');
+
+        if (!data.session) {
+          // Email confirmation is enabled — user must click the link first.
+          titleEl.textContent   = 'Almost there!';
+          messageEl.textContent =
+            `We've sent a confirmation email to ${email}. Please check your inbox and ` +
+            'click the confirmation link to activate your account. Once confirmed, your ' +
+            'request will be reviewed by the head coach.';
+        } else {
+          // Email confirmation is disabled — account is active immediately.
+          titleEl.textContent   = 'Request submitted!';
+          messageEl.textContent =
+            'The head coach will review your application and you will receive access shortly.';
+        }
+
+        form.classList.add('hidden');
+        document.querySelector('.login-footer').classList.add('hidden');
+        successBox.classList.add('visible');
+
+      } catch (err) {
+        console.log('Signup error full object:', JSON.stringify(err));
+        const errorMessage = err?.message || err?.error_description || JSON.stringify(err) || 'An unexpected error occurred. Please try again.';
+        showError(errorMessage);
         App.setBtnLoading(signupBtn, false);
-        return;
       }
-
-      // If email confirmation is disabled, signUp() returns a session immediately.
-      // Sign them out — the pending_coach profile is created by auth.js on first login.
-      if (data.session) {
-        await window.supabaseClient.auth.signOut();
-      }
-
-      // Show success with a message appropriate to whether an email was sent.
-      const titleEl   = document.getElementById('success-title');
-      const messageEl = document.getElementById('success-message');
-
-      if (!data.session) {
-        // Email confirmation is enabled — user must click the link first.
-        titleEl.textContent   = 'Almost there!';
-        messageEl.textContent =
-          `We've sent a confirmation email to ${email}. Please check your inbox and ` +
-          'click the confirmation link to activate your account. Once confirmed, your ' +
-          'request will be reviewed by the head coach.';
-      } else {
-        // Email confirmation is disabled — account is active immediately.
-        titleEl.textContent   = 'Request submitted!';
-        messageEl.textContent =
-          'The head coach will review your application and you will receive access shortly.';
-      }
-
-      form.classList.add('hidden');
-      document.querySelector('.login-footer').classList.add('hidden');
-      successBox.classList.add('visible');
     });
   })();
 </script>
