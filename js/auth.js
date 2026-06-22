@@ -52,8 +52,17 @@ const Auth = {
     const profile = await SupabaseDB.getProfile(session.user.id);
 
     if (!profile) {
-      // No profile means this auth user signed up via the claiming flow.
-      // Send them to claim.html to find and link their existing profile.
+      // Coach who confirmed email but hasn't logged in yet (profile not created).
+      // Redirect to login so Auth.login() can create the pending_coach profile.
+      if (session.user.user_metadata?.requested_role === 'coach') {
+        await window.supabaseClient.auth.signOut();
+        if (!window.location.pathname.endsWith('index.html') &&
+            window.location.pathname !== '/') {
+          window.location.href = '/index.html';
+        }
+        return null;
+      }
+      // Regular user with no profile → send to claim.html to find their diver profile.
       if (!window.location.pathname.endsWith('claim.html')) {
         window.location.href = '/claim.html';
       }
@@ -116,7 +125,26 @@ const Auth = {
     }
 
     const profile = await SupabaseDB.getProfile(data.user.id);
+
     if (!profile) {
+      // Coach who just confirmed their email for the first time — the profile
+      // row doesn't exist yet because coach-signup.html defers creation to here.
+      // user_metadata was set during signUp() and survives email confirmation.
+      if (data.user.user_metadata?.requested_role === 'coach') {
+        try {
+          await SupabaseDB.createPendingCoachProfile(
+            data.user.user_metadata.first_name || '',
+            data.user.user_metadata.last_name  || '',
+            data.user.email,
+            data.user.id
+          );
+        } catch (profileErr) {
+          await window.supabaseClient.auth.signOut();
+          throw new Error('Could not create your coach profile. Please try again or contact support.');
+        }
+        await window.supabaseClient.auth.signOut();
+        throw new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+      }
       await window.supabaseClient.auth.signOut();
       throw new Error('Account setup is incomplete. Please contact your coach.');
     }
@@ -124,7 +152,7 @@ const Auth = {
     // Pending coach — awaiting admin approval
     if (profile.role === 'pending_coach' && profile.status === 'pending') {
       await window.supabaseClient.auth.signOut();
-      throw new Error('Your coach account is pending approval. Please check back soon or contact your head coach.');
+      throw new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
     }
 
     // Rejected coach
