@@ -69,6 +69,17 @@ const Auth = {
       return null;
     }
 
+    // Guard: coach whose profile was mis-created as 'diver' by the trigger
+    // before migration v18. Block access and redirect to login.
+    if (profile.role === 'diver' && session.user.user_metadata?.requested_role === 'coach') {
+      await window.supabaseClient.auth.signOut();
+      if (!window.location.pathname.endsWith('index.html') &&
+          window.location.pathname !== '/') {
+        window.location.href = '/index.html';
+      }
+      return null;
+    }
+
     // Pending/rejected coaches never get access to any protected page
     if (profile.role === 'pending_coach') {
       await window.supabaseClient.auth.signOut();
@@ -125,6 +136,14 @@ const Auth = {
     }
 
     const profile = await SupabaseDB.getProfile(data.user.id);
+
+    // Guard: the handle_new_user DB trigger created a 'diver' profile before
+    // migration v18 fixed it to read requested_role. Block dashboard access
+    // and show the pending-approval message. Migration v18 fixes the DB rows.
+    if (profile && profile.role === 'diver' && data.user.user_metadata?.requested_role === 'coach') {
+      await window.supabaseClient.auth.signOut();
+      throw new Error('Your coach account is pending approval. The head coach will review your request shortly. Please check back soon.');
+    }
 
     if (!profile) {
       // Coach who just confirmed their email for the first time — the profile
