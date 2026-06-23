@@ -16,13 +16,15 @@ const App = {
     const initials    = Auth.getInitials(user.full_name);
     const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
 
-    // Define nav links; filter by role
+    // Define nav links; filter by role.
+    // Profile is accessed via the user card in the sidebar footer (desktop)
+    // and the initials avatar in the bottom nav (mobile) — no separate nav item.
     const links = [
       { href: 'dashboard.html', icon: '🏠', label: 'Dashboard',     roles: ['coach', 'diver', 'parent'] },
       { href: 'progress.html',  icon: '📊', label: 'Progress',      roles: ['diver'] },
       { href: 'skills.html',    icon: '🎯', label: 'Skills Library', roles: ['coach', 'diver', 'parent'] },
       { href: 'roster.html',    icon: '👥', label: 'Roster',        roles: ['coach'] },
-      { href: 'profile.html',   icon: '👤', label: 'Profile',       roles: ['coach', 'diver', 'parent'] },
+      { href: 'testing.html',   icon: '📋', label: 'Testing',       roles: ['coach'] },
     ].filter(l => l.roles.includes(role));
 
     // Reports — visible to every role, always pinned to the end of the nav.
@@ -57,19 +59,20 @@ const App = {
           </a>
         </nav>
         <div class="sidebar-footer">
-          <div class="user-info-nav">
+          <a href="profile.html" class="user-info-nav" style="text-decoration:none;display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
             <div class="avatar-sm">${initials}</div>
             <div class="min-w-0">
               <div class="user-name-nav truncate">${this.escHtml(this.firstName(user))}</div>
               <div class="user-role-nav">${Auth.getRoleLabel(role)}</div>
             </div>
-          </div>
+          </a>
           <button class="btn btn-ghost btn-sm w-full" onclick="Auth.logout()">Sign Out</button>
         </div>
       `;
     }
 
     // ---- Bottom nav (mobile) ----
+    // Profile is shown as an initials avatar instead of a generic icon.
     const bottomNav = document.getElementById('bottom-nav');
     if (bottomNav) {
       bottomNav.innerHTML = links.map(l => `
@@ -81,6 +84,12 @@ const App = {
         <a href="${reportsLink.href}" class="bottom-nav-item bottom-nav-item-reports ${isActive(reportsLink.href)}">
           <span class="nav-icon">${reportsLink.icon}</span>
           <span>${reportsLink.label}</span>
+        </a>
+        <a href="profile.html" class="bottom-nav-item ${isActive('profile.html')}">
+          <span class="nav-icon">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#000;font-size:10px;font-weight:700;line-height:1;">${this.escHtml(initials)}</span>
+          </span>
+          <span>Profile</span>
         </a>
       `;
     }

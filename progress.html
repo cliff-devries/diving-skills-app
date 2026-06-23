@@ -23,6 +23,9 @@
       gap: 12px;
       margin-bottom: 16px;
     }
+    .badge-gold   { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
+    .badge-silver { background: rgba(156,163,175,.15); color: #9ca3af; border: 1px solid rgba(156,163,175,.3); }
+    .badge-bronze { background: rgba(180,120,60,.15);  color: #b47c3c; border: 1px solid rgba(180,120,60,.3); }
   </style>
 </head>
 <body>
@@ -72,10 +75,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=5"></script>
+<script src="js/supabase.js?v=6"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
+<script src="js/app.js?v=4"></script>
 
 <script>
   let allSkills       = [];
@@ -127,15 +130,17 @@
       targetDiverId = user.id;
     }
 
-    const [skills, cMap, attempts] = await Promise.all([
+    const [skills, cMap, attempts, levelCompMap] = await Promise.all([
       Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
       SupabaseDB.getAllTestAttempts(targetDiverId),
+      SupabaseDB.getLevelCompletions(targetDiverId),
     ]);
 
     // Supplemental skills never appear in the progress tracker.
     allSkills     = skills.filter(s => s.isTestable);
     completionMap = cMap;
+    window._levelCompMap = levelCompMap;
 
     attemptsBySkill = {};
     attempts.forEach(a => {
@@ -247,11 +252,19 @@
     const { total, attained, ready, certified, pct } = levelStats(level);
     const groups = groupSkillsByType(lvlSkills);
 
+    const levelComp = (window._levelCompMap || {})[level];
+    const desigBadge = levelComp?.designation
+      ? levelDesignationBadge(levelComp.designation)
+      : '';
+
     container.innerHTML = `
       <div class="card fade-in">
         <div class="level-skills-header">
           <div>
-            <h3>${App.getLevelLabel(level)}</h3>
+            <div class="flex items-center gap-2">
+              <h3>${App.getLevelLabel(level)}</h3>
+              ${desigBadge}
+            </div>
             <div class="text-sm text-secondary mt-1" id="level-breakdown">
               ${attained} attained · ${ready} ready for test · ${certified} certified
             </div>
@@ -372,8 +385,11 @@
       ? '<span class="harness-icon" title="Requires harness">🦺</span>'
       : '';
 
-    const recentHtml = mostRecent
-      ? `<span class="text-xs text-secondary">Last test: ${formatDateOnly(mostRecent.test_date)} · Score ${Number(mostRecent.score).toFixed(1)}</span>`
+    // Use latest_score from completion row if available (faster than attempt lookup)
+    const latestScore = completion.latest_score ?? mostRecent?.score ?? null;
+    const latestDate  = completion.latest_test_date ?? mostRecent?.test_date ?? null;
+    const recentHtml  = latestScore !== null
+      ? `<span class="text-xs text-secondary">Last test: ${formatDateOnly(latestDate)} · Score ${Number(latestScore).toFixed(1)}</span>`
       : '';
 
     return `
@@ -451,6 +467,13 @@
       : '<p class="text-secondary text-sm">No test attempts recorded yet.</p>';
 
     return formHtml + attemptsHtml;
+  }
+
+  function levelDesignationBadge(designation) {
+    if (designation === 'gold')   return '<span class="badge badge-gold">🥇 Gold</span>';
+    if (designation === 'silver') return '<span class="badge badge-silver">🥈 Silver</span>';
+    if (designation === 'bronze') return '<span class="badge badge-bronze">🥉 Bronze</span>';
+    return '';
   }
 
   function scoreOptionsHtml() {

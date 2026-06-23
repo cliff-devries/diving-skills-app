@@ -117,8 +117,15 @@ async function main() {
 
   console.log(`Importing ${rows.length} valid rows…`);
 
-  // ---- Insert into Supabase in batches of 100 ----
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Service role key bypasses RLS — required for bulk inserts.
+  // Pass it via environment variable: SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-skills.js
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('Warning: SUPABASE_SERVICE_ROLE_KEY not set — falling back to anon key (will fail if RLS blocks inserts)');
+  }
+  const supabase = createClient(SUPABASE_URL, key, {
+    auth: { persistSession: false },
+  });
   const BATCH = 100;
   let inserted = 0;
 

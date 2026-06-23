@@ -28,9 +28,9 @@
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=5"></script>
+<script src="js/supabase.js?v=6"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/app.js?v=3"></script>
+<script src="js/app.js?v=4"></script>
 
 <script>
   // =============================================
@@ -104,12 +104,12 @@
           <div class="stat-value">${roster.length}</div>
           <div class="stat-label">Divers on Roster</div>
         </div>
-        <div class="stat-card">
+        <a href="testing.html" class="stat-card" style="text-decoration:none;display:block;cursor:pointer;" title="Start a Testing Session">
           <div class="stat-value" style="color: ${fullLevelsReadyToTest ? 'var(--pending)' : 'var(--accent)'}">
             ${fullLevelsReadyToTest}
           </div>
-          <div class="stat-label">Full Levels Ready to Test</div>
-        </div>
+          <div class="stat-label">Full Levels Ready to Test ↗</div>
+        </a>
         <div class="stat-card">
           <div class="stat-value" style="color: ${totalSkillsReadyToTest ? 'var(--pending)' : 'var(--accent)'}">
             ${totalSkillsReadyToTest}
@@ -404,10 +404,11 @@
   async function renderDiverDashboard(user) {
     const main = document.getElementById('main-content');
 
-    const [stats, recentAttempts, coach] = await Promise.all([
+    const [stats, recentAttempts, coach, levelCompMap] = await Promise.all([
       SupabaseDB.getCompletionStats(user.id),
       SupabaseDB.getRecentTestAttempts(user.id, 6),
       SupabaseDB.getDiverCoach(user.id),
+      SupabaseDB.getLevelCompletions(user.id),
     ]);
 
     main.innerHTML = `
@@ -431,6 +432,23 @@
           <div class="stat-label">Certified</div>
         </div>
       </div>
+
+      <!-- Designations earned -->
+      ${Object.keys(levelCompMap).length ? `
+      <div class="content-section">
+        <div class="section-title">Designations Earned</div>
+        <div class="flex gap-2 flex-wrap">
+          ${Object.entries(levelCompMap)
+              .filter(([, lc]) => lc.designation)
+              .sort(([a], [b]) => Number(a) - Number(b))
+              .map(([lvl, lc]) => {
+                const badge = lc.designation === 'gold'   ? '🥇 Gold'
+                            : lc.designation === 'silver' ? '🥈 Silver'
+                            : '🥉 Bronze';
+                return `<span class="badge" style="font-size:0.85rem">L${lvl} ${badge}</span>`;
+              }).join('') || '<span class="text-secondary text-sm">No designations yet</span>'}
+        </div>
+      </div>` : ''}
 
       <!-- Quick actions -->
       <div class="content-section">

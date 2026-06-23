@@ -703,4 +703,178 @@ const SupabaseDB = {
     const { error } = await this.db.rpc('reject_coach', { p_profile_id: profileId });
     if (error) throw new Error(error.message);
   },
+
+  // =============================================
+  // TESTING SESSIONS
+  // =============================================
+
+  // Returns divers on a coach's roster where at least one level has ALL
+  // testable skills at Stage 1 (skill_attained) AND Stage 2 (ready_for_test).
+  // Result: [{ diver, readyLevels: [0,1,...] }], sorted by last name.
+  async getDiversReadyForFullLevelTest(coachId) {
+    const roster = await this.getRoster(coachId);
+    const diverIds = roster.map(r => r.diver.id);
+    if (!diverIds.length) return [];
+
+    const { data: skills, error: skillsError } = await this.db
+      .from('skills')
+      .select('id, skill_level, is_testable')
+      .eq('is_testable', true);
+    if (skillsError) { console.error('[SupabaseDB] getDiversReadyForFullLevelTest:', skillsError.message); return []; }
+
+    const levelSkillIds = new Map();
+    (skills ?? []).forEach(s => {
+      if (s.skill_level === null || s.skill_level === undefined) return;
+      if (!levelSkillIds.has(s.skill_level)) levelSkillIds.set(s.skill_level, new Set());
+      levelSkillIds.get(s.skill_level).add(s.id);
+    });
+
+    const { data: completions, error: compError } = await this.db
+      .from('skill_completions')
+      .select('diver_id, skill_id, skill:skills(is_testable, skill_level)')
+      .in('diver_id', diverIds)
+      .eq('skill_attained', true)
+      .eq('ready_for_test', true);
+    if (compError) { console.error('[SupabaseDB] getDiversReadyForFullLevelTest:', compError.message); return []; }
+
+    const diverLevelReady = new Map();
+    (completions ?? []).forEach(c => {
+      if (c.skill?.is_testable === false) return;
+      const level = c.skill?.skill_level;
+      if (level === null || level === undefined) return;
+      if (!diverLevelReady.has(c.diver_id)) diverLevelReady.set(c.diver_id, new Map());
+      const levelMap = diverLevelReady.get(c.diver_id);
+      if (!levelMap.has(level)) levelMap.set(level, new Set());
+      levelMap.get(level).add(c.skill_id);
+    });
+
+    const results = [];
+    for (const entry of roster) {
+      const diver = entry.diver;
+      const diverMap = diverLevelReady.get(diver.id);
+      if (!diverMap) continue;
+
+      const readyLevels = [];
+      for (const [level, skillIds] of levelSkillIds) {
+        if (skillIds.size === 0) continue;
+        const ready = diverMap.get(level) ?? new Set();
+        if ([...skillIds].every(id => ready.has(id))) readyLevels.push(level);
+      }
+      if (readyLevels.length > 0) {
+        results.push({ diver, readyLevels: readyLevels.sort((a, b) => a - b) });
+      }
+    }
+    return results;
+  },
+
+  // Returns testable skills for a level along with the diver's completion row
+  // (needed for skill_completion_id when inserting test attempts).
+  async getTestingSkillsForDiverLevel(diverId, level) {
+    const { data: skills, error: skillsErr } = await this.db
+      .from('skills')
+      .select('id, skill_name, skill_description, skill_type, skill_category, skill_order, requires_harness')
+      .eq('skill_level', level)
+      .eq('is_testable', true)
+      .order('skill_order', { ascending: true })
+      .order('skill_name',  { ascending: true });
+    if (skillsErr) throw new Error(skillsErr.message);
+
+    const skillList = skills ?? [];
+    if (!skillList.length) return [];
+
+    const { data: completions, error: compErr } = await this.db
+      .from('skill_completions')
+      .select('id, skill_id, latest_score, latest_test_date')
+      .eq('diver_id', diverId)
+      .in('skill_id', skillList.map(s => s.id));
+    if (compErr) throw new Error(compErr.message);
+
+    const compMap = {};
+    (completions ?? []).forEach(c => { compMap[c.skill_id] = c; });
+
+    return skillList.map(s => ({
+      id:            s.id,
+      name:          s.skill_name,
+      description:   s.skill_description || '',
+      type:          s.skill_type        || '',
+      category:      s.skill_category    || '',
+      order:         s.skill_order,
+      completionId:  compMap[s.id]?.id            || null,
+      latestScore:   compMap[s.id]?.latest_score  ?? null,
+    }));
+  },
+
+  // Save all scored skills for one diver in a testing session.
+  // scores: { [skillId]: { value: number, completionId: uuid } }
+  // Inserts test attempts, updates skill_completions, upserts level_completions.
+  async saveTestingSessionDiver({ diverId, level, coachId, scores, notes, testDate }) {
+    const today      = testDate || new Date().toISOString().slice(0, 10);
+    const entries    = Object.entries(scores);
+    if (!entries.length) throw new Error('No skills scored.');
+
+    const scoreValues = entries.map(([, s]) => parseFloat(s.value));
+    const avg         = scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length;
+    let designation   = null;
+    if (avg >= 9.0)      designation = 'gold';
+    else if (avg >= 8.0) designation = 'silver';
+    else if (avg >= 7.0) designation = 'bronze';
+
+    // Insert one test attempt per scored skill
+    const attempts = entries.map(([skillIdStr, s]) => ({
+      skill_completion_id: s.completionId,
+      diver_id:            diverId,
+      skill_id:            parseInt(skillIdStr, 10),
+      coach_id:            coachId,
+      score:               parseFloat(s.value),
+      test_date:           today,
+      notes:               notes || '',
+    }));
+    const { error: attErr } = await this.db.from('skill_test_attempts').insert(attempts);
+    if (attErr) throw new Error(attErr.message);
+
+    // Update skill_completions for each scored skill
+    for (const [skillIdStr, s] of entries) {
+      const scoreNum = parseFloat(s.value);
+      const { error: updErr } = await this.db
+        .from('skill_completions')
+        .update({
+          latest_score:      scoreNum,
+          latest_test_date:  today,
+          tested_and_passed: scoreNum >= 5.0,
+          level_designation: designation,
+        })
+        .eq('diver_id', diverId)
+        .eq('skill_id', parseInt(skillIdStr, 10));
+      if (updErr) throw new Error(updErr.message);
+    }
+
+    // Upsert level_completions (one row per diver+level, updated on retest)
+    const { error: lcErr } = await this.db
+      .from('level_completions')
+      .upsert({
+        diver_id:      diverId,
+        level,
+        completed_at:  new Date().toISOString(),
+        average_score: parseFloat(avg.toFixed(2)),
+        designation,
+        notes:         notes || null,
+        coach_id:      coachId,
+      }, { onConflict: 'diver_id,level' });
+    if (lcErr) throw new Error(lcErr.message);
+
+    return { averageScore: avg, designation, scoredCount: entries.length };
+  },
+
+  // Level completion records for a diver, keyed by level number.
+  async getLevelCompletions(diverId) {
+    const { data, error } = await this.db
+      .from('level_completions')
+      .select('*')
+      .eq('diver_id', diverId)
+      .order('level', { ascending: true });
+    if (error) { console.error('[SupabaseDB] getLevelCompletions:', error.message); return []; }
+    const map = {};
+    (data ?? []).forEach(r => { map[r.level] = r; });
+    return map;
+  },
 };
