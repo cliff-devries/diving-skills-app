@@ -805,11 +805,12 @@ const SupabaseDB = {
   },
 
   // Save all scored skills for one diver in a testing session.
-  // scores: { [skillId]: { value: number, completionId: uuid } }
-  // Inserts test attempts, updates skill_completions, upserts level_completions.
+  // scores: { [skillId]: { value: number, completionId: uuid|null } }
+  // Inserts test attempts, upserts skill_completions (only test fields — never
+  // touches skill_attained or ready_for_test), upserts level_completions.
   async saveTestingSessionDiver({ diverId, level, coachId, scores, notes, testDate }) {
-    const today      = testDate || new Date().toISOString().slice(0, 10);
-    const entries    = Object.entries(scores);
+    const today   = testDate || new Date().toISOString().slice(0, 10);
+    const entries = Object.entries(scores);
     if (!entries.length) throw new Error('No skills scored.');
 
     const scoreValues = entries.map(([, s]) => parseFloat(s.value));
@@ -819,21 +820,39 @@ const SupabaseDB = {
     else if (avg >= 8.0) designation = 'silver';
     else if (avg >= 7.0) designation = 'bronze';
 
-    // Insert one test attempt per scored skill
-    const attempts = entries.map(([skillIdStr, s]) => ({
-      skill_completion_id: s.completionId,
-      diver_id:            diverId,
-      skill_id:            parseInt(skillIdStr, 10),
-      coach_id:            coachId,
-      score:               parseFloat(s.value),
-      test_date:           today,
-      notes:               notes || '',
-    }));
-    const { error: attErr } = await this.db.from('skill_test_attempts').insert(attempts);
-    if (attErr) throw new Error(attErr.message);
+    // Split by whether a skill_completions row already exists
+    const withCompletion    = entries.filter(([, s]) => s.completionId);
+    const withoutCompletion = entries.filter(([, s]) => !s.completionId);
 
-    // Update skill_completions for each scored skill
-    for (const [skillIdStr, s] of entries) {
+    // completionIds[skillIdStr] → the completion row UUID for that skill
+    const completionIds = Object.fromEntries(entries.map(([k, s]) => [k, s.completionId]));
+
+    // Insert new completion rows for skills with no existing row.
+    // skill_attained and ready_for_test are intentionally left null — they are
+    // set independently by divers/coaches via the normal stage-1/stage-2 flow.
+    if (withoutCompletion.length) {
+      const newRows = withoutCompletion.map(([skillIdStr, s]) => {
+        const scoreNum = parseFloat(s.value);
+        return {
+          diver_id:          diverId,
+          skill_id:          parseInt(skillIdStr, 10),
+          skill_attained:    null,
+          ready_for_test:    null,
+          tested_and_passed: scoreNum >= 5.0,
+          latest_score:      scoreNum,
+          latest_test_date:  today,
+          level_designation: designation,
+        };
+      });
+      const { data: newComps, error: insErr } = await this.db
+        .from('skill_completions').insert(newRows).select('id, skill_id');
+      if (insErr) throw new Error(insErr.message);
+      (newComps ?? []).forEach(c => { completionIds[String(c.skill_id)] = c.id; });
+    }
+
+    // Update existing completion rows — only the test-result fields.
+    // skill_attained and ready_for_test are never modified here.
+    for (const [skillIdStr, s] of withCompletion) {
       const scoreNum = parseFloat(s.value);
       const { error: updErr } = await this.db
         .from('skill_completions')
@@ -843,10 +862,22 @@ const SupabaseDB = {
           tested_and_passed: scoreNum >= 5.0,
           level_designation: designation,
         })
-        .eq('diver_id', diverId)
-        .eq('skill_id', parseInt(skillIdStr, 10));
+        .eq('id', s.completionId);
       if (updErr) throw new Error(updErr.message);
     }
+
+    // Insert one test attempt per scored skill
+    const attempts = entries.map(([skillIdStr, s]) => ({
+      skill_completion_id: completionIds[skillIdStr] || null,
+      diver_id:            diverId,
+      skill_id:            parseInt(skillIdStr, 10),
+      coach_id:            coachId,
+      score:               parseFloat(s.value),
+      test_date:           today,
+      notes:               notes || '',
+    }));
+    const { error: attErr } = await this.db.from('skill_test_attempts').insert(attempts);
+    if (attErr) throw new Error(attErr.message);
 
     // Upsert level_completions (one row per diver+level, updated on retest)
     const { error: lcErr } = await this.db

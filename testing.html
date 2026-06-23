@@ -343,7 +343,7 @@
     <div id="step-1" class="testing-step">
       <div class="page-header">
         <h1>Testing Session</h1>
-        <p>Select divers ready to test a full level.</p>
+        <p>Select divers and the level to test.</p>
       </div>
       <div id="step1-content">
         <div class="loading-overlay">
@@ -433,8 +433,8 @@
   // State
   // =============================================
   let currentUser  = null;
-  let readyDivers  = [];  // [{diver, readyLevels}]
-  let selectedMap  = {};  // {diverId: {diver, readyLevels, selectedLevel}}
+  let rosterDivers = [];  // [diver] — all divers on coach's roster
+  let selectedMap  = {};  // {diverId: {diver, selectedLevel}}
   let sessionDivers = []; // [{diver, level, skills}] — ordered list for testing
   let currentDiverIdx = 0;
   let sessionScores = {}; // {diverId: {skillId: {value, completionId}}} — scored only
@@ -462,43 +462,41 @@
   // =============================================
   async function loadStep1() {
     const container = document.getElementById('step1-content');
+    container.innerHTML = `<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading…</span></div>`;
     try {
-      readyDivers = await SupabaseDB.getDiversReadyForFullLevelTest(currentUser.id);
-      readyDivers.sort((a, b) => {
-        const aL = (a.diver.last_name || a.diver.full_name || '').toLowerCase();
-        const bL = (b.diver.last_name || b.diver.full_name || '').toLowerCase();
+      const roster = await SupabaseDB.getRoster(currentUser.id);
+      rosterDivers = roster.map(r => r.diver);
+      rosterDivers.sort((a, b) => {
+        const aL = (a.last_name || a.full_name || '').toLowerCase();
+        const bL = (b.last_name || b.full_name || '').toLowerCase();
         if (aL !== bL) return aL < bL ? -1 : 1;
-        return (a.diver.first_name || '').toLowerCase() < (b.diver.first_name || '').toLowerCase() ? -1 : 1;
+        return (a.first_name || '').toLowerCase() < (b.first_name || '').toLowerCase() ? -1 : 1;
       });
 
-      if (!readyDivers.length) {
+      if (!rosterDivers.length) {
         container.innerHTML = `
           <div class="empty-state" style="padding:40px">
             <div class="empty-state-icon">📋</div>
-            <p>No divers are ready to test a full level yet.</p>
-            <p class="text-sm text-secondary mt-2">A diver is ready when every testable skill in a level has Stage 1 (Attained) and Stage 2 (Ready for Test) set.</p>
+            <p>No divers on your roster yet.</p>
           </div>`;
         return;
       }
 
       container.innerHTML = `
         <div class="card card-sm" style="overflow:visible">
-          ${readyDivers.map(rd => buildDiverSelectRow(rd)).join('')}
+          ${rosterDivers.map(diver => buildDiverSelectRow(diver)).join('')}
         </div>`;
     } catch (err) {
       container.innerHTML = `<div class="empty-state"><p>Error loading divers: ${App.escHtml(err.message)}</p></div>`;
     }
   }
 
-  function buildDiverSelectRow({ diver, readyLevels }) {
+  function buildDiverSelectRow(diver) {
     const initials = Auth.getInitials(diver.full_name);
-    const levelBadges = readyLevels.map(l =>
-      `<span class="badge badge-pending">L${l}</span>`
-    ).join(' ');
-    const levelOptions = readyLevels.map(l =>
-      `<option value="${l}">Level ${l === 0 ? '0 (Beginner)' : l}</option>`
+    const currentLevel = diver.current_level ?? 0;
+    const levelOptions = Array.from({ length: 13 }, (_, i) =>
+      `<option value="${i}"${i === currentLevel ? ' selected' : ''}>Level ${i === 0 ? '0 (Beginner)' : i}</option>`
     ).join('');
-    const multiLevel = readyLevels.length > 1;
 
     return `
       <div class="diver-select-row" id="diver-row-${diver.id}">
@@ -507,32 +505,29 @@
         <div class="avatar-sm">${App.escHtml(initials)}</div>
         <div class="list-item-content">
           <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(diver))}</div>
-          <div class="flex gap-2 mt-1 flex-wrap">${levelBadges}</div>
+          <div class="flex gap-2 mt-1 flex-wrap">
+            <span class="badge badge-level">L${currentLevel}</span>
+          </div>
         </div>
-        ${multiLevel ? `
-          <select id="level-sel-${diver.id}" class="form-select level-select-inline" style="display:none"
-            onchange="updateSelectedLevel('${diver.id}', this.value)">
-            ${levelOptions}
-          </select>
-        ` : ''}
+        <select id="level-sel-${diver.id}" class="form-select level-select-inline" style="display:none"
+          onchange="updateSelectedLevel('${diver.id}', this.value)">
+          ${levelOptions}
+        </select>
       </div>`;
   }
 
   function toggleDiverSelected(diverId) {
-    const chk = document.getElementById(`chk-${diverId}`);
-    const row = document.getElementById(`diver-row-${diverId}`);
-    const rd  = readyDivers.find(r => r.diver.id === diverId);
-    if (!rd) return;
+    const chk  = document.getElementById(`chk-${diverId}`);
+    const row  = document.getElementById(`diver-row-${diverId}`);
+    const diver = rosterDivers.find(d => d.id === diverId);
+    if (!diver) return;
 
     if (chk.checked) {
-      selectedMap[diverId] = {
-        diver:         rd.diver,
-        readyLevels:   rd.readyLevels,
-        selectedLevel: rd.readyLevels[0],
-      };
+      const defaultLevel = diver.current_level ?? 0;
+      selectedMap[diverId] = { diver, selectedLevel: defaultLevel };
       row.classList.add('selected');
       const sel = document.getElementById(`level-sel-${diverId}`);
-      if (sel) { sel.style.display = ''; sel.value = rd.readyLevels[0]; }
+      if (sel) { sel.style.display = ''; sel.value = defaultLevel; }
     } else {
       delete selectedMap[diverId];
       row.classList.remove('selected');
@@ -686,8 +681,9 @@
     const scoreVal  = scored ? parseFloat(scored.value) : null;
     const isScored  = scoreVal !== null;
 
+    const prevScore    = (skill.latestScore !== null && skill.latestScore !== undefined) ? parseFloat(skill.latestScore) : null;
     const displayScore = isScored ? scoreVal.toFixed(1) : '—';
-    const sliderVal    = isScored ? scoreVal : 5;
+    const sliderVal    = isScored ? scoreVal : (prevScore !== null ? prevScore : 0);
 
     const catBadge = skill.category
       ? `<span class="badge badge-secondary" style="font-size:0.7rem">${App.escHtml(skill.category)}</span>`
@@ -937,12 +933,14 @@
     completedDivers = {};
     document.getElementById('session-notes').value = '';
     document.getElementById('btn-to-step2').disabled = true;
-    showStep('step-1');
 
     // Restore main-content padding if it was removed in step 3
     const main = document.getElementById('main-content');
     main.style.padding = '';
     main.style.maxWidth = '';
+
+    showStep('step-1');
+    loadStep1();
   }
 
   // =============================================
