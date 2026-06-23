@@ -104,7 +104,7 @@
       flex-shrink: 0;
     }
 
-    /* Right column wrapper — fills grid cell, children scroll */
+    /* Right column wrapper */
     .skill-col {
       display: flex;
       flex-direction: column;
@@ -112,164 +112,216 @@
       overflow: hidden;
     }
 
-    /* Right column — skill cards (scrolls independently) */
-    .skill-panel {
-      display: flex;
-      flex-direction: column;
-      padding: 16px;
-      gap: 10px;
+    /* TOP SECTION — scrollable compact skill list */
+    .skill-list {
       flex: 1;
       overflow-y: auto;
-      min-height: 0; /* required for flex overflow to work */
+      min-height: 0;
     }
-    .skill-panel-header {
+    .skill-list-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px 8px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg, #0f1117);
+      z-index: 1;
+    }
+    .skill-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .skill-row:hover { background: var(--surface, #141826); }
+    .skill-row.active {
+      border-left-color: var(--accent, #14b8a6);
+      background: rgba(20, 184, 166, 0.06);
+    }
+    .skill-row-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 0.86rem;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .skill-row-cat {
+      font-size: 0.67rem;
+      color: var(--text-secondary);
+      background: var(--surface-2, #1a1f2e);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .skill-score-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      min-width: 34px;
+      text-align: center;
+      background: var(--surface-2, #1a1f2e);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .skill-row.scored .skill-score-badge {
+      background: rgba(20, 184, 166, 0.12);
+      color: var(--accent, #14b8a6);
+      border-color: rgba(20, 184, 166, 0.3);
+    }
+
+    /* BOTTOM SECTION — fixed scoring panel */
+    .scoring-panel {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 14px 12px;
+      background: var(--surface-2, #1a1f2e);
+      border-top: 1px solid var(--border);
+    }
+    .scoring-label-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 4px;
+      gap: 8px;
     }
-
-    /* Individual skill scoring card */
-    .skill-score-card {
+    .scoring-skill-name {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .scoring-skill-name span {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .scoring-clear-btn {
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
       background: var(--surface, #141826);
       border: 1.5px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .skill-score-card.scored {
-      border-color: var(--accent, #14b8a6);
-      background: rgba(20, 184, 166, 0.04);
-    }
-    .skill-score-name {
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: var(--text-primary);
-      margin-bottom: 2px;
-    }
-    .skill-score-desc {
-      font-size: 0.8rem;
       color: var(--text-secondary);
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      margin-bottom: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
     }
-
-    /* Slider row */
-    .score-slider-row {
+    .scoring-clear-btn:hover { border-color: #ef4444; color: #ef4444; }
+    .scoring-display-row {
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: center;
     }
-    .score-slider {
+    .scoring-number {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: var(--accent, #14b8a6);
+      line-height: 1;
+      text-align: center;
+      min-width: 90px;
+    }
+    .scoring-number.unscored {
+      color: var(--text-secondary);
+      font-size: 2rem;
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+    .calc-btn {
+      padding: 9px 4px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 7px;
+      border: 1.5px solid var(--border);
+      background: var(--surface, #141826);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+      text-align: center;
+    }
+    .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
+    .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
+    .scoring-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .scoring-slider {
       flex: 1;
       -webkit-appearance: none;
       appearance: none;
-      height: 6px;
+      height: 5px;
       border-radius: 3px;
       background: var(--border);
       outline: none;
       cursor: pointer;
       accent-color: var(--accent, #14b8a6);
       min-width: 0;
-      touch-action: pan-y;
     }
-    .score-slider::-webkit-slider-thumb {
+    .scoring-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      appearance: none;
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       background: var(--accent, #14b8a6);
       cursor: pointer;
     }
-    .score-slider::-moz-range-thumb {
-      width: 24px;
-      height: 24px;
+    .scoring-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       background: var(--accent, #14b8a6);
       cursor: pointer;
       border: none;
     }
-    .score-display {
-      min-width: 52px;
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 800;
+    .scoring-slider-val {
+      min-width: 34px;
+      font-size: 0.82rem;
+      font-weight: 600;
       color: var(--accent, #14b8a6);
-      line-height: 1;
-    }
-    .score-display.unscored {
-      color: var(--text-secondary);
-      font-size: 1rem;
-      font-weight: 400;
+      text-align: right;
     }
 
-    /* Quick-score buttons (shown only on wider screens) */
-    .quick-scores {
-      display: none;
-      flex-wrap: wrap;
-      gap: 4px;
-      margin-top: 8px;
-    }
-    @media (min-width: 900px) {
-      .quick-scores { display: flex; }
-    }
-    .qs-btn {
-      padding: 3px 7px;
-      font-size: 0.72rem;
-      border-radius: 5px;
-      border: 1px solid var(--border);
-      background: var(--surface-2, #1a1f2e);
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.1s;
-      font-weight: 500;
-    }
-    .qs-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .qs-btn.qs-selected {
-      background: var(--accent, #14b8a6);
-      color: #000;
-      border-color: var(--accent, #14b8a6);
-      font-weight: 700;
-    }
-
-    /* Complete Diver bar — pinned at bottom of .skill-col flex column */
+    /* Complete Diver bar — pinned at bottom of skill-col */
     .complete-diver-bar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 12px;
-      padding: 14px 16px;
+      padding: 10px 14px;
       background: var(--surface, #141826);
       border-top: 1px solid var(--border);
       flex-shrink: 0;
     }
-    .complete-diver-bar .scored-count {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-    }
 
-    /* Mobile: horizontal diver strip at top, skills scroll below */
+    /* Mobile: flex column, full height minus bottom nav */
     @media (max-width: 768px) {
       .testing-layout {
-        grid-template-columns: 1fr;
-        height: auto;
-        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: unset;
+        height: calc(100dvh - var(--nav-bottom-height, 62px));
+        overflow: hidden;
       }
       .diver-panel {
-        position: sticky;
-        top: 0;
-        z-index: 10;
+        flex-shrink: 0;
         flex-direction: row;
         overflow-x: auto;
         overflow-y: hidden;
         height: auto;
-        min-height: 100px;
+        min-height: 90px;
         border-right: none;
         border-bottom: 1px solid var(--border);
         padding: 10px 12px;
@@ -279,17 +331,10 @@
         max-width: 80px;
       }
       .skill-col {
+        flex: 1;
+        min-height: 0;
         height: auto;
-        overflow: visible;
-      }
-      .skill-panel {
-        flex: none;
-        overflow-y: visible;
-        min-height: auto;
-      }
-      .complete-diver-bar {
-        position: sticky;
-        bottom: var(--nav-bottom-height, 62px);
+        overflow: hidden;
       }
     }
 
@@ -401,11 +446,11 @@
       <div class="testing-layout">
         <div class="diver-panel" id="diver-panel"></div>
         <div class="skill-col">
-          <div class="skill-panel" id="skill-panel"></div>
+          <div class="skill-list" id="skill-list"></div>
+          <div class="scoring-panel" id="scoring-panel"></div>
           <div class="complete-diver-bar" id="complete-diver-bar">
-            <span class="scored-count" id="scored-count-label"></span>
             <button id="btn-complete-diver" class="btn btn-primary" onclick="confirmCompleteDiver()" disabled>
-              Complete Diver ✓
+              Complete Diver (0/0 scored)
             </button>
           </div>
         </div>
@@ -452,14 +497,15 @@
   // =============================================
   // State
   // =============================================
-  let currentUser  = null;
-  let rosterDivers = [];  // [diver] — all divers on coach's roster
-  let selectedMap  = {};  // {diverId: {diver, selectedLevel}}
-  let sessionDivers = []; // [{diver, level, skills}] — ordered list for testing
+  let currentUser     = null;
+  let rosterDivers    = [];  // [diver] — all divers on coach's roster
+  let selectedMap     = {};  // {diverId: {diver, selectedLevel}}
+  let sessionDivers   = [];  // [{diver, level, skills}] — ordered list for testing
   let currentDiverIdx = 0;
-  let sessionScores = {}; // {diverId: {skillId: {value, completionId}}} — scored only
-  let diverNotes    = {}; // {diverId: string} — per-diver session notes
-  let completedDivers = {}; // {diverId: result}
+  let activeSkillId   = null; // skill currently shown in the scoring panel
+  let sessionScores   = {};  // {diverId: {skillId: {value, completionId}}}
+  let diverNotes      = {};  // {diverId: string} — per-diver session notes
+  let completedDivers = {};  // {diverId: result}
   let confirmCallback = null;
 
   // =============================================
@@ -538,8 +584,8 @@
   }
 
   function toggleDiverSelected(diverId) {
-    const chk  = document.getElementById(`chk-${diverId}`);
-    const row  = document.getElementById(`diver-row-${diverId}`);
+    const chk   = document.getElementById(`chk-${diverId}`);
+    const row   = document.getElementById(`diver-row-${diverId}`);
     const diver = rosterDivers.find(d => d.id === diverId);
     if (!diver) return;
 
@@ -611,7 +657,6 @@
   }
 
   function adjustStep3Layout() {
-    // Remove main-content padding when in step 3 for full-width layout
     const main = document.getElementById('main-content');
     main.style.padding = '0';
     main.style.maxWidth = 'none';
@@ -621,7 +666,7 @@
     const panel = document.getElementById('diver-panel');
     panel.innerHTML = `<div class="diver-panel-title">Divers</div>` +
       sessionDivers.map((sd, idx) => {
-        const initials = Auth.getInitials(sd.diver.full_name);
+        const initials  = Auth.getInitials(sd.diver.full_name);
         const firstName = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
         return `
           <button class="diver-avatar-btn" id="diver-btn-${idx}"
@@ -638,7 +683,7 @@
 
   async function loadDiverSkills(idx) {
     const sd = sessionDivers[idx];
-    if (sd.skills !== null) return; // already loaded
+    if (sd.skills !== null) return;
     try {
       sd.skills = await SupabaseDB.getTestingSkillsForDiverLevel(sd.diver.id, sd.level);
       sessionScores[sd.diver.id] = {};
@@ -649,7 +694,7 @@
   }
 
   async function switchDiver(idx) {
-    if (idx === currentDiverIdx && document.getElementById('skill-panel').children.length > 0) return;
+    if (idx === currentDiverIdx && document.getElementById('skill-list').children.length > 0) return;
     currentDiverIdx = idx;
     await loadDiverSkills(idx);
     selectDiver(idx);
@@ -657,132 +702,213 @@
 
   function selectDiver(idx) {
     currentDiverIdx = idx;
-
-    // Update panel active state
     document.querySelectorAll('.diver-avatar-btn').forEach((btn, i) => {
       btn.classList.toggle('active', i === idx);
     });
-
     renderSkillPanel(idx);
   }
 
+  // ---- Compact skill list ----
+
   function renderSkillPanel(idx) {
-    const sd      = sessionDivers[idx];
-    const panel   = document.getElementById('skill-panel');
-    const scores  = sessionScores[sd.diver.id] || {};
+    const sd          = sessionDivers[idx];
+    const skillListEl = document.getElementById('skill-list');
+    const scores      = sessionScores[sd.diver.id] || {};
 
     if (!sd.skills) {
-      panel.innerHTML = `<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading skills…</span></div>`;
+      skillListEl.innerHTML = `<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading skills…</span></div>`;
+      document.getElementById('scoring-panel').innerHTML = '';
       return;
     }
     if (!sd.skills.length) {
-      panel.innerHTML = `<div class="empty-state"><p>No testable skills found for Level ${sd.level}.</p></div>`;
+      skillListEl.innerHTML = `<div class="empty-state"><p>No testable skills for Level ${sd.level}.</p></div>`;
+      document.getElementById('scoring-panel').innerHTML = '';
       return;
     }
 
-    const firstName = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
-
+    const firstName  = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
     const savedNotes = App.escHtml(diverNotes[sd.diver.id] || '');
-    panel.innerHTML = `
-      <div class="skill-panel-header">
-        <div>
-          <div style="font-weight:600;font-size:1rem;">${App.escHtml(firstName)}</div>
-          <div class="text-sm text-secondary">Level ${sd.level} · ${sd.skills.length} skills</div>
-        </div>
-        <span class="badge badge-level">L${sd.level}</span>
-      </div>
-      ${sd.skills.map(skill => buildSkillCard(skill, sd.diver.id, scores)).join('')}
-      <div class="form-group" style="margin-top:8px;padding-bottom:8px;">
-        <label class="form-label" for="diver-notes-${sd.diver.id}">Session Notes for ${App.escHtml(firstName)}</label>
-        <textarea id="diver-notes-${sd.diver.id}" class="form-input" rows="3"
-          style="resize:vertical"
-          placeholder="Optional notes for this testing session..."
-          oninput="saveDiverNote('${sd.diver.id}', this.value)">${savedNotes}</textarea>
-      </div>
-    `;
 
+    skillListEl.innerHTML = `
+      <div class="skill-list-header">
+        <div style="font-weight:600;font-size:0.9rem;">${App.escHtml(firstName)}</div>
+        <span class="badge badge-level">L${sd.level}</span>
+        <div class="text-sm text-secondary" style="margin-left:auto">${sd.skills.length} skills</div>
+      </div>
+      ${sd.skills.map(skill => buildSkillRow(skill, sd.diver.id, scores)).join('')}
+      <div style="padding:12px 16px 10px;border-top:1px solid var(--border);margin-top:4px;">
+        <label class="form-label" style="font-size:0.72rem;margin-bottom:4px"
+          for="diver-notes-${sd.diver.id}">Notes for ${App.escHtml(firstName)}</label>
+        <textarea id="diver-notes-${sd.diver.id}" class="form-input" rows="2"
+          style="resize:vertical;font-size:0.82rem;"
+          placeholder="Optional session notes…"
+          oninput="saveDiverNote('${sd.diver.id}', this.value)">${savedNotes}</textarea>
+      </div>`;
+
+    // Default to first skill
+    activeSkillId = sd.skills[0]?.id ?? null;
+    if (activeSkillId !== null) {
+      const firstRow = document.getElementById(`skill-row-${activeSkillId}`);
+      if (firstRow) firstRow.classList.add('active');
+    }
+
+    renderScoringPanel(idx);
     updateScoredCountLabel(idx);
     updateCompleteDiverBtn(idx);
   }
 
-  function buildSkillCard(skill, diverId, scores) {
-    const scored    = scores[skill.id];
-    const scoreVal  = scored ? parseFloat(scored.value) : null;
-    const isScored  = scoreVal !== null;
-
-    const prevScore    = (skill.latestScore !== null && skill.latestScore !== undefined) ? parseFloat(skill.latestScore) : null;
-    const displayScore = isScored ? scoreVal.toFixed(1) : '—';
-    const sliderVal    = isScored ? scoreVal : (prevScore !== null ? prevScore : 0);
-
+  function buildSkillRow(skill, diverId, scores) {
+    const scored   = scores[skill.id];
+    const scoreVal = scored ? parseFloat(scored.value) : null;
+    const isScored = scoreVal !== null;
     const catBadge = skill.category
-      ? `<span class="badge badge-secondary" style="font-size:0.7rem">${App.escHtml(skill.category)}</span>`
-      : '';
-    const typeBadge = skill.type
-      ? `<span class="badge" style="font-size:0.7rem;background:rgba(99,102,241,.1);color:#818cf8">${App.escHtml(skill.type)}</span>`
-      : '';
-
-    // Quick score buttons — 0.0 to 10.0 in 0.5 increments
-    const qsBtns = [];
-    for (let i = 0; i <= 20; i++) {
-      const v = (i * 0.5).toFixed(1);
-      const sel = isScored && parseFloat(v) === scoreVal ? 'qs-selected' : '';
-      qsBtns.push(`<button class="qs-btn ${sel}" onclick="setQuickScore(${skill.id}, '${diverId}', ${v})">${v}</button>`);
-    }
-
+      ? `<span class="skill-row-cat">${App.escHtml(skill.category)}</span>` : '';
     return `
-      <div class="skill-score-card ${isScored ? 'scored' : ''}" id="skill-card-${skill.id}-${diverId}">
-        <div class="skill-score-name">${App.escHtml(skill.name)}</div>
-        ${skill.description ? `<div class="skill-score-desc">${App.escHtml(skill.description)}</div>` : ''}
-        <div class="flex gap-2 flex-wrap mb-2">${typeBadge}${catBadge}</div>
-        <div class="score-slider-row">
-          <input type="range" class="score-slider" id="slider-${skill.id}-${diverId}"
-            min="0" max="10" step="0.5" value="${sliderVal}"
-            oninput="onSliderInput(${skill.id}, '${diverId}', this.value)">
-          <div class="score-display ${isScored ? '' : 'unscored'}" id="score-disp-${skill.id}-${diverId}">${displayScore}</div>
-        </div>
-        <div class="quick-scores">${qsBtns.join('')}</div>
+      <div class="skill-row${isScored ? ' scored' : ''}" id="skill-row-${skill.id}"
+        data-skill-id="${skill.id}" onclick="selectSkillForScoring(${skill.id})">
+        <span class="skill-row-name">${App.escHtml(skill.name)}</span>
+        ${catBadge}
+        <span class="skill-score-badge">${isScored ? scoreVal.toFixed(1) : '—'}</span>
       </div>`;
   }
 
-  function onSliderInput(skillId, diverId, rawValue) {
-    const value = parseFloat(rawValue);
-    recordScore(skillId, diverId, value);
-    const dispEl = document.getElementById(`score-disp-${skillId}-${diverId}`);
-    if (dispEl) { dispEl.textContent = value.toFixed(1); dispEl.classList.remove('unscored'); }
-    const card = document.getElementById(`skill-card-${skillId}-${diverId}`);
-    if (card) card.classList.add('scored');
-    updateQuickScoreButtons(skillId, diverId, value);
-    const idx = sessionDivers.findIndex(sd => sd.diver.id === diverId);
-    if (idx >= 0) { updateScoredCountLabel(idx); updateCompleteDiverBtn(idx); }
+  function selectSkillForScoring(skillId) {
+    document.querySelectorAll('.skill-row').forEach(row => {
+      row.classList.toggle('active', parseInt(row.dataset.skillId, 10) === skillId);
+    });
+    activeSkillId = skillId;
+    renderScoringPanel(currentDiverIdx);
   }
 
-  function setQuickScore(skillId, diverId, value) {
-    recordScore(skillId, diverId, value);
-    const slider = document.getElementById(`slider-${skillId}-${diverId}`);
-    if (slider) slider.value = value;
-    const dispEl = document.getElementById(`score-disp-${skillId}-${diverId}`);
-    if (dispEl) { dispEl.textContent = value.toFixed(1); dispEl.classList.remove('unscored'); }
-    const card = document.getElementById(`skill-card-${skillId}-${diverId}`);
-    if (card) card.classList.add('scored');
-    updateQuickScoreButtons(skillId, diverId, value);
-    const idx = sessionDivers.findIndex(sd => sd.diver.id === diverId);
-    if (idx >= 0) { updateScoredCountLabel(idx); updateCompleteDiverBtn(idx); }
+  // ---- Scoring panel ----
+
+  function renderScoringPanel(idx) {
+    const sd     = sessionDivers[idx];
+    const scores = sessionScores[sd.diver.id] || {};
+    const skill  = activeSkillId !== null ? sd.skills?.find(s => s.id === activeSkillId) : null;
+    const scored = skill ? scores[skill.id] : null;
+    const scoreVal = scored ? parseFloat(scored.value) : null;
+
+    const skillLabel   = skill
+      ? `Scoring: <span>${App.escHtml(skill.name)}</span>`
+      : 'Select a skill to score';
+    const sliderVal    = scoreVal !== null ? scoreVal : 0;
+    const numText      = scoreVal !== null ? scoreVal.toFixed(1) : '—';
+    const numClass     = scoreVal !== null ? 'scoring-number' : 'scoring-number unscored';
+    const sliderValTxt = scoreVal !== null ? scoreVal.toFixed(1) : '—';
+
+    document.getElementById('scoring-panel').innerHTML = `
+      <div class="scoring-label-row">
+        <div class="scoring-skill-name">${skillLabel}</div>
+        <button class="scoring-clear-btn" onclick="clearScore()">C</button>
+      </div>
+      <div class="scoring-display-row">
+        <div class="${numClass}" id="scoring-number">${numText}</div>
+      </div>
+      <div class="calc-grid">
+        <button class="calc-btn" onclick="calcInput(7)">7</button>
+        <button class="calc-btn" onclick="calcInput(8)">8</button>
+        <button class="calc-btn" onclick="calcInput(9)">9</button>
+        <button class="calc-btn" onclick="calcInput(4)">4</button>
+        <button class="calc-btn" onclick="calcInput(5)">5</button>
+        <button class="calc-btn" onclick="calcInput(6)">6</button>
+        <button class="calc-btn" onclick="calcInput(1)">1</button>
+        <button class="calc-btn" onclick="calcInput(2)">2</button>
+        <button class="calc-btn" onclick="calcInput(3)">3</button>
+        <button class="calc-btn" onclick="calcInput(0)">0</button>
+        <button class="calc-btn" onclick="calcInput(10)">10</button>
+        <button class="calc-btn" onclick="calcInput(0.5)">.5</button>
+      </div>
+      <div class="scoring-slider-row">
+        <input type="range" class="scoring-slider" id="scoring-slider"
+          min="0" max="10" step="0.5" value="${sliderVal}"
+          oninput="onScoringSlider(this.value)">
+        <span class="scoring-slider-val" id="scoring-slider-val">${sliderValTxt}</span>
+      </div>`;
+  }
+
+  // Tap a digit button: sets score directly.
+  // Tap .5: toggles the half-point on the current score.
+  function calcInput(val) {
+    if (activeSkillId === null) return;
+    const sd      = sessionDivers[currentDiverIdx];
+    const scores  = sessionScores[sd.diver.id] || {};
+    const current = scores[activeSkillId] ? parseFloat(scores[activeSkillId].value) : null;
+
+    let newScore;
+    if (val === 0.5) {
+      if (current === null) {
+        newScore = 0.5;
+      } else if (current % 1 !== 0) {
+        newScore = Math.floor(current); // remove existing .5
+      } else {
+        newScore = Math.min(10, current + 0.5); // add .5
+      }
+    } else {
+      newScore = val;
+    }
+    setActiveSkillScore(newScore);
+  }
+
+  function onScoringSlider(rawValue) {
+    if (activeSkillId === null) return;
+    setActiveSkillScore(parseFloat(rawValue));
+  }
+
+  function setActiveSkillScore(scoreVal) {
+    const sd      = sessionDivers[currentDiverIdx];
+    const diverId = sd.diver.id;
+    recordScore(activeSkillId, diverId, scoreVal);
+
+    const numEl = document.getElementById('scoring-number');
+    if (numEl) { numEl.textContent = scoreVal.toFixed(1); numEl.classList.remove('unscored'); }
+    const slider = document.getElementById('scoring-slider');
+    if (slider) slider.value = scoreVal;
+    const sliderValEl = document.getElementById('scoring-slider-val');
+    if (sliderValEl) sliderValEl.textContent = scoreVal.toFixed(1);
+
+    const row = document.getElementById(`skill-row-${activeSkillId}`);
+    if (row) {
+      row.classList.add('scored');
+      const badge = row.querySelector('.skill-score-badge');
+      if (badge) badge.textContent = scoreVal.toFixed(1);
+    }
+
+    const idx = currentDiverIdx;
+    updateScoredCountLabel(idx);
+    updateCompleteDiverBtn(idx);
+  }
+
+  function clearScore() {
+    if (activeSkillId === null) return;
+    const sd      = sessionDivers[currentDiverIdx];
+    const diverId = sd.diver.id;
+    if (sessionScores[diverId]) delete sessionScores[diverId][activeSkillId];
+
+    const numEl = document.getElementById('scoring-number');
+    if (numEl) { numEl.textContent = '—'; numEl.classList.add('unscored'); }
+    const slider = document.getElementById('scoring-slider');
+    if (slider) slider.value = 0;
+    const sliderValEl = document.getElementById('scoring-slider-val');
+    if (sliderValEl) sliderValEl.textContent = '—';
+
+    const row = document.getElementById(`skill-row-${activeSkillId}`);
+    if (row) {
+      row.classList.remove('scored');
+      const badge = row.querySelector('.skill-score-badge');
+      if (badge) badge.textContent = '—';
+    }
+
+    const idx = currentDiverIdx;
+    updateScoredCountLabel(idx);
+    updateCompleteDiverBtn(idx);
   }
 
   function recordScore(skillId, diverId, value) {
     if (!sessionScores[diverId]) sessionScores[diverId] = {};
-    const sd = sessionDivers.find(s => s.diver.id === diverId);
+    const sd    = sessionDivers.find(s => s.diver.id === diverId);
     const skill = sd?.skills?.find(s => s.id === skillId);
     sessionScores[diverId][skillId] = { value, completionId: skill?.completionId || null };
-  }
-
-  function updateQuickScoreButtons(skillId, diverId, selectedValue) {
-    const card = document.getElementById(`skill-card-${skillId}-${diverId}`);
-    if (!card) return;
-    card.querySelectorAll('.qs-btn').forEach(btn => {
-      const v = parseFloat(btn.textContent);
-      btn.classList.toggle('qs-selected', v === selectedValue);
-    });
   }
 
   function updateScoredCountLabel(idx) {
@@ -790,8 +916,6 @@
     const sd     = sessionDivers[idx];
     const scored = Object.keys(sessionScores[sd.diver.id] || {}).length;
     const total  = sd.skills?.length || 0;
-    const el = document.getElementById('scored-count-label');
-    if (el) el.textContent = `${scored} / ${total} scored`;
     const progEl = document.getElementById(`diver-progress-${idx}`);
     if (progEl) progEl.textContent = `${scored}/${total}`;
   }
@@ -800,8 +924,12 @@
     if (idx !== currentDiverIdx) return;
     const sd     = sessionDivers[idx];
     const scored = Object.keys(sessionScores[sd.diver.id] || {}).length;
+    const total  = sd.skills?.length || 0;
     const btn    = document.getElementById('btn-complete-diver');
-    if (btn) btn.disabled = scored === 0;
+    if (btn) {
+      btn.disabled    = scored === 0;
+      btn.textContent = `Complete Diver (${scored}/${total} scored)`;
+    }
   }
 
   function saveDiverNote(diverId, value) {
@@ -823,9 +951,9 @@
   }
 
   async function completeDiver(idx) {
-    const sd      = sessionDivers[idx];
-    const scores  = sessionScores[sd.diver.id] || {};
-    const notes   = diverNotes[sd.diver.id] || '';
+    const sd     = sessionDivers[idx];
+    const scores = sessionScores[sd.diver.id] || {};
+    const notes  = diverNotes[sd.diver.id] || '';
 
     const btn = document.getElementById('btn-complete-diver');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -842,43 +970,36 @@
 
       completedDivers[sd.diver.id] = { ...result, diver: sd.diver, level: sd.level, scores, skills: sd.skills };
 
-      // Mark avatar as complete
       const diverBtn = document.getElementById(`diver-btn-${idx}`);
       if (diverBtn) diverBtn.classList.add('complete');
       const progEl = document.getElementById(`diver-progress-${idx}`);
       if (progEl) progEl.textContent = '✓ Done';
 
       App.showToast(`${sd.diver.first_name || 'Diver'} saved!`);
-
-      // Show brief diver summary in skill panel
       renderDiverResult(idx, result);
 
-      // Auto-advance to next unfinished diver
       const next = sessionDivers.findIndex((s, i) => i !== idx && !completedDivers[s.diver.id]);
       if (next >= 0) {
         setTimeout(() => switchDiver(next), 1200);
       } else {
-        // All done — show session complete
         setTimeout(() => showSessionComplete(), 1500);
       }
     } catch (err) {
       App.showToast('Error saving: ' + err.message, 'error');
-      if (btn) { btn.disabled = false; btn.textContent = 'Complete Diver ✓'; }
+      if (btn) { btn.disabled = false; updateCompleteDiverBtn(idx); }
     }
   }
 
   function renderDiverResult(idx, result) {
-    const sd         = sessionDivers[idx];
-    const scores     = sessionScores[sd.diver.id] || {};
-    const scoreValues = Object.values(scores).map(s => parseFloat(s.value));
-    const below = sd.skills.filter(sk => {
+    const sd     = sessionDivers[idx];
+    const scores = sessionScores[sd.diver.id] || {};
+    const below  = sd.skills.filter(sk => {
       const s = scores[sk.id];
       return s && parseFloat(s.value) < 5.0;
     });
 
     const desigHtml = designationHtml(result.designation);
-    const panel = document.getElementById('skill-panel');
-    panel.innerHTML = `
+    document.getElementById('skill-list').innerHTML = `
       <div class="card" style="margin:16px;border-color:var(--accent)">
         <div class="flex items-center gap-3 mb-4">
           <div class="avatar-sm">${App.escHtml(Auth.getInitials(sd.diver.full_name))}</div>
@@ -908,6 +1029,7 @@
         ` : `<div class="text-sm" style="color:#22c55e">✓ All skills scored ≥ 5.0</div>`}
       </div>`;
 
+    document.getElementById('scoring-panel').innerHTML = '';
     document.getElementById('complete-diver-bar').innerHTML =
       `<span style="color:#22c55e;font-weight:600">✓ Saved successfully</span>`;
   }
@@ -916,7 +1038,7 @@
   // Session Complete
   // =============================================
   function showSessionComplete() {
-    const completed = Object.values(completedDivers);
+    const completed   = Object.values(completedDivers);
     const totalSkills = completed.reduce((sum, d) => sum + d.scoredCount, 0);
 
     document.getElementById('session-complete-subtitle').textContent =
@@ -951,7 +1073,6 @@
           </div>`;
       }).join('');
 
-    // Restore main-content padding
     const main = document.getElementById('main-content');
     main.style.padding = '';
     main.style.maxWidth = '';
@@ -960,14 +1081,13 @@
   }
 
   function startNewSession() {
-    selectedMap  = {};
-    sessionDivers = [];
-    sessionScores = {};
-    diverNotes    = {};
+    selectedMap     = {};
+    sessionDivers   = [];
+    sessionScores   = {};
+    diverNotes      = {};
     completedDivers = {};
     document.getElementById('btn-to-step2').disabled = true;
 
-    // Restore main-content padding if it was removed in step 3
     const main = document.getElementById('main-content');
     main.style.padding = '';
     main.style.maxWidth = '';
