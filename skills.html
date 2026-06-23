@@ -136,7 +136,7 @@
 
     <div class="form-group">
       <label class="form-label">Skill Level</label>
-      <input type="number" id="create-skill-level" class="form-input" min="0" max="12" value="0">
+      <input type="number" id="create-skill-level" class="form-input" min="1" max="12" value="1">
     </div>
 
     <input type="hidden" id="create-skill-order" value="10000">
@@ -229,7 +229,7 @@
     const levelSel = document.getElementById('filter-level');
     const typeSel  = document.getElementById('filter-type');
 
-    Skills.uniqueLevels(skills).forEach(lvl => {
+    Skills.uniqueLevels(skills).filter(lvl => lvl > 0).forEach(lvl => {
       const opt = document.createElement('option');
       opt.value = lvl;
       opt.textContent = `Level ${lvl}`;
@@ -510,7 +510,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Skill Level</label>
-        <input type="number" id="edit-skill-level" class="form-input" min="0" max="12" value="${skill.level ?? 0}">
+        <input type="number" id="edit-skill-level" class="form-input" min="1" max="12" value="${Math.max(1, skill.level ?? 1)}">
       </div>
       <div class="form-group">
         <label class="form-label">Skill Description</label>
@@ -663,7 +663,7 @@
     document.getElementById('create-skill-name').value        = '';
     document.getElementById('create-skill-type').value        = '';
     document.getElementById('create-skill-category').value    = '';
-    document.getElementById('create-skill-level').value       = '0';
+    document.getElementById('create-skill-level').value       = '1';
     document.getElementById('create-skill-order').value       = '10000';
     document.getElementById('create-skill-description').value = '';
     document.getElementById('create-skill-photo-url').value   = '';

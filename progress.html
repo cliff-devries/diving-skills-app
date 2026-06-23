@@ -356,7 +356,7 @@
         <div class="profile-header-info">
           <div class="profile-name-row">
             <h2 class="profile-diver-name">${App.escHtml(displayName)}</h2>
-            ${diver.current_level != null ? `<span class="badge badge-level">L${diver.current_level}</span>` : ''}
+            ${diver.current_level != null ? `<span class="badge badge-level">L${Math.max(1, diver.current_level)}</span>` : ''}
           </div>
           <div class="profile-meta-row">
             ${age !== '—' ? `<span>Age ${age}</span><span class="meta-sep">·</span>` : ''}
@@ -428,7 +428,7 @@
 
     const lvlSel = document.getElementById('ep-level');
     if (!lvlSel.options.length) {
-      for (let i = 0; i <= 12; i++) {
+      for (let i = 1; i <= 12; i++) {
         const opt = document.createElement('option');
         opt.value = i;
         opt.textContent = `Level ${i}`;
@@ -436,7 +436,7 @@
       }
     }
 
-    lvlSel.value = d.current_level != null ? String(d.current_level) : '';
+    lvlSel.value = d.current_level != null ? String(Math.max(1, d.current_level)) : '1';
     document.getElementById('ep-diver-group').value  = d.diver_group          || '';
     document.getElementById('ep-coach-name').value   = d.assigned_coach_name  || '';
     document.getElementById('ep-start-date').value   = d.start_date           || '';

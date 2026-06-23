@@ -592,10 +592,10 @@
 
   function buildDiverSelectRow(diver) {
     const initials = Auth.getInitials(diver.full_name);
-    const currentLevel = diver.current_level ?? 0;
-    const levelOptions = Array.from({ length: 13 }, (_, i) =>
-      `<option value="${i}"${i === currentLevel ? ' selected' : ''}>Level ${i === 0 ? '0 (Beginner)' : i}</option>`
-    ).join('');
+    const currentLevel = Math.max(1, diver.current_level ?? 1);
+    const levelOptions = Array.from({ length: 12 }, (_, i) => i + 1)
+      .map(i => `<option value="${i}"${i === currentLevel ? ' selected' : ''}>Level ${i}</option>`)
+      .join('');
 
     return `
       <div class="diver-select-row" id="diver-row-${diver.id}">
@@ -622,7 +622,7 @@
     if (!diver) return;
 
     if (chk.checked) {
-      const defaultLevel = diver.current_level ?? 0;
+      const defaultLevel = Math.max(1, diver.current_level ?? 1);
       selectedMap[diverId] = { diver, selectedLevel: defaultLevel };
       row.classList.add('selected');
       const sel = document.getElementById(`level-sel-${diverId}`);
