@@ -8,12 +8,17 @@
   <link rel="stylesheet" href="css/styles.css?v=5">
   <style>
     /* ---- Step 3: two-column testing layout ---- */
+    #step-3.testing-step {
+      padding-bottom: 0;
+    }
     .testing-layout {
       display: grid;
       grid-template-columns: 180px 1fr;
       gap: 0;
       height: 100vh;
       overflow: hidden;
+      border: 1px solid #2e2e2e;
+      border-radius: 12px;
     }
 
     /* Left column — diver selector (full height, scrolls internally) */
@@ -131,7 +136,7 @@
     }
     .skill-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       padding: 9px 16px;
       cursor: pointer;
@@ -143,12 +148,26 @@
       border-left-color: var(--accent, #14b8a6);
       background: rgba(20, 184, 166, 0.06);
     }
-    .skill-row-name {
+    .skill-row-info {
       flex: 1;
+      min-width: 0;
+    }
+    .skill-row-name {
       font-weight: 600;
       font-size: 0.86rem;
       color: var(--text-primary);
       line-height: 1.3;
+    }
+    .skill-row-desc {
+      font-size: 0.76rem;
+      color: #a0a0a0;
+      margin-top: 2px;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
     .skill-row-cat {
       font-size: 0.67rem;
@@ -169,6 +188,8 @@
       background: var(--surface-2, #1a1f2e);
       color: var(--text-secondary);
       border: 1px solid var(--border);
+      flex-shrink: 0;
+      margin-top: 2px;
     }
     .skill-row.scored .skill-score-badge {
       background: rgba(20, 184, 166, 0.12);
@@ -221,6 +242,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .scoring-advance-row {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .scoring-advance-btn {
+      min-height: 44px;
+      min-width: 100px;
+      font-size: 0.85rem;
     }
     .scoring-number {
       font-size: 2.8rem;
@@ -314,6 +344,8 @@
         grid-template-columns: unset;
         height: calc(100dvh - var(--nav-bottom-height, 62px));
         overflow: hidden;
+        border: none;
+        border-radius: 0;
       }
       .diver-panel {
         flex-shrink: 0;
@@ -442,7 +474,7 @@
     </div>
 
     <!-- STEP 3: Testing Screen -->
-    <div id="step-3" class="testing-step hidden" style="padding:0;margin:0 -24px;">
+    <div id="step-3" class="testing-step hidden" style="padding:0;">
       <div class="testing-layout">
         <div class="diver-panel" id="diver-panel"></div>
         <div class="skill-col">
@@ -658,8 +690,9 @@
 
   function adjustStep3Layout() {
     const main = document.getElementById('main-content');
-    main.style.padding = '0';
+    main.style.padding  = '0';
     main.style.maxWidth = 'none';
+    main.style.overflow = 'hidden';
   }
 
   function renderDiverPanel() {
@@ -763,11 +796,16 @@
     const isScored = scoreVal !== null;
     const catBadge = skill.category
       ? `<span class="skill-row-cat">${App.escHtml(skill.category)}</span>` : '';
+    const descHtml = skill.description
+      ? `<div class="skill-row-desc">${App.escHtml(skill.description)}</div>` : '';
     return `
       <div class="skill-row${isScored ? ' scored' : ''}" id="skill-row-${skill.id}"
         data-skill-id="${skill.id}" onclick="selectSkillForScoring(${skill.id})">
-        <span class="skill-row-name">${App.escHtml(skill.name)}</span>
-        ${catBadge}
+        <div class="skill-row-info">
+          <div class="skill-row-name">${App.escHtml(skill.name)}</div>
+          ${descHtml}
+          ${catBadge}
+        </div>
         <span class="skill-score-badge">${isScored ? scoreVal.toFixed(1) : '—'}</span>
       </div>`;
   }
@@ -797,6 +835,9 @@
     const numClass     = scoreVal !== null ? 'scoring-number' : 'scoring-number unscored';
     const sliderValTxt = scoreVal !== null ? scoreVal.toFixed(1) : '—';
 
+    const currentSkillIdx = sd.skills ? sd.skills.findIndex(s => s.id === activeSkillId) : -1;
+    const isLastSkill     = currentSkillIdx >= 0 && currentSkillIdx === (sd.skills?.length || 0) - 1;
+
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-label-row">
         <div class="scoring-skill-name">${skillLabel}</div>
@@ -824,6 +865,12 @@
           min="0" max="10" step="0.5" value="${sliderVal}"
           oninput="onScoringSlider(this.value)">
         <span class="scoring-slider-val" id="scoring-slider-val">${sliderValTxt}</span>
+      </div>
+      <div class="scoring-advance-row">
+        <button class="btn btn-secondary scoring-advance-btn" id="btn-advance"
+          onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
+          ${isLastSkill ? 'Last ✓' : 'Next →'}
+        </button>
       </div>`;
   }
 
@@ -902,6 +949,20 @@
     const idx = currentDiverIdx;
     updateScoredCountLabel(idx);
     updateCompleteDiverBtn(idx);
+  }
+
+  function advanceToNextSkill() {
+    const sd = sessionDivers[currentDiverIdx];
+    if (!sd.skills || !sd.skills.length) return;
+    const currentIdx = activeSkillId !== null
+      ? sd.skills.findIndex(s => s.id === activeSkillId)
+      : -1;
+    const nextIdx = currentIdx + 1;
+    if (nextIdx >= sd.skills.length) return;
+    const nextSkill = sd.skills[nextIdx];
+    selectSkillForScoring(nextSkill.id);
+    document.getElementById(`skill-row-${nextSkill.id}`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   function recordScore(skillId, diverId, value) {
@@ -1074,8 +1135,9 @@
       }).join('');
 
     const main = document.getElementById('main-content');
-    main.style.padding = '';
+    main.style.padding  = '';
     main.style.maxWidth = '';
+    main.style.overflow = '';
 
     showStep('step-complete');
   }
@@ -1089,8 +1151,9 @@
     document.getElementById('btn-to-step2').disabled = true;
 
     const main = document.getElementById('main-content');
-    main.style.padding = '';
+    main.style.padding  = '';
     main.style.maxWidth = '';
+    main.style.overflow = '';
 
     showStep('step-1');
     loadStep1();
