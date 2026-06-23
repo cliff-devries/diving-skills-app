@@ -343,7 +343,7 @@
             <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(g.diver))}</div>
             <div class="list-item-subtitle">${g.count} skill${g.count !== 1 ? 's' : ''} ready for test</div>
           </div>
-          ${g.currentLevel != null ? `<span class="badge badge-level">L${Math.max(1, g.currentLevel)}</span>` : ''}
+          ${g.currentLevel != null ? `<span class="badge badge-level">L${g.currentLevel}</span>` : ''}
           <a href="progress.html?diver=${g.diver.id}" class="btn btn-ghost btn-sm">View Progress →</a>
         </div>
       `).join('')}

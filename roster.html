@@ -108,6 +108,7 @@
           <label class="form-label">Level</label>
           <select id="filter-level" class="form-select" onchange="renderRosterList()">
             <option value="">All</option>
+            <option value="0">Level 0 — Beginner</option>
             <option value="1">Level 1</option>
             <option value="2">Level 2</option>
             <option value="3">Level 3</option>
@@ -348,21 +349,21 @@
     Auth.requireRole('coach');
     App.renderNav(user);
 
-    // Populate add-diver level dropdown (1–12)
+    // Populate add-diver level dropdown (0–12)
     const levelSel = document.getElementById('new-current-level');
-    for (let n = 1; n <= 12; n++) {
+    for (let n = 0; n <= 12; n++) {
       const opt = document.createElement('option');
       opt.value = n;
-      opt.textContent = `Level ${n}`;
+      opt.textContent = n === 0 ? 'Level 0 — Beginner' : `Level ${n}`;
       levelSel.appendChild(opt);
     }
 
-    // Populate edit-diver level dropdown (1–12)
+    // Populate edit-diver level dropdown (0–12)
     const editLevelSel = document.getElementById('edit-level');
-    for (let n = 1; n <= 12; n++) {
+    for (let n = 0; n <= 12; n++) {
       const opt = document.createElement('option');
       opt.value = n;
-      opt.textContent = `Level ${n}`;
+      opt.textContent = n === 0 ? 'Level 0 — Beginner' : `Level ${n}`;
       editLevelSel.appendChild(opt);
     }
 
@@ -408,7 +409,7 @@
     const filtered = roster.filter(r => {
       const diver = r.diver;
       if (genderFilter && diver.gender !== genderFilter) return false;
-      if (levelFilter !== '' && String(Math.max(1, diver.current_level ?? 1)) !== levelFilter) return false;
+      if (levelFilter !== '' && String(diver.current_level ?? '') !== levelFilter) return false;
       if (statusFilter === 'active'    && diver.status !== 'active') return false;
       if (statusFilter === 'unclaimed' && diver.status === 'active') return false;
       if (search && !App.formatNameLastFirst(diver).toLowerCase().includes(search)) return false;
@@ -454,9 +455,11 @@
     const diver    = r.diver;
     const isActive = (diver.status ?? 'active') === 'active';
 
-    const displayLevel = Math.max(1, diver.current_level ?? 1);
     const levelHtml = diver.current_level != null
-      ? `<span class="badge badge-level" style="margin-left:4px">L${displayLevel}</span>` : '';
+      ? diver.current_level === 0
+        ? `<span class="badge badge-secondary" style="margin-left:4px">Beginner</span>`
+        : `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>`
+      : '';
 
     const age          = calcAge(diver.date_of_birth);
     const dob          = formatDOB(diver.date_of_birth);
@@ -632,7 +635,7 @@
     pendingEditDiver = diverId;
     const d = r.diver;
     document.getElementById('edit-diver-name').textContent = `Editing ${App.formatNameLastFirst(d)}`;
-    document.getElementById('edit-level').value           = String(Math.max(1, d.current_level ?? 1));
+    document.getElementById('edit-level').value           = String(d.current_level ?? 0);
     document.getElementById('edit-diver-group').value     = d.diver_group    ?? '';
     document.getElementById('edit-assigned-coach').value  = d.assigned_coach_name ?? '';
     document.getElementById('edit-start-date').value      = d.start_date     ?? '';
