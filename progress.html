@@ -7,15 +7,91 @@
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <link rel="stylesheet" href="css/styles.css?v=5">
   <style>
-    .progress-summary {
+    /* Profile header */
+    .profile-header-card {
+      margin-bottom: 24px;
+    }
+    .profile-header-top {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .profile-avatar-lg {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .profile-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .profile-diver-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .profile-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.83rem;
+      color: var(--text-secondary);
+      margin-bottom: 3px;
+      flex-wrap: wrap;
+    }
+    .meta-sep {
+      color: var(--border);
+      flex-shrink: 0;
+    }
+    .profile-header-actions {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .profile-stats-row {
       display: grid;
-      gap: 12px;
       grid-template-columns: repeat(3, 1fr);
-      margin-bottom: 28px;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
     }
-    @media (max-width: 480px) {
-      .progress-summary { grid-template-columns: repeat(3, 1fr); }
+    .profile-invite-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      font-size: 0.83rem;
     }
+    .profile-invite-label {
+      color: var(--text-secondary);
+    }
+    @media (max-width: 600px) {
+      .profile-avatar-lg { width: 60px; height: 60px; font-size: 1.1rem; }
+      .profile-header-actions { flex-direction: row; align-items: center; }
+    }
+
+    /* Progress levels / skills (unchanged) */
     .level-skills-header {
       display: flex;
       align-items: flex-start;
@@ -26,6 +102,14 @@
     .badge-gold   { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
     .badge-silver { background: rgba(156,163,175,.15); color: #9ca3af; border: 1px solid rgba(156,163,175,.3); }
     .badge-bronze { background: rgba(180,120,60,.15);  color: #b47c3c; border: 1px solid rgba(180,120,60,.3); }
+
+    /* Edit modal form layout */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -34,28 +118,9 @@
   <aside class="sidebar" id="sidebar"></aside>
 
   <main class="main-content fade-in">
-    <div id="diver-banner" class="hidden"></div>
 
-    <div class="page-header">
-      <h1>Progress Tracker</h1>
-      <p id="page-subtitle">Your journey through Levels 0–12.</p>
-    </div>
-
-    <!-- Summary stats -->
-    <div class="progress-summary">
-      <div class="stat-card">
-        <div class="stat-value" style="color:#3b82f6" id="stat-attained">—</div>
-        <div class="stat-label">Skill Attained</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:var(--pending)" id="stat-ready">—</div>
-        <div class="stat-label">Ready for Test</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-certified">—</div>
-        <div class="stat-label">Certified</div>
-      </div>
-    </div>
+    <!-- Profile header — rendered by JS for all roles -->
+    <div id="profile-header" class="card profile-header-card hidden"></div>
 
     <!-- Level tabs -->
     <div class="section-title">Select Level</div>
@@ -73,9 +138,95 @@
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
+
+<!-- =============================================
+     EDIT PROFILE MODAL (coach / super_user only)
+============================================= -->
+<div class="modal-overlay" id="edit-profile-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Diver Profile</h2>
+      <button class="modal-close" onclick="App.closeModal('edit-profile-modal')">✕</button>
+    </div>
+
+    <!-- Super-user-only fields (hidden for regular coaches) -->
+    <div id="ep-su-fields" class="hidden">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <input type="text" id="ep-first-name" class="form-input" placeholder="Jane">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input type="text" id="ep-last-name" class="form-input" placeholder="Smith">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" id="ep-dob" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select id="ep-gender" class="form-select">
+            <option value="">Not set</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="divider mb-3"></div>
+    </div>
+
+    <!-- Coach-editable fields -->
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Current Level</label>
+        <select id="ep-level" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diver Group</label>
+        <input type="text" id="ep-diver-group" class="form-input" placeholder="e.g. Competitive A">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Assigned Coach Name</label>
+      <input type="text" id="ep-coach-name" class="form-input" placeholder="Override roster coach name">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input type="date" id="ep-start-date" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">AQUA Group</label>
+        <input type="text" id="ep-aqua-group" class="form-input" placeholder="TBD">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Parent Email</label>
+        <input type="email" id="ep-parent-email" class="form-input" placeholder="parent@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Parent Phone</label>
+        <input type="tel" id="ep-parent-phone" class="form-input" placeholder="(555) 123-4567">
+      </div>
+    </div>
+
+    <div id="edit-profile-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('edit-profile-modal')">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-profile" onclick="saveProfileEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=6"></script>
+<script src="js/supabase.js?v=7"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=3"></script>
 <script src="js/app.js?v=5"></script>
@@ -87,10 +238,11 @@
   let currentUser     = null;
   let targetDiverId   = null;
   let targetDiver     = null;
+  let diverCoach      = null;
+  let linkedParent    = null;
   let activeLevel     = 0;
 
-  // Display order for skill-type groups within each level — matches
-  // the section order on the skills library page.
+  // Display order for skill-type groups within each level.
   const SECTION_ORDER = [
     'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
     'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
@@ -106,38 +258,31 @@
 
     const diverParam = App.getParam('diver');
     if (user.role === 'coach' || user.role === 'parent') {
-      // Coaches/parents have no progress of their own — they must arrive
-      // here with a specific diver selected (from the roster or dashboard).
       if (!diverParam) {
         window.location.href = 'dashboard.html';
         return;
       }
       targetDiverId = diverParam;
       targetDiver   = await SupabaseDB.getProfileById(diverParam);
-      if (targetDiver) {
-        document.getElementById('page-subtitle').textContent =
-          `Showing progress for ${targetDiver.full_name}.`;
-        document.getElementById('diver-banner').innerHTML = `
-          <div class="alert alert-info visible mb-4">
-            👤 Viewing progress for <strong>${App.escHtml(targetDiver.full_name)}</strong>
-            <a href="roster.html" style="margin-left:8px;font-weight:600">← Back to Roster</a>
-          </div>
-        `;
-        document.getElementById('diver-banner').classList.remove('hidden');
-      }
     } else {
-      // Divers can only ever view their own progress.
       targetDiverId = user.id;
+      targetDiver   = user;
     }
 
-    const [skills, cMap, attempts, levelCompMap] = await Promise.all([
+    const isCoach = user.role === 'coach' || user.role === 'super_user';
+
+    const [skills, cMap, attempts, levelCompMap, coachData, parentData] = await Promise.all([
       Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
       SupabaseDB.getAllTestAttempts(targetDiverId),
       SupabaseDB.getLevelCompletions(targetDiverId),
+      SupabaseDB.getDiverCoach(targetDiverId),
+      isCoach ? SupabaseDB.getLinkedParent(targetDiverId) : Promise.resolve(null),
     ]);
 
-    // Supplemental skills never appear in the progress tracker.
+    diverCoach   = coachData;
+    linkedParent = parentData;
+
     allSkills     = skills.filter(s => s.isTestable);
     completionMap = cMap;
     window._levelCompMap = levelCompMap;
@@ -147,10 +292,218 @@
       (attemptsBySkill[a.skill_id] ??= []).push(a);
     });
 
+    renderProfileHeader();
     updateStats(skills, completionMap);
     buildLevelTabs(skills, completionMap);
     renderLevel(activeLevel);
   })();
+
+  // =============================================
+  // PROFILE HEADER
+  // =============================================
+  function calcAge(dob) {
+    if (!dob) return '—';
+    const birth = new Date(dob + 'T00:00:00');
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  }
+
+  function formatDOB(dob) {
+    if (!dob) return '—';
+    const [y, m, d] = dob.split('-').map(Number);
+    return `${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y}`;
+  }
+
+  function diverInviteBadge(status) {
+    if (status === 'active')  return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✓ Claimed</span>';
+    if (status === 'pending') return '<span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">⏳ Invited</span>';
+    return '<span class="badge">Not Invited</span>';
+  }
+
+  function parentInviteBadge(diver, parent) {
+    if (parent) return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✓ Claimed</span>';
+    if (diver.invite_token && diver.invite_type === 'parent') return '<span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">⏳ Invited</span>';
+    return '<span class="badge">Not Invited</span>';
+  }
+
+  function renderProfileHeader() {
+    const diver       = targetDiver || {};
+    const isCoach     = currentUser.role === 'coach' || currentUser.role === 'super_user';
+    const hasBackLink = currentUser.role === 'coach' || currentUser.role === 'parent';
+
+    const coachName   = diver.assigned_coach_name || (diverCoach ? diverCoach.full_name : null) || '—';
+    const age         = calcAge(diver.date_of_birth);
+    const dob         = formatDOB(diver.date_of_birth);
+    const diverGroup  = diver.diver_group || '—';
+    const aquaGroup   = diver.aqua_group  || 'TBD';
+    const startDate   = diver.start_date  ? formatDOB(diver.start_date) : 'Not set';
+    const displayName = App.formatNameLastFirst(diver) || diver.full_name || '';
+
+    let parentEmailStr = '—';
+    let parentPhoneStr = '—';
+    if (isCoach) {
+      parentEmailStr = (linkedParent ? linkedParent.email : null) || diver.parent_email || '—';
+      parentPhoneStr = (linkedParent ? linkedParent.phone : null) || diver.parent_phone || '—';
+    }
+
+    const headerEl = document.getElementById('profile-header');
+    headerEl.innerHTML = `
+      <div class="profile-header-top">
+        <div class="profile-avatar-lg">${Auth.getInitials(diver.full_name || '')}</div>
+        <div class="profile-header-info">
+          <div class="profile-name-row">
+            <h2 class="profile-diver-name">${App.escHtml(displayName)}</h2>
+            ${diver.current_level != null ? `<span class="badge badge-level">L${diver.current_level}</span>` : ''}
+          </div>
+          <div class="profile-meta-row">
+            ${age !== '—' ? `<span>Age ${age}</span><span class="meta-sep">·</span>` : ''}
+            <span>DOB: ${dob}</span>
+          </div>
+          <div class="profile-meta-row">
+            <span>Group: ${App.escHtml(diverGroup)}</span>
+            <span class="meta-sep">·</span>
+            <span>AQUA: ${App.escHtml(aquaGroup)}</span>
+          </div>
+          <div class="profile-meta-row">
+            <span>Coach: ${App.escHtml(coachName)}</span>
+            <span class="meta-sep">·</span>
+            <span>Start: ${startDate}</span>
+          </div>
+          ${isCoach ? `
+            <div class="profile-meta-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+              <span style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary)">Parent</span>
+              <span class="meta-sep">·</span>
+              <span>${App.escHtml(parentEmailStr)}</span>
+              ${parentPhoneStr !== '—' ? `<span class="meta-sep">·</span><span>${App.escHtml(parentPhoneStr)}</span>` : ''}
+            </div>
+          ` : ''}
+        </div>
+        <div class="profile-header-actions">
+          ${hasBackLink ? '<a href="roster.html" class="btn btn-ghost btn-sm">← Roster</a>' : ''}
+          ${isCoach ? '<button class="btn btn-secondary btn-sm" onclick="openEditProfileModal()">Edit</button>' : ''}
+        </div>
+      </div>
+      <div class="profile-stats-row">
+        <div class="stat-card">
+          <div class="stat-value" style="color:#3b82f6" id="stat-attained">—</div>
+          <div class="stat-label">Skill Attained</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--pending)" id="stat-ready">—</div>
+          <div class="stat-label">Ready for Test</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-certified">—</div>
+          <div class="stat-label">Certified</div>
+        </div>
+      </div>
+      <div class="profile-invite-row">
+        <span class="profile-invite-label">Diver:</span>
+        ${diverInviteBadge(diver.status)}
+        <span class="profile-invite-label" style="margin-left:10px">Parent:</span>
+        ${parentInviteBadge(diver, linkedParent)}
+      </div>
+    `;
+    headerEl.classList.remove('hidden');
+  }
+
+  // =============================================
+  // EDIT PROFILE MODAL
+  // =============================================
+  function openEditProfileModal() {
+    if (!targetDiver) return;
+    const d           = targetDiver;
+    const isSuperUser = currentUser.role === 'super_user';
+
+    document.getElementById('ep-su-fields').classList.toggle('hidden', !isSuperUser);
+    if (isSuperUser) {
+      document.getElementById('ep-first-name').value = d.first_name    || '';
+      document.getElementById('ep-last-name').value  = d.last_name     || '';
+      document.getElementById('ep-dob').value        = d.date_of_birth || '';
+      document.getElementById('ep-gender').value     = d.gender        || '';
+    }
+
+    const lvlSel = document.getElementById('ep-level');
+    if (!lvlSel.options.length) {
+      for (let i = 0; i <= 12; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `Level ${i}`;
+        lvlSel.appendChild(opt);
+      }
+    }
+
+    lvlSel.value = d.current_level != null ? String(d.current_level) : '';
+    document.getElementById('ep-diver-group').value  = d.diver_group          || '';
+    document.getElementById('ep-coach-name').value   = d.assigned_coach_name  || '';
+    document.getElementById('ep-start-date').value   = d.start_date           || '';
+    document.getElementById('ep-aqua-group').value   = (d.aqua_group && d.aqua_group !== 'TBD') ? d.aqua_group : '';
+    document.getElementById('ep-parent-email').value = d.parent_email         || '';
+    document.getElementById('ep-parent-phone').value = d.parent_phone         || '';
+    document.getElementById('edit-profile-alert').className = 'alert mb-4';
+
+    App.openModal('edit-profile-modal');
+  }
+
+  async function saveProfileEdit() {
+    const btn       = document.getElementById('btn-save-profile');
+    const alertEl   = document.getElementById('edit-profile-alert');
+    const isSuperUser = currentUser.role === 'super_user';
+
+    alertEl.className = 'alert mb-4';
+    App.setBtnLoading(btn, true);
+    try {
+      const level = document.getElementById('ep-level').value;
+      const updates = {
+        currentLevel:      level !== '' ? parseInt(level, 10) : null,
+        diverGroup:        document.getElementById('ep-diver-group').value.trim()  || null,
+        assignedCoachName: document.getElementById('ep-coach-name').value.trim()   || null,
+        startDate:         document.getElementById('ep-start-date').value          || null,
+        parentEmail:       document.getElementById('ep-parent-email').value.trim() || null,
+        parentPhone:       document.getElementById('ep-parent-phone').value.trim() || null,
+        aquaGroup:         document.getElementById('ep-aqua-group').value.trim()   || null,
+      };
+
+      if (isSuperUser) {
+        const firstName = document.getElementById('ep-first-name').value.trim();
+        const lastName  = document.getElementById('ep-last-name').value.trim();
+        await SupabaseDB.updateProfile(targetDiverId, {
+          first_name:          firstName || null,
+          last_name:           lastName  || null,
+          full_name:           [firstName, lastName].filter(Boolean).join(' ') || null,
+          date_of_birth:       document.getElementById('ep-dob').value    || null,
+          gender:              document.getElementById('ep-gender').value  || null,
+          current_level:       updates.currentLevel,
+          diver_group:         updates.diverGroup,
+          assigned_coach_name: updates.assignedCoachName,
+          start_date:          updates.startDate,
+          parent_email:        updates.parentEmail,
+          parent_phone:        updates.parentPhone,
+          aqua_group:          updates.aquaGroup,
+        });
+      } else {
+        await SupabaseDB.updateDiverProfileByCoach(targetDiverId, updates);
+      }
+
+      targetDiver = await SupabaseDB.getProfileById(targetDiverId);
+      App.closeModal('edit-profile-modal');
+      App.showToast('Profile updated.');
+      renderProfileHeader();
+      updateStats(allSkills, completionMap);
+    } catch (err) {
+      alertEl.className   = 'alert alert-error visible mb-4';
+      alertEl.textContent = err.message;
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  document.getElementById('edit-profile-modal').addEventListener('click', function(e) {
+    if (e.target === this) App.closeModal('edit-profile-modal');
+  });
 
   // =============================================
   // PERMISSIONS
@@ -224,20 +577,18 @@
     if (level !== activeLevel) return;
     const { total, attained, ready, certified, pct } = levelStats(level);
 
-    const fill       = document.getElementById('level-progress-fill');
-    const pctEl      = document.getElementById('level-progress-pct');
-    const countEl    = document.getElementById('level-cert-count');
+    const fill        = document.getElementById('level-progress-fill');
+    const pctEl       = document.getElementById('level-progress-pct');
+    const countEl     = document.getElementById('level-cert-count');
     const breakdownEl = document.getElementById('level-breakdown');
 
     if (fill) {
       fill.style.width = `${pct}%`;
       fill.classList.toggle('partial', pct > 0 && pct < 100);
     }
-    if (pctEl)   pctEl.textContent = `${pct}%`;
-    if (countEl) countEl.textContent = `${certified}/${total} certified`;
-    if (breakdownEl) {
-      breakdownEl.textContent = `${attained} attained · ${ready} ready for test · ${certified} certified`;
-    }
+    if (pctEl)       pctEl.textContent = `${pct}%`;
+    if (countEl)     countEl.textContent = `${certified}/${total} certified`;
+    if (breakdownEl) breakdownEl.textContent = `${attained} attained · ${ready} ready for test · ${certified} certified`;
   }
 
   function renderLevel(level) {
@@ -370,7 +721,6 @@
     const stage2Filled = !!completion.ready_for_test;
     const stage3Filled = !!completion.tested_and_passed;
 
-    // Once a skill is certified, stages 1 & 2 are locked in place.
     const locked = stage3Filled;
 
     const stage1Disabled = !canSetStage1() || locked;
@@ -385,7 +735,6 @@
       ? '<span class="harness-icon" title="Requires harness">🦺</span>'
       : '';
 
-    // Use latest_score from completion row if available (faster than attempt lookup)
     const latestScore = completion.latest_score ?? mostRecent?.score ?? null;
     const latestDate  = completion.latest_test_date ?? mostRecent?.test_date ?? null;
     const recentHtml  = latestScore !== null
@@ -560,14 +909,8 @@
     const date  = dateEl.value;
     const notes = notesEl.value.trim();
 
-    if (score === '') {
-      App.showToast('Please select a score.', 'error');
-      return;
-    }
-    if (!date) {
-      App.showToast('Please select a test date.', 'error');
-      return;
-    }
+    if (score === '') { App.showToast('Please select a score.', 'error'); return; }
+    if (!date)        { App.showToast('Please select a test date.', 'error'); return; }
 
     App.setBtnLoading(btn, true);
     try {

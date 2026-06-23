@@ -93,6 +93,22 @@ const SupabaseDB = {
     if (error) throw new Error(error.message);
   },
 
+  // Coach updates the coach-editable fields on a diver's profile.
+  // Uses SECURITY DEFINER RPC that verifies roster membership.
+  async updateDiverProfileByCoach(diverId, { currentLevel, diverGroup, assignedCoachName, startDate, parentEmail, parentPhone, aquaGroup }) {
+    const { error } = await this.db.rpc('update_diver_profile_by_coach', {
+      p_diver_id:            diverId,
+      p_current_level:       currentLevel       !== undefined ? currentLevel       : null,
+      p_diver_group:         diverGroup         !== undefined ? diverGroup         : null,
+      p_assigned_coach_name: assignedCoachName  !== undefined ? assignedCoachName  : null,
+      p_start_date:          startDate          !== undefined ? startDate          : null,
+      p_parent_email:        parentEmail        !== undefined ? parentEmail        : null,
+      p_parent_phone:        parentPhone        !== undefined ? parentPhone        : null,
+      p_aqua_group:          aquaGroup          !== undefined ? aquaGroup          : null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
   // Search unclaimed/pending profiles by diver name (and optionally coach name).
   // Used on the claim.html page for divers to find themselves.
   async searchUnclaimedProfiles(diverName, coachName) {
@@ -250,6 +266,7 @@ const SupabaseDB = {
         joined_at,
         diver:profiles!roster_diver_id_fkey (
           id, full_name, first_name, last_name, gender, email, avatar_url, status, current_level, created_at,
+          date_of_birth, diver_group, start_date, assigned_coach_name, aqua_group, parent_email, parent_phone,
           invite_token, invite_token_expires_at, invite_type
         )
       `)
@@ -272,6 +289,22 @@ const SupabaseDB = {
       .maybeSingle();
     if (error) { console.error('[SupabaseDB] getDiverCoach:', error.message); return null; }
     return data?.coach ?? null;
+  },
+
+  // Returns the linked parent profile for a diver (if one exists via parent_diver).
+  async getLinkedParent(diverId) {
+    const { data, error } = await this.db
+      .from('parent_diver')
+      .select(`
+        parent:profiles!parent_diver_parent_id_fkey (
+          id, full_name, email, phone
+        )
+      `)
+      .eq('diver_id', diverId)
+      .limit(1)
+      .maybeSingle();
+    if (error) { console.error('[SupabaseDB] getLinkedParent:', error.message); return null; }
+    return data?.parent ?? null;
   },
 
   async addDiverToRoster(coachId, diverId) {

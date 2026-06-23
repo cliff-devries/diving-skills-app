@@ -7,20 +7,6 @@
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <link rel="stylesheet" href="css/styles.css?v=5">
   <style>
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .status-badge.unclaimed { background: var(--bg-surface-2); color: var(--text-secondary); }
-    .status-badge.pending   { background: var(--pending-dim); color: var(--pending); }
-    .status-badge.active    { background: var(--accent-dim);  color: var(--accent); }
     .invite-link-row {
       display: flex;
       gap: 8px;
@@ -36,14 +22,6 @@
       gap: 12px;
     }
     @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
-    .gender-badge {
-      background: var(--bg-surface-2);
-      color: var(--text-secondary);
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
     .roster-controls {
       display: flex;
       gap: 12px;
@@ -57,11 +35,19 @@
     .roster-controls .search-group {
       flex: 1 1 220px;
     }
-    .stage-badges {
+    .roster-meta-grid {
       display: flex;
-      gap: 6px;
       flex-wrap: wrap;
-      margin-top: 6px;
+      gap: 3px 14px;
+      margin-top: 5px;
+    }
+    .roster-meta-item {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .roster-meta-label {
+      font-weight: 600;
+      color: var(--text-secondary);
     }
   </style>
 </head>
@@ -263,21 +249,46 @@
      EDIT DIVER MODAL
 ============================================= -->
 <div class="modal-overlay" id="edit-diver-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:500px">
     <div class="modal-header">
       <h2 class="modal-title">Edit Diver</h2>
       <button class="modal-close" onclick="App.closeModal('edit-diver-modal')">✕</button>
     </div>
     <p class="text-secondary text-sm mb-4" id="edit-diver-name"></p>
 
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Current Level</label>
+        <select id="edit-level" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diver Group</label>
+        <input type="text" id="edit-diver-group" class="form-input" placeholder="e.g. Competitive A">
+      </div>
+    </div>
     <div class="form-group">
-      <label class="form-label">Gender</label>
-      <select id="edit-gender" class="form-select">
-        <option value="">Not set</option>
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-        <option value="Other">Other</option>
-      </select>
+      <label class="form-label">Assigned Coach Name</label>
+      <input type="text" id="edit-assigned-coach" class="form-input" placeholder="Overrides roster coach name">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input type="date" id="edit-start-date" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">AQUA Group</label>
+        <input type="text" id="edit-aqua-group" class="form-input" placeholder="TBD">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Parent Email</label>
+        <input type="email" id="edit-parent-email" class="form-input" placeholder="parent@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Parent Phone</label>
+        <input type="tel" id="edit-parent-phone" class="form-input" placeholder="(555) 123-4567">
+      </div>
     </div>
 
     <div id="edit-diver-alert" class="alert mb-4"></div>
@@ -319,15 +330,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=6"></script>
+<script src="js/supabase.js?v=7"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
 <script>
-  let currentUser     = null;
-  let roster          = [];
-  let completionStats = {};
-  let pendingRemove   = null;
+  let currentUser      = null;
+  let roster           = [];
+  let completionStats  = {};
+  let pendingRemove    = null;
   let pendingEditDiver = null;
 
   (async function initRosterPage() {
@@ -338,13 +349,22 @@
     Auth.requireRole('coach');
     App.renderNav(user);
 
-    // Populate level dropdown (0–12)
+    // Populate add-diver level dropdown (0–12)
     const levelSel = document.getElementById('new-current-level');
     for (let n = 0; n <= 12; n++) {
       const opt = document.createElement('option');
       opt.value = n;
       opt.textContent = `Level ${n}`;
       levelSel.appendChild(opt);
+    }
+
+    // Populate edit-diver level dropdown (0–12)
+    const editLevelSel = document.getElementById('edit-level');
+    for (let n = 0; n <= 12; n++) {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = `Level ${n}`;
+      editLevelSel.appendChild(opt);
     }
 
     await loadRoster();
@@ -365,7 +385,6 @@
     renderRosterList();
   }
 
-  // Re-render the roster list applying the current search/filters.
   function renderRosterList() {
     const rosterEl   = document.getElementById('roster-list');
     const countLabel = document.getElementById('roster-count-label');
@@ -397,7 +416,6 @@
       return true;
     });
 
-    // Default sort: alphabetical by last name (then first name).
     filtered.sort((a, b) => App.compareNames(a.diver, b.diver));
 
     const filtersActive = !!(search || genderFilter || levelFilter !== '' || statusFilter);
@@ -417,70 +435,34 @@
     }
   }
 
+  function calcAge(dob) {
+    if (!dob) return '—';
+    const birth = new Date(dob + 'T00:00:00');
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  }
+
+  function formatDOB(dob) {
+    if (!dob) return '—';
+    const [y, m, d] = dob.split('-').map(Number);
+    return `${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y}`;
+  }
+
   function renderDiverRow(r) {
     const diver    = r.diver;
-    const status   = diver.status ?? 'active';
-    const isActive = status === 'active';
-
-    const badgeMap = {
-      unclaimed: '<span class="status-badge unclaimed">○ Unclaimed</span>',
-      pending:   '<span class="status-badge pending">⏳ Pending</span>',
-      active:    '<span class="status-badge active">✓ Active</span>',
-    };
-    const badgeHtml = badgeMap[status] ?? '';
+    const isActive = (diver.status ?? 'active') === 'active';
 
     const levelHtml = diver.current_level != null
-      ? `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>`
-      : '';
+      ? `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>` : '';
 
-    const genderHtml = diver.gender
-      ? `<span class="gender-badge">${App.escHtml(diver.gender)}</span>`
-      : '';
-
-    const stats = completionStats[diver.id] ?? { attained: 0, readyForTest: 0, certified: 0 };
-    const stageBadgesHtml = `
-      <div class="stage-badges">
-        <span class="badge badge-secondary">${stats.attained} attained</span>
-        <span class="badge ${stats.readyForTest > 0 ? 'badge-pending' : 'badge-secondary'}">${stats.readyForTest} ready for test</span>
-        <span class="badge ${stats.certified > 0 ? 'badge-accent' : 'badge-secondary'}">${stats.certified} tested &amp; passed</span>
-      </div>
-    `;
-
-    // Invite status line (one invite link can be active per profile at a time)
-    let inviteHtml = '';
-    if (diver.invite_token) {
-      const expiresAt = diver.invite_token_expires_at ? new Date(diver.invite_token_expires_at) : null;
-      const now       = new Date();
-      const expired   = !expiresAt || expiresAt.getTime() <= now.getTime();
-      const typeLabel = diver.invite_type === 'parent' ? 'Parent' : 'Diver';
-
-      console.log(`[Roster] ${diver.full_name} invite expires_at (raw):`, diver.invite_token_expires_at);
-      console.log(`[Roster] ${diver.full_name} expires_at (parsed, UTC):`, expiresAt ? expiresAt.toISOString() : null);
-      console.log(`[Roster] ${diver.full_name} now (UTC):`, now.toISOString(), '| expired:', expired);
-
-      // TEMP (testing): always show a Regenerate Invite button when a token
-      // exists, regardless of expiry, so links can be refreshed on demand.
-      const regenerateBtn = `
-        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:0.7rem"
-          onclick="generateAndShowInvite('${diver.id}', '${diver.invite_type}')">Regenerate Invite</button>
-      `;
-
-      if (expired) {
-        inviteHtml = `
-          <div class="text-xs mt-1" style="color:var(--pending)">
-            ⚠️ ${typeLabel} invite expired
-            ${regenerateBtn}
-          </div>
-        `;
-      } else {
-        inviteHtml = `
-          <div class="text-xs text-secondary mt-1">
-            🔗 ${typeLabel} invite sent · expires ${App.formatDate(diver.invite_token_expires_at)}
-            ${regenerateBtn}
-          </div>
-        `;
-      }
-    }
+    const age          = calcAge(diver.date_of_birth);
+    const dob          = formatDOB(diver.date_of_birth);
+    const diverGroup   = App.escHtml(diver.diver_group  || '—');
+    const assignedCoach = App.escHtml(diver.assigned_coach_name || currentUser.full_name || '—');
+    const aquaGroup    = App.escHtml(diver.aqua_group   || 'TBD');
 
     return `
       <div class="diver-row" id="diver-row-${diver.id}" style="cursor:default;flex-wrap:wrap">
@@ -492,14 +474,14 @@
             <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
               ${App.escHtml(App.formatNameLastFirst(diver))}
               ${levelHtml}
-              ${genderHtml}
-              ${badgeHtml}
             </div>
-            <div class="list-item-subtitle">
-              ${diver.email ? App.escHtml(diver.email) : '<em>No email on file</em>'}
+            <div class="roster-meta-grid">
+              <span class="roster-meta-item"><span class="roster-meta-label">Age</span> ${age}</span>
+              <span class="roster-meta-item"><span class="roster-meta-label">DOB</span> ${dob}</span>
+              <span class="roster-meta-item"><span class="roster-meta-label">Group</span> ${diverGroup}</span>
+              <span class="roster-meta-item"><span class="roster-meta-label">Coach</span> ${assignedCoach}</span>
+              <span class="roster-meta-item"><span class="roster-meta-label">AQUA</span> ${aquaGroup}</span>
             </div>
-            ${stageBadgesHtml}
-            ${inviteHtml}
           </div>
         ${isActive ? '</a>' : '</div>'}
         <div class="flex gap-2" style="flex-wrap:wrap">
@@ -507,8 +489,7 @@
             ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">View Progress →</a>`
             : `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">Invite Diver</button>`}
           <button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">Invite Parent</button>
-          <button class="btn btn-ghost btn-sm"
-            onclick="openEditDiverModal('${diver.id}', '${App.escHtml(App.formatNameLastFirst(diver))}', ${diver.gender ? `'${diver.gender}'` : 'null'})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditDiverModal('${diver.id}')">Edit</button>
           <button class="btn btn-ghost btn-sm"
             onclick="openRemoveModal('${diver.id}', '${App.escHtml(diver.full_name)}')">✕</button>
         </div>
@@ -557,15 +538,15 @@
     const btn     = document.getElementById('add-diver-btn');
     const alertEl = document.getElementById('add-diver-alert');
 
-    const firstName     = document.getElementById('new-first-name').value.trim();
-    const lastName      = document.getElementById('new-last-name').value.trim();
-    const gender        = document.getElementById('new-gender').value;
-    const currentLevel  = document.getElementById('new-current-level').value;
-    const dob           = document.getElementById('new-dob').value;
-    const phone         = document.getElementById('new-phone').value.trim();
-    const email         = document.getElementById('new-email').value.trim();
-    const parent        = document.getElementById('new-parent').value.trim();
-    const notes         = document.getElementById('new-notes').value.trim();
+    const firstName    = document.getElementById('new-first-name').value.trim();
+    const lastName     = document.getElementById('new-last-name').value.trim();
+    const gender       = document.getElementById('new-gender').value;
+    const currentLevel = document.getElementById('new-current-level').value;
+    const dob          = document.getElementById('new-dob').value;
+    const phone        = document.getElementById('new-phone').value.trim();
+    const email        = document.getElementById('new-email').value.trim();
+    const parent       = document.getElementById('new-parent').value.trim();
+    const notes        = document.getElementById('new-notes').value.trim();
 
     alertEl.className = 'alert mb-4';
 
@@ -583,7 +564,6 @@
       return;
     }
 
-    // Full name auto-generates from first + last name.
     const fullName = [firstName, lastName].filter(Boolean).join(' ');
 
     App.setBtnLoading(btn, true);
@@ -645,11 +625,20 @@
     }
   }
 
-  // ---- Edit diver (gender) ----
-  function openEditDiverModal(diverId, diverName, currentGender) {
+  // ---- Edit diver ----
+  function openEditDiverModal(diverId) {
+    const r = roster.find(r => r.diver.id === diverId);
+    if (!r) return;
     pendingEditDiver = diverId;
-    document.getElementById('edit-diver-name').textContent = `Editing ${diverName}`;
-    document.getElementById('edit-gender').value = currentGender || '';
+    const d = r.diver;
+    document.getElementById('edit-diver-name').textContent = `Editing ${App.formatNameLastFirst(d)}`;
+    document.getElementById('edit-level').value           = d.current_level ?? '';
+    document.getElementById('edit-diver-group').value     = d.diver_group    ?? '';
+    document.getElementById('edit-assigned-coach').value  = d.assigned_coach_name ?? '';
+    document.getElementById('edit-start-date').value      = d.start_date     ?? '';
+    document.getElementById('edit-aqua-group').value      = d.aqua_group !== 'TBD' ? (d.aqua_group ?? '') : '';
+    document.getElementById('edit-parent-email').value    = d.parent_email   ?? '';
+    document.getElementById('edit-parent-phone').value    = d.parent_phone   ?? '';
     document.getElementById('edit-diver-alert').className = 'alert mb-4';
     App.openModal('edit-diver-modal');
   }
@@ -658,11 +647,19 @@
     if (!pendingEditDiver) return;
     const btn     = document.getElementById('edit-diver-btn');
     const alertEl = document.getElementById('edit-diver-alert');
-    const gender  = document.getElementById('edit-gender').value;
+    const level   = document.getElementById('edit-level').value;
 
     App.setBtnLoading(btn, true);
     try {
-      await SupabaseDB.updateDiverGender(pendingEditDiver, gender || null);
+      await SupabaseDB.updateDiverProfileByCoach(pendingEditDiver, {
+        currentLevel:      level !== '' ? parseInt(level, 10) : null,
+        diverGroup:        document.getElementById('edit-diver-group').value.trim()    || null,
+        assignedCoachName: document.getElementById('edit-assigned-coach').value.trim() || null,
+        startDate:         document.getElementById('edit-start-date').value            || null,
+        parentEmail:       document.getElementById('edit-parent-email').value.trim()   || null,
+        parentPhone:       document.getElementById('edit-parent-phone').value.trim()   || null,
+        aquaGroup:         document.getElementById('edit-aqua-group').value.trim()     || null,
+      });
       App.closeModal('edit-diver-modal');
       App.showToast('Diver updated.');
       await loadRoster();
