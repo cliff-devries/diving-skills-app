@@ -12,10 +12,11 @@
       display: grid;
       grid-template-columns: 180px 1fr;
       gap: 0;
-      min-height: calc(100vh - 120px);
+      height: 100vh;
+      overflow: hidden;
     }
 
-    /* Left column — diver selector */
+    /* Left column — diver selector (full height, scrolls internally) */
     .diver-panel {
       display: flex;
       flex-direction: column;
@@ -23,6 +24,7 @@
       padding: 12px 10px;
       background: var(--surface-2, #1a1f2e);
       border-right: 1px solid var(--border);
+      height: 100%;
       overflow-y: auto;
     }
     .diver-panel-title {
@@ -102,13 +104,23 @@
       flex-shrink: 0;
     }
 
-    /* Right column — skill cards */
+    /* Right column wrapper — fills grid cell, children scroll */
+    .skill-col {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Right column — skill cards (scrolls independently) */
     .skill-panel {
       display: flex;
       flex-direction: column;
       padding: 16px;
       gap: 10px;
+      flex: 1;
       overflow-y: auto;
+      min-height: 0; /* required for flex overflow to work */
     }
     .skill-panel-header {
       display: flex;
@@ -226,7 +238,7 @@
       font-weight: 700;
     }
 
-    /* Complete Diver bar (sticky bottom of skill panel) */
+    /* Complete Diver bar — pinned at bottom of .skill-col flex column */
     .complete-diver-bar {
       display: flex;
       align-items: center;
@@ -236,35 +248,48 @@
       background: var(--surface, #141826);
       border-top: 1px solid var(--border);
       flex-shrink: 0;
-      position: sticky;
-      bottom: 0;
     }
     .complete-diver-bar .scored-count {
       font-size: 0.85rem;
       color: var(--text-secondary);
     }
 
-    /* Mobile: diver panel scrolls horizontally at top */
+    /* Mobile: horizontal diver strip at top, skills scroll below */
     @media (max-width: 768px) {
       .testing-layout {
         grid-template-columns: 1fr;
-        min-height: auto;
+        height: auto;
+        overflow: visible;
       }
       .diver-panel {
+        position: sticky;
+        top: 0;
+        z-index: 10;
         flex-direction: row;
         overflow-x: auto;
         overflow-y: hidden;
+        height: auto;
+        min-height: 100px;
         border-right: none;
         border-bottom: 1px solid var(--border);
         padding: 10px 12px;
-        min-height: 100px;
       }
       .diver-avatar-btn {
         min-width: 64px;
         max-width: 80px;
       }
+      .skill-col {
+        height: auto;
+        overflow: visible;
+      }
+      .skill-panel {
+        flex: none;
+        overflow-y: visible;
+        min-height: auto;
+      }
       .complete-diver-bar {
-        position: relative;
+        position: sticky;
+        bottom: var(--nav-bottom-height, 62px);
       }
     }
 
@@ -365,11 +390,6 @@
         <p id="step2-subtitle"></p>
       </div>
       <div id="step2-content"></div>
-      <div class="form-group mt-4">
-        <label class="form-label" for="session-notes">Session Notes (optional)</label>
-        <textarea id="session-notes" class="form-input" rows="3"
-          style="resize:vertical" placeholder="Notes apply to this entire session…"></textarea>
-      </div>
       <div class="testing-actions">
         <button class="btn btn-ghost" onclick="goToStep1()">← Back</button>
         <button class="btn btn-primary btn-lg" onclick="startTesting()">Start Testing →</button>
@@ -377,11 +397,11 @@
     </div>
 
     <!-- STEP 3: Testing Screen -->
-    <div id="step-3" class="testing-step hidden" style="padding:0;margin:0 -24px;overflow:hidden;">
+    <div id="step-3" class="testing-step hidden" style="padding:0;margin:0 -24px;">
       <div class="testing-layout">
         <div class="diver-panel" id="diver-panel"></div>
-        <div style="display:flex;flex-direction:column;overflow:hidden;">
-          <div class="skill-panel" id="skill-panel" style="flex:1;overflow-y:auto;"></div>
+        <div class="skill-col">
+          <div class="skill-panel" id="skill-panel"></div>
           <div class="complete-diver-bar" id="complete-diver-bar">
             <span class="scored-count" id="scored-count-label"></span>
             <button id="btn-complete-diver" class="btn btn-primary" onclick="confirmCompleteDiver()" disabled>
@@ -438,6 +458,7 @@
   let sessionDivers = []; // [{diver, level, skills}] — ordered list for testing
   let currentDiverIdx = 0;
   let sessionScores = {}; // {diverId: {skillId: {value, completionId}}} — scored only
+  let diverNotes    = {}; // {diverId: string} — per-diver session notes
   let completedDivers = {}; // {diverId: result}
   let confirmCallback = null;
 
@@ -575,11 +596,11 @@
   // STEP 3 — Testing Screen
   // =============================================
   async function startTesting() {
-    const notes = document.getElementById('session-notes').value.trim();
     sessionDivers = Object.values(selectedMap).map(({ diver, selectedLevel }) => ({
       diver, level: selectedLevel, skills: null,
     }));
     sessionScores   = {};
+    diverNotes      = {};
     completedDivers = {};
 
     showStep('step-3');
@@ -661,6 +682,7 @@
 
     const firstName = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
 
+    const savedNotes = App.escHtml(diverNotes[sd.diver.id] || '');
     panel.innerHTML = `
       <div class="skill-panel-header">
         <div>
@@ -670,6 +692,13 @@
         <span class="badge badge-level">L${sd.level}</span>
       </div>
       ${sd.skills.map(skill => buildSkillCard(skill, sd.diver.id, scores)).join('')}
+      <div class="form-group" style="margin-top:8px;padding-bottom:8px;">
+        <label class="form-label" for="diver-notes-${sd.diver.id}">Session Notes for ${App.escHtml(firstName)}</label>
+        <textarea id="diver-notes-${sd.diver.id}" class="form-input" rows="3"
+          style="resize:vertical"
+          placeholder="Optional notes for this testing session..."
+          oninput="saveDiverNote('${sd.diver.id}', this.value)">${savedNotes}</textarea>
+      </div>
     `;
 
     updateScoredCountLabel(idx);
@@ -775,6 +804,10 @@
     if (btn) btn.disabled = scored === 0;
   }
 
+  function saveDiverNote(diverId, value) {
+    diverNotes[diverId] = value;
+  }
+
   // =============================================
   // Complete Diver — confirm + save
   // =============================================
@@ -792,7 +825,7 @@
   async function completeDiver(idx) {
     const sd      = sessionDivers[idx];
     const scores  = sessionScores[sd.diver.id] || {};
-    const notes   = document.getElementById('session-notes').value.trim();
+    const notes   = diverNotes[sd.diver.id] || '';
 
     const btn = document.getElementById('btn-complete-diver');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -930,8 +963,8 @@
     selectedMap  = {};
     sessionDivers = [];
     sessionScores = {};
+    diverNotes    = {};
     completedDivers = {};
-    document.getElementById('session-notes').value = '';
     document.getElementById('btn-to-step2').disabled = true;
 
     // Restore main-content padding if it was removed in step 3

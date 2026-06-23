@@ -808,10 +808,16 @@ const SupabaseDB = {
   // scores: { [skillId]: { value: number, completionId: uuid|null } }
   // Inserts test attempts, upserts skill_completions (only test fields — never
   // touches skill_attained or ready_for_test), upserts level_completions.
+  //
+  // REQUIRES: supabase-migration-v20.sql must have been run so that
+  // skill_attained and ready_for_test are nullable with no default, and
+  // the stage-order constraint is dropped.
   async saveTestingSessionDiver({ diverId, level, coachId, scores, notes, testDate }) {
     const today   = testDate || new Date().toISOString().slice(0, 10);
     const entries = Object.entries(scores);
     if (!entries.length) throw new Error('No skills scored.');
+
+    console.log('[saveTestingSessionDiver] START', { diverId, level, coachId, today, skillCount: entries.length, notes });
 
     const scoreValues = entries.map(([, s]) => parseFloat(s.value));
     const avg         = scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length;
@@ -820,53 +826,66 @@ const SupabaseDB = {
     else if (avg >= 8.0) designation = 'silver';
     else if (avg >= 7.0) designation = 'bronze';
 
+    console.log('[saveTestingSessionDiver] avg:', avg.toFixed(2), 'designation:', designation);
+
     // Split by whether a skill_completions row already exists
     const withCompletion    = entries.filter(([, s]) => s.completionId);
     const withoutCompletion = entries.filter(([, s]) => !s.completionId);
 
-    // completionIds[skillIdStr] → the completion row UUID for that skill
+    console.log('[saveTestingSessionDiver] withCompletion:', withCompletion.length, 'withoutCompletion:', withoutCompletion.length);
+
+    // completionIds[skillIdStr] → the skill_completions UUID for test attempts
     const completionIds = Object.fromEntries(entries.map(([k, s]) => [k, s.completionId]));
 
     // Insert new completion rows for skills with no existing row.
-    // skill_attained and ready_for_test are intentionally left null — they are
-    // set independently by divers/coaches via the normal stage-1/stage-2 flow.
+    // skill_attained and ready_for_test are omitted so they stay NULL
+    // (requires migration v20 — those columns must be nullable with no default).
     if (withoutCompletion.length) {
       const newRows = withoutCompletion.map(([skillIdStr, s]) => {
         const scoreNum = parseFloat(s.value);
         return {
           diver_id:          diverId,
           skill_id:          parseInt(skillIdStr, 10),
-          skill_attained:    null,
-          ready_for_test:    null,
           tested_and_passed: scoreNum >= 5.0,
           latest_score:      scoreNum,
           latest_test_date:  today,
-          level_designation: designation,
+          level_designation: designation || null,
         };
       });
+      console.log('[saveTestingSessionDiver] inserting new completion rows:', newRows);
       const { data: newComps, error: insErr } = await this.db
         .from('skill_completions').insert(newRows).select('id, skill_id');
-      if (insErr) throw new Error(insErr.message);
+      if (insErr) {
+        console.error('[saveTestingSessionDiver] new completions insert error:', insErr);
+        throw new Error('Failed to create skill completion records: ' + insErr.message);
+      }
+      console.log('[saveTestingSessionDiver] new completion rows created:', newComps);
       (newComps ?? []).forEach(c => { completionIds[String(c.skill_id)] = c.id; });
     }
 
     // Update existing completion rows — only the test-result fields.
-    // skill_attained and ready_for_test are never modified here.
+    // skill_attained and ready_for_test are never touched here.
     for (const [skillIdStr, s] of withCompletion) {
       const scoreNum = parseFloat(s.value);
+      const updatePayload = {
+        latest_score:      scoreNum,
+        latest_test_date:  today,
+        tested_and_passed: scoreNum >= 5.0,
+        level_designation: designation || null,
+      };
+      console.log('[saveTestingSessionDiver] updating completion', s.completionId, updatePayload);
       const { error: updErr } = await this.db
         .from('skill_completions')
-        .update({
-          latest_score:      scoreNum,
-          latest_test_date:  today,
-          tested_and_passed: scoreNum >= 5.0,
-          level_designation: designation,
-        })
+        .update(updatePayload)
         .eq('id', s.completionId);
-      if (updErr) throw new Error(updErr.message);
+      if (updErr) {
+        console.error('[saveTestingSessionDiver] completion update error:', updErr);
+        throw new Error('Failed to update skill completion: ' + updErr.message);
+      }
     }
 
-    // Insert one test attempt per scored skill
+    // Insert one test attempt per scored skill.
+    // completionIds now has UUIDs for both pre-existing and newly-inserted rows.
     const attempts = entries.map(([skillIdStr, s]) => ({
       skill_completion_id: completionIds[skillIdStr] || null,
       diver_id:            diverId,
@@ -876,23 +895,34 @@ const SupabaseDB = {
       test_date:           today,
       notes:               notes || '',
     }));
-    const { error: attErr } = await this.db.from('skill_test_attempts').insert(attempts);
-    if (attErr) throw new Error(attErr.message);
+    console.log('[saveTestingSessionDiver] inserting test attempts:', attempts.length, 'first:', attempts[0]);
+    const { data: attData, error: attErr } = await this.db.from('skill_test_attempts').insert(attempts).select('id');
+    if (attErr) {
+      console.error('[saveTestingSessionDiver] test attempts insert error:', attErr);
+      throw new Error('Failed to save test attempts: ' + attErr.message);
+    }
+    console.log('[saveTestingSessionDiver] test attempts saved:', attData?.length);
 
     // Upsert level_completions (one row per diver+level, updated on retest)
+    const lcPayload = {
+      diver_id:      diverId,
+      level,
+      completed_at:  new Date().toISOString(),
+      average_score: parseFloat(avg.toFixed(2)),
+      designation:   designation || null,
+      notes:         notes || null,
+      coach_id:      coachId,
+    };
+    console.log('[saveTestingSessionDiver] upserting level_completions:', lcPayload);
     const { error: lcErr } = await this.db
       .from('level_completions')
-      .upsert({
-        diver_id:      diverId,
-        level,
-        completed_at:  new Date().toISOString(),
-        average_score: parseFloat(avg.toFixed(2)),
-        designation,
-        notes:         notes || null,
-        coach_id:      coachId,
-      }, { onConflict: 'diver_id,level' });
-    if (lcErr) throw new Error(lcErr.message);
+      .upsert(lcPayload, { onConflict: 'diver_id,level' });
+    if (lcErr) {
+      console.error('[saveTestingSessionDiver] level_completions upsert error:', lcErr);
+      throw new Error('Failed to save level completion: ' + lcErr.message);
+    }
 
+    console.log('[saveTestingSessionDiver] DONE — avg:', avg.toFixed(2), 'designation:', designation, 'scored:', entries.length);
     return { averageScore: avg, designation, scoredCount: entries.length };
   },
 
