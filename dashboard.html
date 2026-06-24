@@ -28,7 +28,7 @@
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=7"></script>
+<script src="js/supabase.js?v=8"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
@@ -65,16 +65,14 @@
     const main = document.getElementById('main-content');
     coachUserId = user.id;
 
-    // Load roster, skills ready for testing, pending profile claims, club
-    // settings (manual rankings), and the new dashboard metric counts in
-    // parallel.
+    const isSuperUser = user.is_super_user === true || user.role === 'super_user';
+
     const [
-      roster, readyForTest, claims, pendingCoaches, clubSettings,
+      roster, claims, pendingCoaches, clubSettings,
       fullLevelsReadyToTest, totalSkillsReadyToTest,
       skillsAttainedThisMonth, totalSkillsAttained,
     ] = await Promise.all([
       SupabaseDB.getRoster(user.id),
-      SupabaseDB.getReadyForTestForCoach(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
       SupabaseDB.getPendingCoaches(),
       SupabaseDB.getClubSettings(['usa_diving_ranking', 'aau_diving_ranking']),
@@ -83,9 +81,6 @@
       SupabaseDB.getSkillsAttainedThisMonth(user.id),
       SupabaseDB.getTotalSkillsAttained(user.id),
     ]);
-
-    roster.sort((a, b) => App.compareNames(a.diver, b.diver));
-    const readyForTestGroups = groupReadyForTest(readyForTest, roster);
 
     main.innerHTML = `
       <div class="page-header">
@@ -132,15 +127,8 @@
 
       <!-- Row 3 -->
       <div class="card-grid-2 mb-6">
-        ${rankingCardHtml('usa_diving_ranking', 'USA Diving Ranking', clubSettings.usa_diving_ranking)}
-        ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking)}
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Statistics & Reports -->
-      <div class="content-section">
-        <a href="stats.html" class="btn btn-secondary">📊 Statistics & Reports</a>
+        ${rankingCardHtml('usa_diving_ranking', 'USA Diving Ranking', clubSettings.usa_diving_ranking, isSuperUser)}
+        ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking, isSuperUser)}
       </div>
 
       <!-- Pending coach requests -->
@@ -193,13 +181,6 @@
         </div>
       </div>` : ''}
 
-      <!-- Skills ready for testing -->
-      <div class="content-section">
-        <div class="section-title">Ready for Testing</div>
-        <div id="ready-list">
-          ${renderReadyForTestList(readyForTestGroups)}
-        </div>
-      </div>
     `;
 
   }
@@ -257,7 +238,7 @@
   // =============================================
   // EDITABLE RANKING CARDS (USA / AAU Diving Ranking)
   // =============================================
-  function rankingCardHtml(key, label, value) {
+  function rankingCardHtml(key, label, value, isSuperUser) {
     const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
     const display  = hasValue ? App.escHtml(String(value)) : '--';
 
@@ -266,13 +247,14 @@
         <div class="stat-value" id="ranking-value-${key}">${display}</div>
         <div class="flex items-center justify-between">
           <div class="stat-label">${label}</div>
-          <button class="icon-btn-edit" onclick="editRanking('${key}')" aria-label="Edit ${App.escHtml(label)}" title="Edit ${App.escHtml(label)}">✏️</button>
+          ${isSuperUser ? `<button class="icon-btn-edit" onclick="editRanking('${key}')" aria-label="Edit ${App.escHtml(label)}" title="Edit ${App.escHtml(label)}">✏️</button>` : ''}
         </div>
+        ${isSuperUser ? `
         <div class="ranking-edit-row hidden" id="ranking-edit-${key}">
           <input type="text" class="form-input" id="ranking-input-${key}" placeholder="e.g. 12" value="${hasValue ? App.escHtml(String(value)) : ''}">
           <button class="btn btn-primary btn-sm" id="ranking-save-${key}" onclick="saveRanking('${key}', '${label}')">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="cancelRanking('${key}')">Cancel</button>
-        </div>
+        </div>` : ''}
       </div>
     `;
   }
@@ -302,52 +284,6 @@
     } finally {
       App.setBtnLoading(btn, false);
     }
-  }
-
-  // Group individual "ready for test" skill rows into one summary per diver,
-  // sorted by how many skills they have ready (most urgent first).
-  function groupReadyForTest(readyForTest, roster) {
-    const levelById = new Map(roster.map(r => [r.diver.id, r.diver.current_level]));
-    const groups = new Map();
-
-    for (const item of readyForTest) {
-      if (!item.diver) continue;
-      const id = item.diver.id;
-      if (!groups.has(id)) {
-        groups.set(id, {
-          diver: item.diver,
-          currentLevel: levelById.get(id) ?? null,
-          count: 0,
-        });
-      }
-      groups.get(id).count++;
-    }
-
-    return [...groups.values()].sort((a, b) =>
-      b.count - a.count || App.compareNames(a.diver, b.diver)
-    );
-  }
-
-  function renderReadyForTestList(groups) {
-    if (!groups.length) {
-      return `<div class="empty-state" style="padding: 24px">
-        <div class="empty-state-icon">✅</div>
-        <p>No skills pending testing</p>
-      </div>`;
-    }
-    return `<div class="card card-sm">
-      ${groups.map(g => `
-        <div class="list-item">
-          <div class="avatar-sm">${Auth.getInitials(g.diver.full_name)}</div>
-          <div class="list-item-content">
-            <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(g.diver))}</div>
-            <div class="list-item-subtitle">${g.count} skill${g.count !== 1 ? 's' : ''} ready for test</div>
-          </div>
-          ${g.currentLevel != null ? `<span class="badge badge-level">L${g.currentLevel}</span>` : ''}
-          <a href="progress.html?diver=${g.diver.id}" class="btn btn-ghost btn-sm">View Progress →</a>
-        </div>
-      `).join('')}
-    </div>`;
   }
 
   async function approveCoach(profileId, btn) {
@@ -404,11 +340,12 @@
   async function renderDiverDashboard(user) {
     const main = document.getElementById('main-content');
 
-    const [stats, recentAttempts, coach, levelCompMap] = await Promise.all([
+    const [stats, recentAttempts, coach, levelCompMap, totalDivers] = await Promise.all([
       SupabaseDB.getCompletionStats(user.id),
       SupabaseDB.getRecentTestAttempts(user.id, 6),
       SupabaseDB.getDiverCoach(user.id),
       SupabaseDB.getLevelCompletions(user.id),
+      SupabaseDB.getTotalDiverCount(),
     ]);
 
     main.innerHTML = `
@@ -419,6 +356,10 @@
 
       <!-- Stats -->
       <div class="card-grid mb-6">
+        <div class="stat-card">
+          <div class="stat-value">${totalDivers}</div>
+          <div class="stat-label">Divers in Club</div>
+        </div>
         <div class="stat-card">
           <div class="stat-value" style="color:#3b82f6">${stats.attained}</div>
           <div class="stat-label">Skills Attained</div>
@@ -489,13 +430,23 @@
   async function renderParentDashboard(user) {
     const main = document.getElementById('main-content');
 
-    const links = await SupabaseDB.getLinkedDivers(user.id);
+    const [links, totalDivers] = await Promise.all([
+      SupabaseDB.getLinkedDivers(user.id),
+      SupabaseDB.getTotalDiverCount(),
+    ]);
     links.sort((a, b) => App.compareNames(a.diver, b.diver));
 
     main.innerHTML = `
       <div class="page-header">
         <h1>Hello, ${App.escHtml(App.firstName(user))} 👋</h1>
         <p>Tracking progress for your diver${links.length !== 1 ? 's' : ''}.</p>
+      </div>
+
+      <div class="card-grid-2 mb-6">
+        <div class="stat-card">
+          <div class="stat-value">${totalDivers}</div>
+          <div class="stat-label">Divers in Club</div>
+        </div>
       </div>
 
       ${links.length === 0

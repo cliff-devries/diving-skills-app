@@ -959,6 +959,16 @@ const SupabaseDB = {
     return { averageScore: avg, designation, scoredCount: entries.length };
   },
 
+  // Total count of diver profiles in the club (all coaches' rosters combined).
+  async getTotalDiverCount() {
+    const { count, error } = await this.db
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'diver');
+    if (error) { console.error('[SupabaseDB] getTotalDiverCount:', error.message); return 0; }
+    return count ?? 0;
+  },
+
   // Level completion records for a diver, keyed by level number.
   async getLevelCompletions(diverId) {
     const { data, error } = await this.db
