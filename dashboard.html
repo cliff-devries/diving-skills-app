@@ -70,7 +70,7 @@
     const [
       roster, claims, pendingCoaches, clubSettings,
       fullLevelsReadyToTest, totalSkillsReadyToTest,
-      skillsAttainedThisMonth, totalSkillsAttained,
+      skillsAttainedThisMonth, totalSkillsAttained, totalDivers,
     ] = await Promise.all([
       SupabaseDB.getRoster(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
@@ -80,6 +80,7 @@
       SupabaseDB.getTotalSkillsReadyToTest(user.id),
       SupabaseDB.getSkillsAttainedThisMonth(user.id),
       SupabaseDB.getTotalSkillsAttained(user.id),
+      SupabaseDB.getTotalDiverCount(),
     ]);
 
     main.innerHTML = `
@@ -90,15 +91,31 @@
 
       <!-- Club Goals -->
       <div class="mb-6">
-        ${clubGoalsBannerHtml(roster.length, clubSettings.usa_diving_ranking)}
+        ${clubGoalsBannerHtml(totalDivers, clubSettings.usa_diving_ranking)}
       </div>
 
-      <!-- Row 1 -->
-      <div class="card-grid-3 mb-6">
+      <!-- Row 1: roster counts + skills attained -->
+      <div class="card-grid-2 mb-6">
         <div class="stat-card">
-          <div class="stat-value">${roster.length}</div>
+          <div class="stat-value">${totalDivers}</div>
           <div class="stat-label">Divers on Roster</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value">${roster.length}</div>
+          <div class="stat-label">My Divers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#3b82f6">${skillsAttainedThisMonth}</div>
+          <div class="stat-label">Skills Attained This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#3b82f6">${totalSkillsAttained}</div>
+          <div class="stat-label">Total Skills Attained</div>
+        </div>
+      </div>
+
+      <!-- Row 2: testing readiness -->
+      <div class="card-grid-2 mb-6">
         <a href="testing.html" class="stat-card" style="text-decoration:none;display:block;cursor:pointer;" title="Start a Testing Session">
           <div class="stat-value" style="color: ${fullLevelsReadyToTest ? 'var(--pending)' : 'var(--accent)'}">
             ${fullLevelsReadyToTest}
@@ -110,18 +127,6 @@
             ${totalSkillsReadyToTest}
           </div>
           <div class="stat-label">Skills Ready to Test</div>
-        </div>
-      </div>
-
-      <!-- Row 2 -->
-      <div class="card-grid-2 mb-6">
-        <div class="stat-card">
-          <div class="stat-value" style="color:#3b82f6">${skillsAttainedThisMonth}</div>
-          <div class="stat-label">Skills Attained This Month</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="color:#3b82f6">${totalSkillsAttained}</div>
-          <div class="stat-label">Total Skills Attained</div>
         </div>
       </div>
 
