@@ -508,8 +508,8 @@
 </div>
 
 <!-- Confirmation modal -->
-<div id="confirm-modal" class="modal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
-  <div class="card" style="max-width:420px;width:90%;margin:0 auto;">
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
+  <div class="card" style="max-width:420px;width:90%;margin:0 auto;animation:slideUp .22s ease;">
     <h3 id="confirm-modal-title" style="margin-bottom:8px;"></h3>
     <p id="confirm-modal-body" style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:20px;"></p>
     <div class="flex gap-3">
@@ -1001,6 +1001,7 @@
   // Complete Diver — confirm + save
   // =============================================
   function confirmCompleteDiver() {
+    console.log('Complete Diver button clicked');
     const sd        = sessionDivers[currentDiverIdx];
     const firstName = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
     const scored    = Object.keys(sessionScores[sd.diver.id] || {}).length;
@@ -1195,8 +1196,14 @@
   }
 
   document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+    console.log('Confirm button clicked');
     closeConfirmModal();
-    if (typeof confirmCallback === 'function') confirmCallback();
+    try {
+      if (typeof confirmCallback === 'function') confirmCallback();
+    } catch (err) {
+      console.error('Confirm callback error:', err);
+      App.showToast(err.message || 'An error occurred', 'error');
+    }
   });
 
   document.getElementById('confirm-modal').addEventListener('click', (e) => {
