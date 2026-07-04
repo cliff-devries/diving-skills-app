@@ -340,18 +340,24 @@
   async function renderDiverDashboard(user) {
     const main = document.getElementById('main-content');
 
-    const [stats, recentAttempts, coach, levelCompMap, totalDivers] = await Promise.all([
+    const [stats, recentAttempts, coach, levelCompMap, totalDivers, clubSettings] = await Promise.all([
       SupabaseDB.getCompletionStats(user.id),
       SupabaseDB.getRecentTestAttempts(user.id, 6),
       SupabaseDB.getDiverCoach(user.id),
       SupabaseDB.getLevelCompletions(user.id),
       SupabaseDB.getTotalDiverCount(),
+      SupabaseDB.getClubSettings(['usa_diving_ranking']),
     ]);
 
     main.innerHTML = `
       <div class="page-header">
         <h1>Hey, ${App.escHtml(App.firstName(user))} 🏊</h1>
         <p>${coach ? `Coach: <strong>${App.escHtml(coach.full_name)}</strong>` : 'No coach assigned yet'}</p>
+      </div>
+
+      <!-- Club Goals -->
+      <div class="mb-6">
+        ${clubGoalsBannerHtml(totalDivers, clubSettings.usa_diving_ranking)}
       </div>
 
       <!-- Stats -->
@@ -430,9 +436,10 @@
   async function renderParentDashboard(user) {
     const main = document.getElementById('main-content');
 
-    const [links, totalDivers] = await Promise.all([
+    const [links, totalDivers, clubSettings] = await Promise.all([
       SupabaseDB.getLinkedDivers(user.id),
       SupabaseDB.getTotalDiverCount(),
+      SupabaseDB.getClubSettings(['usa_diving_ranking']),
     ]);
     links.sort((a, b) => App.compareNames(a.diver, b.diver));
 
@@ -440,6 +447,11 @@
       <div class="page-header">
         <h1>Hello, ${App.escHtml(App.firstName(user))} 👋</h1>
         <p>Tracking progress for your diver${links.length !== 1 ? 's' : ''}.</p>
+      </div>
+
+      <!-- Club Goals -->
+      <div class="mb-6">
+        ${clubGoalsBannerHtml(totalDivers, clubSettings.usa_diving_ranking)}
       </div>
 
       <div class="card-grid-2 mb-6">
