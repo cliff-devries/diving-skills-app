@@ -946,13 +946,25 @@ const SupabaseDB = {
       notes:         notes || null,
       coach_id:      coachId,
     };
-    console.log('[saveTestingSessionDiver] upserting level_completions:', lcPayload);
-    const { error: lcErr } = await this.db
+    console.log('Attempting level_completions upsert with payload:', {
+      diver_id:      diverId,
+      level,
+      average_score: parseFloat(avg.toFixed(2)),
+      designation:   designation || null,
+      notes:         notes || null,
+      coach_id:      coachId,
+    });
+    const { data: lcData, error: lcErr } = await this.db
       .from('level_completions')
-      .upsert(lcPayload, { onConflict: 'diver_id,level' });
+      .upsert(lcPayload, { onConflict: 'diver_id,level' })
+      .select();
+    console.log('level_completions result — data:', lcData, 'error:', lcErr);
     if (lcErr) {
       console.error('[saveTestingSessionDiver] level_completions upsert error:', lcErr);
       throw new Error('Failed to save level completion: ' + lcErr.message);
+    }
+    if (!lcData || lcData.length === 0) {
+      console.warn('[saveTestingSessionDiver] level_completions upsert returned no rows — possible RLS block or missing unique constraint');
     }
 
     console.log('[saveTestingSessionDiver] DONE — avg:', avg.toFixed(2), 'designation:', designation, 'scored:', entries.length);
