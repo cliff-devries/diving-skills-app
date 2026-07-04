@@ -14,17 +14,22 @@
 
   <main class="main-content fade-in">
     <div class="page-header">
-      <h1>Skills</h1>
-      <p>Browse all skills across Levels 0–12. Tap a skill for details.</p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1>Skills</h1>
+          <p>Browse all skills across Levels 1–12. Tap a skill for details.</p>
+        </div>
+        <button class="btn btn-primary hidden" id="create-skill-btn" onclick="openCreateSkillModal()">+ Create Skill</button>
+      </div>
     </div>
 
-    <!-- Curriculum / Supplemental tabs + Create Skill (coach only) -->
+    <!-- All Skills / Testing Skills / Supplemental Skills tabs -->
     <div class="skills-toolbar">
       <div class="skill-view-toggle" id="skill-tabs">
-        <button class="skill-view-btn active" data-tab="curriculum" onclick="selectTab('curriculum')">Testing Skills</button>
+        <button class="skill-view-btn active" data-tab="all" onclick="selectTab('all')">All Skills</button>
+        <button class="skill-view-btn" data-tab="curriculum" onclick="selectTab('curriculum')">Testing Skills</button>
         <button class="skill-view-btn" data-tab="supplemental" onclick="selectTab('supplemental')">Supplemental Skills</button>
       </div>
-      <button class="btn btn-primary hidden" id="create-skill-btn" onclick="openCreateSkillModal()">+ Create Skill</button>
     </div>
 
     <!-- Filter bar -->
@@ -177,7 +182,7 @@
   let completionMap = {};
   let currentUser   = null;
   let activeSkill   = null;
-  let activeTab     = 'curriculum';
+  let activeTab     = 'all';
 
   // Display order for skill-type sections on the library page.
   const SECTION_ORDER = [
@@ -269,7 +274,9 @@
     const level  = document.getElementById('filter-level').value;
     const type   = document.getElementById('filter-type').value;
 
-    const tabSkills = allSkills.filter(s => activeTab === 'curriculum' ? s.isTestable : !s.isTestable);
+    const tabSkills = activeTab === 'all'
+      ? allSkills
+      : allSkills.filter(s => activeTab === 'curriculum' ? s.isTestable : !s.isTestable);
     const filtered  = Skills.filterSkills(tabSkills, { level, type, search });
     renderSkills(filtered);
 
@@ -749,10 +756,7 @@
       });
 
       allSkills.push(skill);
-      activeTab = skill.isTestable ? 'curriculum' : 'supplemental';
-      document.querySelectorAll('.skill-view-btn').forEach(btnEl => {
-        btnEl.classList.toggle('active', btnEl.dataset.tab === activeTab);
-      });
+      selectTab(skill.isTestable ? 'curriculum' : 'supplemental');
 
       App.showToast('Skill created successfully!');
       closeCreateSkillModal();
