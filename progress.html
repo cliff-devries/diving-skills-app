@@ -149,50 +149,48 @@
       <button class="modal-close" onclick="App.closeModal('edit-profile-modal')">✕</button>
     </div>
 
-    <!-- Super-user-only fields (hidden for regular coaches) -->
-    <div id="ep-su-fields" class="hidden">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">First Name</label>
-          <input type="text" id="ep-first-name" class="form-input" placeholder="Jane">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Last Name</label>
-          <input type="text" id="ep-last-name" class="form-input" placeholder="Smith">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Date of Birth</label>
-          <input type="date" id="ep-dob" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Gender</label>
-          <select id="ep-gender" class="form-select">
-            <option value="">Not set</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-      </div>
-      <div class="divider mb-3"></div>
-    </div>
-
-    <!-- Coach-editable fields -->
     <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">First Name</label>
+        <input type="text" id="ep-first-name" class="form-input" placeholder="Jane">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input type="text" id="ep-last-name" class="form-input" placeholder="Smith">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date of Birth</label>
+        <input type="date" id="ep-dob" class="form-input">
+      </div>
       <div class="form-group">
         <label class="form-label">Current Level</label>
         <select id="ep-level" class="form-select"></select>
       </div>
+    </div>
+    <div class="form-row">
       <div class="form-group">
         <label class="form-label">Diver Group</label>
-        <input type="text" id="ep-diver-group" class="form-input" placeholder="e.g. Competitive A">
+        <select id="ep-diver-group" class="form-select">
+          <option value="">— none —</option>
+          <option value="Learn to Dive">Learn to Dive</option>
+          <option value="Novice">Novice</option>
+          <option value="Lessons">Lessons</option>
+          <option value="Pre-Team">Pre-Team</option>
+          <option value="Sparks">Sparks</option>
+          <option value="Fire">Fire</option>
+          <option value="Blaze">Blaze</option>
+          <option value="Masters">Masters</option>
+          <option value="Inactive">Inactive</option>
+        </select>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Assigned Coach Name</label>
-      <input type="text" id="ep-coach-name" class="form-input" placeholder="Override roster coach name">
+      <div class="form-group">
+        <label class="form-label">Assigned Coach</label>
+        <select id="ep-coach" class="form-select">
+          <option value="">— none —</option>
+        </select>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -226,7 +224,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=14"></script>
+<script src="js/supabase.js?v=15"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=5"></script>
@@ -417,32 +415,43 @@
   // =============================================
   // EDIT PROFILE MODAL
   // =============================================
-  function openEditProfileModal() {
+  async function openEditProfileModal() {
     if (!targetDiver) return;
-    const d           = targetDiver;
-    const isSuperUser = currentUser.role === 'super_user';
+    const d = targetDiver;
 
-    document.getElementById('ep-su-fields').classList.toggle('hidden', !isSuperUser);
-    if (isSuperUser) {
-      document.getElementById('ep-first-name').value = d.first_name    || '';
-      document.getElementById('ep-last-name').value  = d.last_name     || '';
-      document.getElementById('ep-dob').value        = d.date_of_birth || '';
-      document.getElementById('ep-gender').value     = d.gender        || '';
-    }
-
+    // Populate level dropdown once
     const lvlSel = document.getElementById('ep-level');
     if (!lvlSel.options.length) {
-      for (let i = 0; i <= 12; i++) {
+      for (let i = 1; i <= 12; i++) {
         const opt = document.createElement('option');
         opt.value = i;
-        opt.textContent = i === 0 ? 'Level 0 — Beginner' : `Level ${i}`;
+        opt.textContent = `Level ${i}`;
         lvlSel.appendChild(opt);
       }
     }
 
-    lvlSel.value = d.current_level != null ? String(d.current_level) : '0';
+    // Populate coach dropdown fresh each open
+    const coachSel = document.getElementById('ep-coach');
+    coachSel.innerHTML = '<option value="">— none —</option>';
+    try {
+      const coaches = await SupabaseDB.getActiveCoaches();
+      coaches.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.full_name;
+        opt.textContent = App.formatNameLastFirst(c);
+        coachSel.appendChild(opt);
+      });
+    } catch (err) {
+      console.error('[EditProfile] getActiveCoaches failed:', err.message);
+    }
+
+    // Pre-fill all fields
+    document.getElementById('ep-first-name').value  = d.first_name    || '';
+    document.getElementById('ep-last-name').value   = d.last_name     || '';
+    document.getElementById('ep-dob').value         = d.date_of_birth || '';
+    lvlSel.value = d.current_level != null ? String(d.current_level) : '';
     document.getElementById('ep-diver-group').value  = d.diver_group          || '';
-    document.getElementById('ep-coach-name').value   = d.assigned_coach_name  || '';
+    coachSel.value = d.assigned_coach_name || '';
     document.getElementById('ep-start-date').value   = d.start_date           || '';
     document.getElementById('ep-aqua-group').value   = (d.aqua_group && d.aqua_group !== 'TBD') ? d.aqua_group : '';
     document.getElementById('ep-parent-email').value = d.parent_email         || '';
@@ -453,48 +462,29 @@
   }
 
   async function saveProfileEdit() {
-    const btn       = document.getElementById('btn-save-profile');
-    const alertEl   = document.getElementById('edit-profile-alert');
-    const isSuperUser = currentUser.role === 'super_user';
+    const btn     = document.getElementById('btn-save-profile');
+    const alertEl = document.getElementById('edit-profile-alert');
 
     alertEl.className = 'alert mb-4';
     App.setBtnLoading(btn, true);
     try {
       const level = document.getElementById('ep-level').value;
-      const updates = {
+      await SupabaseDB.updateDiverProfileByCoach(targetDiverId, {
+        firstName:         document.getElementById('ep-first-name').value.trim()  || null,
+        lastName:          document.getElementById('ep-last-name').value.trim()   || null,
+        dateOfBirth:       document.getElementById('ep-dob').value                || null,
         currentLevel:      level !== '' ? parseInt(level, 10) : null,
-        diverGroup:        document.getElementById('ep-diver-group').value.trim()  || null,
-        assignedCoachName: document.getElementById('ep-coach-name').value.trim()   || null,
-        startDate:         document.getElementById('ep-start-date').value          || null,
+        diverGroup:        document.getElementById('ep-diver-group').value        || null,
+        assignedCoachName: document.getElementById('ep-coach').value              || null,
+        startDate:         document.getElementById('ep-start-date').value         || null,
         parentEmail:       document.getElementById('ep-parent-email').value.trim() || null,
         parentPhone:       document.getElementById('ep-parent-phone').value.trim() || null,
-        aquaGroup:         document.getElementById('ep-aqua-group').value.trim()   || null,
-      };
-
-      if (isSuperUser) {
-        const firstName = document.getElementById('ep-first-name').value.trim();
-        const lastName  = document.getElementById('ep-last-name').value.trim();
-        await SupabaseDB.updateProfile(targetDiverId, {
-          first_name:          firstName || null,
-          last_name:           lastName  || null,
-          full_name:           [firstName, lastName].filter(Boolean).join(' ') || null,
-          date_of_birth:       document.getElementById('ep-dob').value    || null,
-          gender:              document.getElementById('ep-gender').value  || null,
-          current_level:       updates.currentLevel,
-          diver_group:         updates.diverGroup,
-          assigned_coach_name: updates.assignedCoachName,
-          start_date:          updates.startDate,
-          parent_email:        updates.parentEmail,
-          parent_phone:        updates.parentPhone,
-          aqua_group:          updates.aquaGroup,
-        });
-      } else {
-        await SupabaseDB.updateDiverProfileByCoach(targetDiverId, updates);
-      }
+        aquaGroup:         document.getElementById('ep-aqua-group').value.trim()  || null,
+      });
 
       targetDiver = await SupabaseDB.getProfileById(targetDiverId);
       App.closeModal('edit-profile-modal');
-      App.showToast('Profile updated.');
+      App.showToast('Profile updated successfully.');
       renderProfileHeader();
       updateStats(allSkills, completionMap);
     } catch (err) {

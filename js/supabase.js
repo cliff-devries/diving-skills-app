@@ -93,11 +93,13 @@ const SupabaseDB = {
     if (error) throw new Error(error.message);
   },
 
-  // Coach updates the coach-editable fields on a diver's profile.
-  // Uses SECURITY DEFINER RPC that verifies roster membership.
-  async updateDiverProfileByCoach(diverId, { currentLevel, diverGroup, assignedCoachName, startDate, parentEmail, parentPhone, aquaGroup }) {
+  // Any active coach can update all editable fields on a diver's profile.
+  async updateDiverProfileByCoach(diverId, { firstName, lastName, dateOfBirth, currentLevel, diverGroup, assignedCoachName, startDate, parentEmail, parentPhone, aquaGroup }) {
     const { error } = await this.db.rpc('update_diver_profile_by_coach', {
       p_diver_id:            diverId,
+      p_first_name:          firstName          !== undefined ? firstName          : null,
+      p_last_name:           lastName           !== undefined ? lastName           : null,
+      p_date_of_birth:       dateOfBirth        !== undefined ? dateOfBirth        : null,
       p_current_level:       currentLevel       !== undefined ? currentLevel       : null,
       p_diver_group:         diverGroup         !== undefined ? diverGroup         : null,
       p_assigned_coach_name: assignedCoachName  !== undefined ? assignedCoachName  : null,
@@ -107,6 +109,19 @@ const SupabaseDB = {
       p_aqua_group:          aquaGroup          !== undefined ? aquaGroup          : null,
     });
     if (error) throw new Error(error.message);
+  },
+
+  // Returns all active coaches sorted by last name then first name.
+  async getActiveCoaches() {
+    const { data, error } = await this.db
+      .from('profiles')
+      .select('id, full_name, first_name, last_name')
+      .eq('role', 'coach')
+      .eq('status', 'active')
+      .order('last_name', { ascending: true })
+      .order('first_name', { ascending: true });
+    if (error) { console.error('[SupabaseDB] getActiveCoaches:', error.message); return []; }
+    return data ?? [];
   },
 
   // Search unclaimed/pending profiles by diver name (and optionally coach name).
