@@ -59,9 +59,9 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=5 |
-| js/supabase.js | v=12 |
+| js/supabase.js | v=13 |
 | js/auth.js | v=2 |
-| js/skills.js | v=3 |
+| js/skills.js | v=4 |
 | css/styles.css | v=5 |
 
 ---

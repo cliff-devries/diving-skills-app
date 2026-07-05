@@ -455,7 +455,8 @@ const SupabaseDB = {
     const { data: skills, error: skillsError } = await this.db
       .from('skills')
       .select('id, skill_level, is_testable')
-      .eq('is_testable', true);
+      .eq('is_testable', true)
+      .is('deleted_at', null);
     if (skillsError) { console.error('[SupabaseDB] getFullLevelsReadyToTest:', skillsError.message); return 0; }
 
     const levelSkillIds = new Map();
@@ -752,7 +753,8 @@ const SupabaseDB = {
     const { data: skills, error: skillsError } = await this.db
       .from('skills')
       .select('id, skill_level, is_testable')
-      .eq('is_testable', true);
+      .eq('is_testable', true)
+      .is('deleted_at', null);
     if (skillsError) { console.error('[SupabaseDB] getDiversReadyForFullLevelTest:', skillsError.message); return []; }
 
     const levelSkillIds = new Map();
@@ -808,6 +810,7 @@ const SupabaseDB = {
       .select('id, skill_name, skill_description, skill_type, skill_category, skill_order, requires_harness')
       .eq('skill_level', level)
       .eq('is_testable', true)
+      .is('deleted_at', null)
       .order('skill_order', { ascending: true })
       .order('skill_name',  { ascending: true });
     if (skillsErr) throw new Error(skillsErr.message);
@@ -988,5 +991,25 @@ const SupabaseDB = {
     const map = {};
     (data ?? []).forEach(r => { map[r.level] = r; });
     return map;
+  },
+
+  // Count distinct divers with skill_completions records for a given skill.
+  async getSkillCompletionCount(skillId) {
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .select('diver_id')
+      .eq('skill_id', skillId);
+    if (error) { console.error('[SupabaseDB] getSkillCompletionCount:', error.message); return 0; }
+    const unique = new Set((data ?? []).map(r => r.diver_id));
+    return unique.size;
+  },
+
+  // Soft-delete a skill by setting deleted_at = NOW(). Does not remove any data.
+  async softDeleteSkill(skillId) {
+    const { error } = await this.db
+      .from('skills')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', skillId);
+    if (error) throw new Error(error.message);
   },
 };

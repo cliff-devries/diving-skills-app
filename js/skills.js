@@ -11,6 +11,7 @@ const Skills = {
     const { data, error } = await window.supabaseClient
       .from('skills')
       .select('*')
+      .is('deleted_at', null)
       .order('skill_order', { ascending: true })
       .order('skill_level', { ascending: true })
       .order('skill_name',  { ascending: true });
@@ -24,6 +25,7 @@ const Skills = {
       .from('skills')
       .select('*')
       .eq('skill_level', level)
+      .is('deleted_at', null)
       .order('skill_order', { ascending: true })
       .order('skill_name',  { ascending: true });
     if (error) throw new Error(error.message);
@@ -36,6 +38,7 @@ const Skills = {
       .from('skills')
       .select('*')
       .eq('id', id)
+      .is('deleted_at', null)
       .single();
     if (error) throw new Error(error.message);
     return Skills._normalize(data);
@@ -66,6 +69,7 @@ const Skills = {
       .from('skills')
       .select('skill_order')
       .gte('skill_order', 10000)
+      .is('deleted_at', null)
       .order('skill_order', { ascending: false })
       .limit(1);
     if (error) throw new Error(error.message);
