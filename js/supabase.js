@@ -959,6 +959,7 @@ const SupabaseDB = {
       .select('id', { count: 'exact', head: true })
       .eq('role', 'coach')
       .eq('status', 'active');
+    console.log('Coach count result:', count, '| error:', error?.message ?? null);
     if (error) { console.error('[SupabaseDB] getTotalCoachCount:', error.message); return 0; }
     return count ?? 0;
   },
