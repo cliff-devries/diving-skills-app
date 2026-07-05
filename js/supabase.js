@@ -950,6 +950,16 @@ const SupabaseDB = {
     return count ?? 0;
   },
 
+  async getTotalCoachCount() {
+    const { count, error } = await this.db
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'coach')
+      .eq('status', 'active');
+    if (error) { console.error('[SupabaseDB] getTotalCoachCount:', error.message); return 0; }
+    return count ?? 0;
+  },
+
   // Level completion records for a diver, keyed by level number.
   async getLevelCompletions(diverId) {
     const { data, error } = await this.db

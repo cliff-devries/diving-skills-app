@@ -28,7 +28,7 @@
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=10"></script>
+<script src="js/supabase.js?v=11"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
@@ -70,7 +70,7 @@
     const [
       roster, claims, pendingCoaches, clubSettings,
       fullLevelsReadyToTest, totalSkillsReadyToTest,
-      skillsAttainedThisMonth, totalSkillsAttained, totalDivers,
+      skillsAttainedThisMonth, totalSkillsAttained, totalDivers, totalCoaches,
     ] = await Promise.all([
       SupabaseDB.getRoster(user.id),
       SupabaseDB.getPendingClaimsForCoach(user.id),
@@ -81,6 +81,7 @@
       SupabaseDB.getSkillsAttainedThisMonth(user.id),
       SupabaseDB.getTotalSkillsAttained(user.id),
       SupabaseDB.getTotalDiverCount(),
+      SupabaseDB.getTotalCoachCount(),
     ]);
 
     main.innerHTML = `
@@ -132,7 +133,10 @@
 
       <!-- Row 3 -->
       <div class="card-grid-2 mb-6">
-        ${rankingCardHtml('usa_diving_ranking', 'USA Diving Ranking', clubSettings.usa_diving_ranking, isSuperUser)}
+        <div class="stat-card">
+          <div class="stat-value">${totalCoaches}</div>
+          <div class="stat-label">Coaches</div>
+        </div>
         ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking, isSuperUser)}
       </div>
 
