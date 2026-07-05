@@ -575,7 +575,7 @@
       ${currentUser.is_super_user ? `
       <div class="divider mt-4"></div>
       <div class="mt-2">
-        <button class="btn btn-sm" style="background:var(--danger,#ef4444);color:#fff;border:none;" onclick="confirmDeleteSkill(${skillId})">Delete Skill</button>
+        <button class="btn btn-sm" id="delete-skill-open-btn" style="background:var(--danger,#ef4444);color:#fff;border:none;" onclick="confirmDeleteSkill(${skillId})">Delete Skill</button>
       </div>
       ` : ''}
     `;
@@ -748,22 +748,47 @@
   let skillPendingDelete = null;
 
   async function confirmDeleteSkill(skillId) {
-    const skill = allSkills.find(s => s.id === skillId);
-    if (!skill) return;
-    skillPendingDelete = skillId;
+    console.log('Delete button clicked for skill:', skillId);
 
-    const count = await SupabaseDB.getSkillCompletionCount(skillId);
-    const completionNote = count > 0
-      ? `<p class="text-sm mt-2" style="color:var(--danger,#ef4444)">Warning: ${count} diver${count !== 1 ? 's have' : ' has'} completion records for this skill. Their history will be preserved but this skill will no longer appear in the app.</p>`
-      : `<p class="text-sm mt-2 text-secondary">This skill has no completion records and can be safely removed.</p>`;
+    const btn = document.getElementById('delete-skill-open-btn');
+    if (btn) App.setBtnLoading(btn, true);
 
-    document.getElementById('delete-skill-body').innerHTML = `
-      <p class="text-sm text-secondary">Are you sure you want to delete this skill? This cannot be easily undone.</p>
-      <p class="mt-2" style="font-weight:700">${App.escHtml(skill.name)}</p>
-      ${completionNote}
-    `;
+    try {
+      const skill = allSkills.find(s => s.id === skillId);
+      console.log('Skill found in allSkills:', skill ? skill.name : 'NOT FOUND', '(id type:', typeof skillId, ')');
 
-    App.openModal('delete-skill-modal');
+      if (!skill) {
+        console.error('Skill not found in allSkills for id:', skillId);
+        App.showToast('Skill not found. Try refreshing the page.', 'error');
+        if (btn) App.setBtnLoading(btn, false);
+        return;
+      }
+
+      skillPendingDelete = skillId;
+
+      console.log('Getting completion count for skill:', skillId);
+      const count = await SupabaseDB.getSkillCompletionCount(skillId);
+      console.log('Completion count result:', count);
+
+      const completionNote = count > 0
+        ? `<p class="text-sm mt-2" style="color:var(--danger,#ef4444)">Warning: ${count} diver${count !== 1 ? 's have' : ' has'} completion records for this skill. Their history will be preserved but this skill will no longer appear in the app.</p>`
+        : `<p class="text-sm mt-2 text-secondary">This skill has no completion records and can be safely removed.</p>`;
+
+      document.getElementById('delete-skill-body').innerHTML = `
+        <p class="text-sm text-secondary">Are you sure you want to delete this skill? This cannot be easily undone.</p>
+        <p class="mt-2" style="font-weight:700">${App.escHtml(skill.name)}</p>
+        ${completionNote}
+      `;
+
+      if (btn) App.setBtnLoading(btn, false);
+      App.openModal('delete-skill-modal');
+    } catch (err) {
+      console.error('DELETE SKILL ERROR:', err.message);
+      console.error('Full error:', err);
+      App.showToast(err.message || 'Could not load deletion info.', 'error');
+      if (btn) App.setBtnLoading(btn, false);
+      skillPendingDelete = null;
+    }
   }
 
   async function executeDeleteSkill() {
