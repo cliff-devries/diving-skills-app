@@ -202,29 +202,10 @@
       flex: 0 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 10px 14px 12px;
+      gap: 4px;
+      padding: 8px 14px 10px;
       background: var(--surface-2, #1a1f2e);
       border-top: 1px solid var(--border);
-    }
-    .scoring-label-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .scoring-skill-name {
-      font-size: 0.72rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .scoring-skill-name span {
-      color: var(--text-primary);
-      font-weight: 600;
     }
     .scoring-clear-btn {
       padding: 4px 12px;
@@ -236,42 +217,44 @@
       border-radius: 6px;
       cursor: pointer;
       flex-shrink: 0;
+      align-self: center;
     }
     .scoring-clear-btn:hover { border-color: #ef4444; color: #ef4444; }
     .scoring-display-row {
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
+      padding: 0 2px;
     }
     .scoring-advance-row {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      gap: 8px;
     }
     .scoring-advance-btn {
       min-height: 44px;
-      min-width: 100px;
+      flex: 1;
       font-size: 0.85rem;
     }
     .scoring-number {
-      font-size: 2.8rem;
+      font-size: 2.2rem;
       font-weight: 800;
       color: var(--accent, #14b8a6);
       line-height: 1;
-      text-align: center;
-      min-width: 90px;
     }
     .scoring-number.unscored {
       color: var(--text-secondary);
-      font-size: 2rem;
+      font-size: 1.7rem;
     }
     .calc-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
+      gap: 4px;
     }
     .calc-btn {
-      padding: 9px 4px;
-      font-size: 1rem;
+      padding: 0;
+      min-height: 44px;
+      font-size: 0.95rem;
       font-weight: 700;
       border-radius: 7px;
       border: 1.5px solid var(--border);
@@ -283,46 +266,6 @@
     }
     .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
     .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
-    .scoring-slider-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .scoring-slider {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 5px;
-      border-radius: 3px;
-      background: var(--border);
-      outline: none;
-      cursor: pointer;
-      accent-color: var(--accent, #14b8a6);
-      min-width: 0;
-    }
-    .scoring-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--accent, #14b8a6);
-      cursor: pointer;
-    }
-    .scoring-slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--accent, #14b8a6);
-      cursor: pointer;
-      border: none;
-    }
-    .scoring-slider-val {
-      min-width: 34px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--accent, #14b8a6);
-      text-align: right;
-    }
 
     /* Complete Diver bar — pinned at bottom of skill-col */
     .complete-diver-bar {
@@ -1010,30 +953,23 @@
   // ---- Scoring panel ----
 
   function renderScoringPanel(idx) {
-    const sd     = sessionDivers[idx];
-    const scores = sessionScores[sd.diver.id] || {};
-    const skill  = activeSkillId !== null ? sd.skills?.find(s => s.id === activeSkillId) : null;
-    const scored = skill ? scores[skill.id] : null;
+    const sd       = sessionDivers[idx];
+    const scores   = sessionScores[sd.diver.id] || {};
+    const skill    = activeSkillId !== null ? sd.skills?.find(s => s.id === activeSkillId) : null;
+    const scored   = skill ? scores[skill.id] : null;
     const scoreVal = scored ? parseFloat(scored.value) : null;
 
-    const skillLabel   = skill
-      ? `Scoring: <span>${App.escHtml(skill.name)}</span>`
-      : 'Select a skill to score';
-    const sliderVal    = scoreVal !== null ? scoreVal : 0;
-    const numText      = scoreVal !== null ? scoreVal.toFixed(1) : '—';
-    const numClass     = scoreVal !== null ? 'scoring-number' : 'scoring-number unscored';
-    const sliderValTxt = scoreVal !== null ? scoreVal.toFixed(1) : '—';
+    const numText  = scoreVal !== null ? scoreVal.toFixed(1) : '—';
+    const numClass = scoreVal !== null ? 'scoring-number' : 'scoring-number unscored';
 
     const currentSkillIdx = sd.skills ? sd.skills.findIndex(s => s.id === activeSkillId) : -1;
+    const isFirstSkill    = currentSkillIdx === 0;
     const isLastSkill     = currentSkillIdx >= 0 && currentSkillIdx === (sd.skills?.length || 0) - 1;
 
     document.getElementById('scoring-panel').innerHTML = `
-      <div class="scoring-label-row">
-        <div class="scoring-skill-name">${skillLabel}</div>
-        <button class="scoring-clear-btn" onclick="clearScore()">C</button>
-      </div>
       <div class="scoring-display-row">
         <div class="${numClass}" id="scoring-number">${numText}</div>
+        <button class="scoring-clear-btn" onclick="clearScore()">C</button>
       </div>
       <div class="calc-grid">
         <button class="calc-btn" onclick="calcInput(7)">7</button>
@@ -1049,13 +985,11 @@
         <button class="calc-btn" onclick="calcInput(10)">10</button>
         <button class="calc-btn" onclick="calcInput(0.5)">.5</button>
       </div>
-      <div class="scoring-slider-row">
-        <input type="range" class="scoring-slider" id="scoring-slider"
-          min="0" max="10" step="0.5" value="${sliderVal}"
-          oninput="onScoringSlider(this.value)">
-        <span class="scoring-slider-val" id="scoring-slider-val">${sliderValTxt}</span>
-      </div>
       <div class="scoring-advance-row">
+        <button class="btn btn-secondary scoring-advance-btn" id="btn-prev"
+          onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>
+          ← Prev
+        </button>
         <button class="btn btn-secondary scoring-advance-btn" id="btn-advance"
           onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
           ${isLastSkill ? 'Last ✓' : 'Next →'}
@@ -1086,11 +1020,6 @@
     setActiveSkillScore(newScore);
   }
 
-  function onScoringSlider(rawValue) {
-    if (activeSkillId === null) return;
-    setActiveSkillScore(parseFloat(rawValue));
-  }
-
   function setActiveSkillScore(scoreVal) {
     const sd      = sessionDivers[currentDiverIdx];
     const diverId = sd.diver.id;
@@ -1098,10 +1027,6 @@
 
     const numEl = document.getElementById('scoring-number');
     if (numEl) { numEl.textContent = scoreVal.toFixed(1); numEl.classList.remove('unscored'); }
-    const slider = document.getElementById('scoring-slider');
-    if (slider) slider.value = scoreVal;
-    const sliderValEl = document.getElementById('scoring-slider-val');
-    if (sliderValEl) sliderValEl.textContent = scoreVal.toFixed(1);
 
     const row = document.getElementById(`skill-row-${activeSkillId}`);
     if (row) {
@@ -1110,9 +1035,8 @@
       if (badge) badge.textContent = scoreVal.toFixed(1);
     }
 
-    const idx = currentDiverIdx;
-    updateScoredCountLabel(idx);
-    updateCompleteDiverBtn(idx);
+    updateScoredCountLabel(currentDiverIdx);
+    updateCompleteDiverBtn(currentDiverIdx);
   }
 
   function clearScore() {
@@ -1123,10 +1047,6 @@
 
     const numEl = document.getElementById('scoring-number');
     if (numEl) { numEl.textContent = '—'; numEl.classList.add('unscored'); }
-    const slider = document.getElementById('scoring-slider');
-    if (slider) slider.value = 0;
-    const sliderValEl = document.getElementById('scoring-slider-val');
-    if (sliderValEl) sliderValEl.textContent = '—';
 
     const row = document.getElementById(`skill-row-${activeSkillId}`);
     if (row) {
@@ -1135,9 +1055,8 @@
       if (badge) badge.textContent = '—';
     }
 
-    const idx = currentDiverIdx;
-    updateScoredCountLabel(idx);
-    updateCompleteDiverBtn(idx);
+    updateScoredCountLabel(currentDiverIdx);
+    updateCompleteDiverBtn(currentDiverIdx);
   }
 
   function advanceToNextSkill() {
@@ -1151,6 +1070,20 @@
     const nextSkill = sd.skills[nextIdx];
     selectSkillForScoring(nextSkill.id);
     document.getElementById(`skill-row-${nextSkill.id}`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function moveToPrevSkill() {
+    const sd = sessionDivers[currentDiverIdx];
+    if (!sd.skills || !sd.skills.length) return;
+    const currentIdx = activeSkillId !== null
+      ? sd.skills.findIndex(s => s.id === activeSkillId)
+      : -1;
+    const prevIdx = currentIdx - 1;
+    if (prevIdx < 0) return;
+    const prevSkill = sd.skills[prevIdx];
+    selectSkillForScoring(prevSkill.id);
+    document.getElementById(`skill-row-${prevSkill.id}`)
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
