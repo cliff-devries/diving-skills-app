@@ -1199,8 +1199,8 @@
     console.log('Confirm button clicked');
     console.log('confirmCallback type:', typeof confirmCallback);
     console.log('confirmCallback value:', confirmCallback);
-    console.log('activeDiverId:', activeDiverId);
-    console.log('sessionDivers keys:', Object.keys(sessionDivers || {}));
+    console.log('currentDiverIdx:', currentDiverIdx);
+    console.log('sessionDivers length:', (sessionDivers || []).length);
     // Capture callback BEFORE closeConfirmModal() nulls it out.
     const cb = confirmCallback;
     closeConfirmModal();
