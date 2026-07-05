@@ -1195,13 +1195,27 @@
     confirmCallback = null;
   }
 
-  document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+  document.getElementById('confirm-modal-ok').addEventListener('click', async () => {
     console.log('Confirm button clicked');
+    console.log('confirmCallback type:', typeof confirmCallback);
+    console.log('confirmCallback value:', confirmCallback);
+    console.log('activeDiverId:', activeDiverId);
+    console.log('sessionDivers keys:', Object.keys(sessionDivers || {}));
+    // Capture callback BEFORE closeConfirmModal() nulls it out.
+    const cb = confirmCallback;
     closeConfirmModal();
     try {
-      if (typeof confirmCallback === 'function') confirmCallback();
-    } catch (err) {
-      console.error('Confirm callback error:', err);
+      if (typeof cb === 'function') {
+        console.log('Calling confirmCallback...');
+        await cb();
+        console.log('confirmCallback returned successfully');
+      } else {
+        console.error('confirmCallback is not a function:', cb);
+      }
+    } catch(err) {
+      console.error('ERROR in confirm handler:', err.message);
+      console.error('Full error:', err);
+      console.error('Stack trace:', err.stack);
       App.showToast(err.message || 'An error occurred', 'error');
     }
   });
