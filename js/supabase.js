@@ -447,9 +447,9 @@ const SupabaseDB = {
   // Count of divers on a coach's roster who have at least one curriculum
   // level where EVERY testable skill is both Stage 1 (attained) and Stage 2
   // (ready for test) — i.e. a full level ready to be tested.
-  async getFullLevelsReadyToTest(coachId) {
-    const roster = await this.getRoster(coachId);
-    const diverIds = roster.map(r => r.diver.id);
+  async getFullLevelsReadyToTest() {
+    const divers = await this.getAllDivers();
+    const diverIds = divers.map(d => d.id);
     if (!diverIds.length) return 0;
 
     const { data: skills, error: skillsError } = await this.db
@@ -493,9 +493,9 @@ const SupabaseDB = {
 
   // Total count of skill_completions rows across a coach's roster where
   // ready_for_test = true, for testable (curriculum) skills only.
-  async getTotalSkillsReadyToTest(coachId) {
-    const roster = await this.getRoster(coachId);
-    const diverIds = roster.map(r => r.diver.id);
+  async getTotalSkillsReadyToTest() {
+    const divers = await this.getAllDivers();
+    const diverIds = divers.map(d => d.id);
     if (!diverIds.length) return 0;
 
     const { data, error } = await this.db
@@ -510,9 +510,9 @@ const SupabaseDB = {
   // Count of skill_completions across a coach's roster where skill_attained
   // = true and skill_attained_at falls within the current calendar month,
   // for testable (curriculum) skills only.
-  async getSkillsAttainedThisMonth(coachId) {
-    const roster = await this.getRoster(coachId);
-    const diverIds = roster.map(r => r.diver.id);
+  async getSkillsAttainedThisMonth() {
+    const divers = await this.getAllDivers();
+    const diverIds = divers.map(d => d.id);
     if (!diverIds.length) return 0;
 
     const now   = new Date();
@@ -532,9 +532,9 @@ const SupabaseDB = {
 
   // Cumulative all-time count of skill_completions across a coach's roster
   // where skill_attained = true, for testable (curriculum) skills only.
-  async getTotalSkillsAttained(coachId) {
-    const roster = await this.getRoster(coachId);
-    const diverIds = roster.map(r => r.diver.id);
+  async getTotalSkillsAttained() {
+    const divers = await this.getAllDivers();
+    const diverIds = divers.map(d => d.id);
     if (!diverIds.length) return 0;
 
     const { data, error } = await this.db
@@ -958,6 +958,23 @@ const SupabaseDB = {
       .eq('status', 'active');
     if (error) { console.error('[SupabaseDB] getTotalCoachCount:', error.message); return 0; }
     return count ?? 0;
+  },
+
+  // All diver profiles in the club (excludes rejected), sorted last then first name.
+  async getAllDivers() {
+    const { data, error } = await this.db
+      .from('profiles')
+      .select(`
+        id, full_name, first_name, last_name, gender, email, avatar_url, status, current_level, created_at,
+        date_of_birth, diver_group, start_date, assigned_coach_name, aqua_group, parent_email, parent_phone,
+        invite_token, invite_token_expires_at, invite_type
+      `)
+      .eq('role', 'diver')
+      .neq('status', 'rejected')
+      .order('last_name', { ascending: true })
+      .order('first_name', { ascending: true });
+    if (error) { console.error('[SupabaseDB] getAllDivers:', error.message); return []; }
+    return data ?? [];
   },
 
   // Level completion records for a diver, keyed by level number.

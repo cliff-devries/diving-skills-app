@@ -567,7 +567,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=11"></script>
+<script src="js/supabase.js?v=12"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
@@ -614,20 +614,13 @@
     searchUi.style.display  = 'none';
 
     try {
-      const roster = await SupabaseDB.getRoster(currentUser.id);
-      rosterDivers = roster.map(r => r.diver);
-      rosterDivers.sort((a, b) => {
-        const aL = (a.last_name || a.full_name || '').toLowerCase();
-        const bL = (b.last_name || b.full_name || '').toLowerCase();
-        if (aL !== bL) return aL < bL ? -1 : 1;
-        return (a.first_name || '').toLowerCase() < (b.first_name || '').toLowerCase() ? -1 : 1;
-      });
+      rosterDivers = await SupabaseDB.getAllDivers();
       loadingEl.style.display = 'none';
 
       if (!rosterDivers.length) {
         searchUi.innerHTML = `<div class="empty-state" style="padding:40px">
           <div class="empty-state-icon">📋</div>
-          <p>No divers on your roster yet.</p>
+          <p>No divers in the club yet.</p>
         </div>`;
         searchUi.style.display = 'block';
         return;

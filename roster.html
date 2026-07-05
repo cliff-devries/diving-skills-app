@@ -330,7 +330,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=11"></script>
+<script src="js/supabase.js?v=12"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
@@ -371,8 +371,8 @@
   })();
 
   async function loadRoster() {
-    const rosterData = await SupabaseDB.getRoster(currentUser.id);
-    roster = rosterData.slice().sort((a, b) => App.compareNames(a.diver, b.diver));
+    const divers = await SupabaseDB.getAllDivers();
+    roster = divers.map(d => ({ diver: d })).sort((a, b) => App.compareNames(a.diver, b.diver));
     completionStats = await SupabaseDB.getRosterCompletionStats(roster.map(r => r.diver.id));
 
     const unclaimedCount = roster.filter(r => r.diver.status !== 'active').length;
