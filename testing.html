@@ -466,15 +466,24 @@
     .search-add-btn:hover { background: rgba(20, 184, 166, 0.15); }
     .selected-diver-card {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+      gap: 8px;
       padding: 10px 14px;
       border-radius: 10px;
       border: 1.5px solid var(--border);
       background: var(--surface, #141826);
     }
+    .selected-diver-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .selected-diver-bottom {
+      padding-left: 44px; /* avatar(34px) + gap(10px) */
+    }
     .selected-diver-remove {
-      padding: 6px 10px;
+      margin-left: auto;
+      padding: 4px 9px;
       font-size: 0.85rem;
       background: none;
       border: 1px solid var(--border);
@@ -483,7 +492,7 @@
       cursor: pointer;
       flex-shrink: 0;
       transition: border-color 0.1s, color 0.1s;
-      min-height: 34px;
+      min-height: 30px;
     }
     .selected-diver-remove:hover { border-color: #ef4444; color: #ef4444; }
     .step1-section-label {
@@ -783,14 +792,16 @@
         .join('');
       return `
         <div class="selected-diver-card">
-          <div class="avatar-sm">${App.escHtml(initials)}</div>
-          <div class="search-result-info">
-            <div class="search-result-name">${name}</div>
+          <div class="selected-diver-top">
+            <div class="avatar-sm">${App.escHtml(initials)}</div>
+            <div class="search-result-name" style="flex:1;min-width:0;">${name}</div>
+            <button class="selected-diver-remove"
+              onclick="removeDiverFromSession('${diver.id}')" aria-label="Remove">✕</button>
           </div>
-          <select class="form-select" style="min-width:110px;font-size:0.82rem;"
-            onchange="updateSelectedLevel('${diver.id}', this.value)">${opts}</select>
-          <button class="selected-diver-remove"
-            onclick="removeDiverFromSession('${diver.id}')" aria-label="Remove">✕</button>
+          <div class="selected-diver-bottom">
+            <select class="form-select" style="width:165px;font-size:0.82rem;"
+              onchange="updateSelectedLevel('${diver.id}', this.value)">${opts}</select>
+          </div>
         </div>`;
     }).join('');
   }
