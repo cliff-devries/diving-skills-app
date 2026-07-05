@@ -225,122 +225,18 @@
 </div>
 
 
-<!-- =============================================
-     REMOVE DIVER MODAL
-============================================= -->
-<div class="modal-overlay" id="remove-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title">Remove Diver</h2>
-      <button class="modal-close" onclick="App.closeModal('remove-modal')">✕</button>
-    </div>
-    <p class="text-secondary text-sm mb-4">
-      Remove <strong id="remove-diver-name">this diver</strong> from your roster?
-      Their skill data will be kept; they'll just be unlinked from you.
-    </p>
-    <div class="flex gap-3 justify-end">
-      <button class="btn btn-ghost" onclick="App.closeModal('remove-modal')">Cancel</button>
-      <button class="btn btn-danger" id="remove-btn" onclick="confirmRemoveDiver()">Remove</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- =============================================
-     EDIT DIVER MODAL
-============================================= -->
-<div class="modal-overlay" id="edit-diver-modal">
-  <div class="modal" style="max-width:500px">
-    <div class="modal-header">
-      <h2 class="modal-title">Edit Diver</h2>
-      <button class="modal-close" onclick="App.closeModal('edit-diver-modal')">✕</button>
-    </div>
-    <p class="text-secondary text-sm mb-4" id="edit-diver-name"></p>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Current Level</label>
-        <select id="edit-level" class="form-select"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Diver Group</label>
-        <input type="text" id="edit-diver-group" class="form-input" placeholder="e.g. Competitive A">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Assigned Coach Name</label>
-      <input type="text" id="edit-assigned-coach" class="form-input" placeholder="Overrides roster coach name">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Start Date</label>
-        <input type="date" id="edit-start-date" class="form-input">
-      </div>
-      <div class="form-group">
-        <label class="form-label">AQUA Group</label>
-        <input type="text" id="edit-aqua-group" class="form-input" placeholder="TBD">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Parent Email</label>
-        <input type="email" id="edit-parent-email" class="form-input" placeholder="parent@example.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Parent Phone</label>
-        <input type="tel" id="edit-parent-phone" class="form-input" placeholder="(555) 123-4567">
-      </div>
-    </div>
-
-    <div id="edit-diver-alert" class="alert mb-4"></div>
-    <div class="flex gap-3 justify-end">
-      <button class="btn btn-ghost" onclick="App.closeModal('edit-diver-modal')">Cancel</button>
-      <button class="btn btn-primary" id="edit-diver-btn" onclick="saveDiverEdit()">Save</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- =============================================
-     INVITE LINK MODAL
-============================================= -->
-<div class="modal-overlay" id="invite-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title" id="invite-modal-title">Invite Link</h2>
-      <button class="modal-close" onclick="App.closeModal('invite-modal')">✕</button>
-    </div>
-    <p class="text-secondary text-sm mb-4" id="invite-modal-desc"></p>
-
-    <div class="form-group">
-      <label class="form-label">Shareable Link</label>
-      <div class="invite-link-row">
-        <input type="text" id="invite-link-input" class="form-input" readonly>
-        <button class="btn btn-secondary" onclick="copyInviteLink()">Copy</button>
-      </div>
-    </div>
-
-    <p class="text-xs text-secondary" id="invite-expiry-text"></p>
-
-    <div class="flex gap-3 justify-end mt-4">
-      <button class="btn btn-ghost" onclick="App.closeModal('invite-modal')">Close</button>
-    </div>
-  </div>
-</div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=16"></script>
+<script src="js/supabase.js?v=17"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
 <script>
-  let currentUser      = null;
-  let roster           = [];
-  let completionStats  = {};
-  let pendingRemove    = null;
-  let pendingEditDiver = null;
+  let currentUser     = null;
+  let roster          = [];
+  let completionStats = {};
 
   (async function initRosterPage() {
     initSupabase();
@@ -360,16 +256,13 @@
       levelSel.appendChild(opt);
     }
 
-    // Populate edit-diver level dropdown (0–12)
-    const editLevelSel = document.getElementById('edit-level');
-    for (let n = 0; n <= 12; n++) {
-      const opt = document.createElement('option');
-      opt.value = n;
-      opt.textContent = n === 0 ? 'Level 0 — Beginner' : `Level ${n}`;
-      editLevelSel.appendChild(opt);
-    }
-
     await loadRoster();
+
+    const toastData = sessionStorage.getItem('roster-toast');
+    if (toastData) {
+      sessionStorage.removeItem('roster-toast');
+      try { const { msg, type } = JSON.parse(toastData); App.showToast(msg, type || 'success'); } catch {}
+    }
   })();
 
   async function loadRoster() {
@@ -473,8 +366,7 @@
   }
 
   function renderDiverRow(r) {
-    const diver    = r.diver;
-    const isActive = (diver.status ?? 'active') === 'active';
+    const diver = r.diver;
 
     const levelHtml = diver.current_level != null
       ? diver.current_level === 0
@@ -482,79 +374,35 @@
         : `<span class="badge badge-level" style="margin-left:4px">L${diver.current_level}</span>`
       : '';
 
-    const age          = calcAge(diver.date_of_birth);
-    const dob          = formatDOB(diver.date_of_birth);
-    const diverGroup   = App.escHtml(diver.diver_group  || '—');
+    const statusBadge = diver.status !== 'active'
+      ? `<span class="badge" style="margin-left:4px;background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">${diver.status === 'pending' ? '⏳ Invited' : 'Unclaimed'}</span>`
+      : '';
+
+    const age           = calcAge(diver.date_of_birth);
+    const dob           = formatDOB(diver.date_of_birth);
+    const diverGroup    = App.escHtml(diver.diver_group || '—');
     const assignedCoach = App.escHtml(diver.assigned_coach_name || currentUser.full_name || '—');
-    const aquaGroup    = calcAquaAge(diver.date_of_birth);
+    const aquaGroup     = calcAquaAge(diver.date_of_birth);
 
     return `
-      <div class="diver-row" id="diver-row-${diver.id}" style="cursor:default;flex-wrap:wrap">
-        ${isActive
-          ? `<a href="progress.html?diver=${diver.id}" style="display:contents;text-decoration:none;color:inherit">`
-          : '<div style="display:contents">'}
-          <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
-          <div class="list-item-content">
-            <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              ${App.escHtml(App.formatNameLastFirst(diver))}
-              ${levelHtml}
-            </div>
-            <div class="roster-meta-grid">
-              <span class="roster-meta-item"><span class="roster-meta-label">Age</span> ${age}</span>
-              <span class="roster-meta-item"><span class="roster-meta-label">DOB</span> ${dob}</span>
-              <span class="roster-meta-item"><span class="roster-meta-label">Group</span> ${diverGroup}</span>
-              <span class="roster-meta-item"><span class="roster-meta-label">Coach</span> ${assignedCoach}</span>
-              <span class="roster-meta-item"><span class="roster-meta-label">AQUA</span> ${aquaGroup}</span>
-            </div>
+      <a class="diver-row" href="progress.html?diver=${diver.id}" id="diver-row-${diver.id}" style="flex-wrap:wrap">
+        <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
+        <div class="list-item-content">
+          <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${App.escHtml(App.formatNameLastFirst(diver))}
+            ${levelHtml}
+            ${statusBadge}
           </div>
-        ${isActive ? '</a>' : '</div>'}
-        <div class="flex gap-2" style="flex-wrap:wrap">
-          ${isActive
-            ? `<a href="progress.html?diver=${diver.id}" class="btn btn-secondary btn-sm">View Progress →</a>`
-            : `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">Invite Diver</button>`}
-          <button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">Invite Parent</button>
-          <button class="btn btn-ghost btn-sm" onclick="openEditDiverModal('${diver.id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm"
-            onclick="openRemoveModal('${diver.id}', '${App.escHtml(diver.full_name)}')">✕</button>
+          <div class="roster-meta-grid">
+            <span class="roster-meta-item"><span class="roster-meta-label">Age</span> ${age}</span>
+            <span class="roster-meta-item"><span class="roster-meta-label">DOB</span> ${dob}</span>
+            <span class="roster-meta-item"><span class="roster-meta-label">Group</span> ${diverGroup}</span>
+            <span class="roster-meta-item"><span class="roster-meta-label">Coach</span> ${assignedCoach}</span>
+            <span class="roster-meta-item"><span class="roster-meta-label">AQUA</span> ${aquaGroup}</span>
+          </div>
         </div>
-      </div>
+      </a>
     `;
-  }
-
-  // ---- Invite links ----
-  async function generateAndShowInvite(diverId, inviteType) {
-    try {
-      const result = await SupabaseDB.generateInvite(diverId, inviteType);
-      const link    = `${window.location.origin}/invite.html?token=${result.token}`;
-
-      document.getElementById('invite-modal-title').textContent =
-        inviteType === 'parent' ? 'Invite Parent' : 'Invite Diver';
-      document.getElementById('invite-modal-desc').textContent =
-        inviteType === 'parent'
-          ? "Share this link with the diver's parent or guardian. They'll be linked to this diver's account."
-          : 'Share this link with the diver so they can create their own account and start tracking progress.';
-      document.getElementById('invite-link-input').value = link;
-      document.getElementById('invite-expiry-text').textContent =
-        `This link expires on ${App.formatDate(result.expires_at)} (7 days from now). It can only be used once.`;
-
-      App.openModal('invite-modal');
-      await loadRoster();
-    } catch (err) {
-      App.showToast(err.message, 'error');
-    }
-  }
-
-  function copyInviteLink() {
-    const input = document.getElementById('invite-link-input');
-    input.select();
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(input.value)
-        .then(() => App.showToast('Invite link copied!'))
-        .catch(() => App.showToast('Could not copy link.', 'error'));
-    } else {
-      document.execCommand('copy');
-      App.showToast('Invite link copied!');
-    }
   }
 
   // ---- Add diver ----
@@ -625,79 +473,8 @@
     document.getElementById('add-diver-alert').className = 'alert mb-4';
   }
 
-  // ---- Remove diver ----
-  function openRemoveModal(diverId, diverName) {
-    pendingRemove = diverId;
-    document.getElementById('remove-diver-name').textContent = diverName;
-    App.openModal('remove-modal');
-  }
-
-  async function confirmRemoveDiver() {
-    if (!pendingRemove) return;
-    const btn = document.getElementById('remove-btn');
-    App.setBtnLoading(btn, true);
-    try {
-      await SupabaseDB.removeDiverFromRoster(currentUser.id, pendingRemove);
-      App.closeModal('remove-modal');
-      App.showToast('Diver removed from roster.');
-      await loadRoster();
-    } catch (err) {
-      App.showToast(err.message, 'error');
-    } finally {
-      App.setBtnLoading(btn, false);
-      pendingRemove = null;
-    }
-  }
-
-  // ---- Edit diver ----
-  function openEditDiverModal(diverId) {
-    const r = roster.find(r => r.diver.id === diverId);
-    if (!r) return;
-    pendingEditDiver = diverId;
-    const d = r.diver;
-    document.getElementById('edit-diver-name').textContent = `Editing ${App.formatNameLastFirst(d)}`;
-    document.getElementById('edit-level').value           = String(d.current_level ?? 0);
-    document.getElementById('edit-diver-group').value     = d.diver_group    ?? '';
-    document.getElementById('edit-assigned-coach').value  = d.assigned_coach_name ?? '';
-    document.getElementById('edit-start-date').value      = d.start_date     ?? '';
-    document.getElementById('edit-aqua-group').value      = d.aqua_group !== 'TBD' ? (d.aqua_group ?? '') : '';
-    document.getElementById('edit-parent-email').value    = d.parent_email   ?? '';
-    document.getElementById('edit-parent-phone').value    = d.parent_phone   ?? '';
-    document.getElementById('edit-diver-alert').className = 'alert mb-4';
-    App.openModal('edit-diver-modal');
-  }
-
-  async function saveDiverEdit() {
-    if (!pendingEditDiver) return;
-    const btn     = document.getElementById('edit-diver-btn');
-    const alertEl = document.getElementById('edit-diver-alert');
-    const level   = document.getElementById('edit-level').value;
-
-    App.setBtnLoading(btn, true);
-    try {
-      await SupabaseDB.updateDiverProfileByCoach(pendingEditDiver, {
-        currentLevel:      level !== '' ? parseInt(level, 10) : null,
-        diverGroup:        document.getElementById('edit-diver-group').value.trim()    || null,
-        assignedCoachName: document.getElementById('edit-assigned-coach').value.trim() || null,
-        startDate:         document.getElementById('edit-start-date').value            || null,
-        parentEmail:       document.getElementById('edit-parent-email').value.trim()   || null,
-        parentPhone:       document.getElementById('edit-parent-phone').value.trim()   || null,
-        aquaGroup:         document.getElementById('edit-aqua-group').value.trim()     || null,
-      });
-      App.closeModal('edit-diver-modal');
-      App.showToast('Diver updated.');
-      await loadRoster();
-    } catch (err) {
-      alertEl.className   = 'alert alert-error visible mb-4';
-      alertEl.textContent = err.message;
-    } finally {
-      App.setBtnLoading(btn, false);
-      pendingEditDiver = null;
-    }
-  }
-
   // Close modals on overlay click
-  ['add-diver-modal', 'remove-modal', 'invite-modal', 'edit-diver-modal'].forEach(id => {
+  ['add-diver-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });

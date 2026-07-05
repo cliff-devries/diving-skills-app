@@ -349,6 +349,12 @@ const SupabaseDB = {
     if (error) throw new Error(error.message);
   },
 
+  // Sets diver status to inactive and removes all roster rows.
+  async removeDiverByCoach(diverId) {
+    const { error } = await this.db.rpc('remove_diver_from_roster', { p_diver_id: diverId });
+    if (error) throw new Error(error.message);
+  },
+
   // =============================================
   // PARENT-DIVER LINKS
   // =============================================
@@ -998,6 +1004,7 @@ const SupabaseDB = {
       `)
       .eq('role', 'diver')
       .neq('status', 'rejected')
+      .neq('status', 'inactive')
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
     if (error) { console.error('[SupabaseDB] getAllDivers:', error.message); return []; }

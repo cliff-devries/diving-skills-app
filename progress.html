@@ -218,13 +218,65 @@
       <button class="btn btn-ghost" onclick="App.closeModal('edit-profile-modal')">Cancel</button>
       <button class="btn btn-primary" id="btn-save-profile" onclick="saveProfileEdit()">Save</button>
     </div>
+    <hr style="margin:16px 0;border:none;border-top:1px solid var(--border)">
+    <div>
+      <button class="btn btn-danger btn-sm" onclick="openRemoveFromRosterModal()">Remove Diver</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     INVITE LINK MODAL
+============================================= -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="invite-modal-title">Invite Link</h2>
+      <button class="modal-close" onclick="App.closeModal('invite-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="invite-modal-desc"></p>
+    <div class="form-group">
+      <label class="form-label">Shareable Link</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="invite-link-input" class="form-input" readonly style="flex:1;font-family:monospace;font-size:.8rem">
+        <button class="btn btn-secondary" onclick="copyInviteLink()">Copy</button>
+      </div>
+    </div>
+    <p class="text-xs text-secondary" id="invite-expiry-text"></p>
+    <div class="flex gap-3 justify-end mt-4">
+      <button class="btn btn-ghost" onclick="App.closeModal('invite-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     REMOVE FROM ROSTER MODAL
+============================================= -->
+<div class="modal-overlay" id="remove-from-roster-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Remove Diver</h2>
+      <button class="modal-close" onclick="App.closeModal('remove-from-roster-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Are you sure you want to remove <strong id="remove-roster-diver-name">this diver</strong> from the roster?
+    </p>
+    <p class="text-secondary text-sm mb-4">
+      This will remove them from the Dive Drills roster. Their skill history will be preserved.
+    </p>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('remove-from-roster-modal')">Cancel</button>
+      <button class="btn btn-danger" id="remove-from-roster-btn" onclick="confirmRemoveFromRoster()">Yes, Remove Diver</button>
+    </div>
   </div>
 </div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=16"></script>
+<script src="js/supabase.js?v=17"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=5"></script>
@@ -387,7 +439,17 @@
         </div>
         <div class="profile-header-actions">
           ${hasBackLink ? '<a href="roster.html" class="btn btn-ghost btn-sm">← Roster</a>' : ''}
-          ${isCoach ? '<button class="btn btn-secondary btn-sm" onclick="openEditProfileModal()">Edit</button>' : ''}
+          ${isCoach ? `
+            ${diver.status !== 'active'
+              ? `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">✉ Invite Diver</button>`
+              : `<span style="font-size:.75rem;color:#10b981;white-space:nowrap">Account Active ✅</span>`
+            }
+            ${!linkedParent
+              ? `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">✉ Invite Parent</button>`
+              : `<span style="font-size:.75rem;color:#10b981;white-space:nowrap">Parent Linked ✅</span>`
+            }
+            <button class="btn btn-secondary btn-sm" onclick="openEditProfileModal()">Edit</button>
+          ` : ''}
         </div>
       </div>
       <div class="profile-stats-row">
@@ -499,6 +561,68 @@
     }
   }
 
+  // =============================================
+  // INVITE
+  // =============================================
+  async function generateAndShowInvite(diverId, inviteType) {
+    try {
+      const result = await SupabaseDB.generateInvite(diverId, inviteType);
+      const link = `${window.location.origin}/invite.html?token=${result.token}`;
+      document.getElementById('invite-modal-title').textContent =
+        inviteType === 'parent' ? 'Invite Parent' : 'Invite Diver';
+      document.getElementById('invite-modal-desc').textContent =
+        inviteType === 'parent'
+          ? "Share this link with the diver's parent or guardian. They'll be linked to this diver's account."
+          : 'Share this link with the diver so they can create their own account and start tracking progress.';
+      document.getElementById('invite-link-input').value = link;
+      document.getElementById('invite-expiry-text').textContent =
+        `This link expires on ${App.formatDate(result.expires_at)} (7 days from now). It can only be used once.`;
+      App.openModal('invite-modal');
+      targetDiver = await SupabaseDB.getProfileById(targetDiverId);
+      renderProfileHeader();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    }
+  }
+
+  function copyInviteLink() {
+    const input = document.getElementById('invite-link-input');
+    input.select();
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(input.value)
+        .then(() => App.showToast('Invite link copied!'))
+        .catch(() => App.showToast('Could not copy link.', 'error'));
+    } else {
+      document.execCommand('copy');
+      App.showToast('Invite link copied!');
+    }
+  }
+
+  // =============================================
+  // REMOVE FROM ROSTER
+  // =============================================
+  function openRemoveFromRosterModal() {
+    const name = App.formatNameLastFirst(targetDiver) || targetDiver.full_name || 'this diver';
+    document.getElementById('remove-roster-diver-name').textContent = name;
+    App.closeModal('edit-profile-modal');
+    App.openModal('remove-from-roster-modal');
+  }
+
+  async function confirmRemoveFromRoster() {
+    const btn = document.getElementById('remove-from-roster-btn');
+    App.setBtnLoading(btn, true);
+    try {
+      const name = App.formatNameLastFirst(targetDiver) || targetDiver.full_name;
+      await SupabaseDB.removeDiverByCoach(targetDiverId);
+      sessionStorage.setItem('roster-toast', JSON.stringify({ msg: `${name} has been removed from the roster.`, type: 'success' }));
+      window.location.href = 'roster.html';
+    } catch (err) {
+      App.closeModal('remove-from-roster-modal');
+      App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
   function updateAquaDisplay(dob) {
     const el = document.getElementById('ep-aqua-display');
     if (!el) return;
@@ -509,8 +633,10 @@
     updateAquaDisplay(this.value);
   });
 
-  document.getElementById('edit-profile-modal').addEventListener('click', function(e) {
-    if (e.target === this) App.closeModal('edit-profile-modal');
+  ['edit-profile-modal', 'invite-modal', 'remove-from-roster-modal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) App.closeModal(id);
+    });
   });
 
   // =============================================
