@@ -972,8 +972,8 @@
     const isFirstSkill    = currentSkillIdx === 0;
     const isLastSkill     = currentSkillIdx >= 0 && currentSkillIdx === (sd.skills?.length || 0) - 1;
 
-    const scored = Object.keys(sessionScores[sd.diver.id] || {}).length;
-    const total  = sd.skills?.length || 0;
+    const totalScored = Object.keys(sessionScores[sd.diver.id] || {}).length;
+    const total       = sd.skills?.length || 0;
 
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-display-row">
@@ -998,8 +998,8 @@
         <button class="scoring-nav-btn" id="btn-prev"
           onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>← Prev</button>
         <button class="scoring-complete-btn" id="btn-complete-diver"
-          onclick="confirmCompleteDiver()" ${scored === 0 ? 'disabled' : ''}>
-          Complete Diver (${scored}/${total})
+          onclick="confirmCompleteDiver()" ${totalScored === 0 ? 'disabled' : ''}>
+          Complete Diver (${totalScored}/${total})
         </button>
         <button class="scoring-nav-btn" id="btn-advance"
           onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
