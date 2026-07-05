@@ -13,7 +13,7 @@
     }
     .testing-layout {
       display: grid;
-      grid-template-columns: 180px 1fr;
+      grid-template-columns: 150px 1fr;
       gap: 0;
       height: 100vh;
       overflow: hidden;
@@ -26,27 +26,27 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      padding: 12px 10px;
+      padding: 10px 8px;
       background: var(--surface-2, #1a1f2e);
       border-right: 1px solid var(--border);
       height: 100%;
       overflow-y: auto;
     }
     .diver-panel-title {
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--text-secondary);
       font-weight: 600;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       padding: 0 2px;
     }
     .diver-avatar-btn {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 5px;
-      padding: 8px 6px;
+      gap: 4px;
+      padding: 6px 4px;
       border-radius: 10px;
       cursor: pointer;
       border: 2px solid transparent;
@@ -61,13 +61,13 @@
       background: rgba(20, 184, 166, 0.1);
     }
     .diver-avatar-btn .diver-name-small {
-      font-size: 0.72rem;
+      font-size: 0.65rem;
       color: var(--text-primary);
       line-height: 1.2;
       word-break: break-word;
     }
     .diver-avatar-btn .diver-progress-small {
-      font-size: 0.65rem;
+      font-size: 0.58rem;
       color: var(--text-secondary);
     }
     .diver-avatar-btn.complete .diver-progress-small {
@@ -83,12 +83,12 @@
       position: absolute;
       bottom: -2px;
       right: -4px;
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background: #22c55e;
       color: #fff;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
       align-items: center;
       justify-content: center;
@@ -96,12 +96,12 @@
     }
     .diver-avatar-btn.complete .diver-complete-badge { display: flex; }
     .avatar-testing {
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       background: var(--accent, #14b8a6);
       color: #000;
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       font-weight: 700;
       display: flex;
       align-items: center;
@@ -202,14 +202,14 @@
       flex: 0 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      padding: 8px 14px 10px;
+      gap: 3px;
+      padding: 6px 12px 8px;
       background: var(--surface-2, #1a1f2e);
       border-top: 1px solid var(--border);
     }
     .scoring-clear-btn {
-      padding: 4px 12px;
-      font-size: 0.8rem;
+      padding: 2px 10px;
+      font-size: 0.75rem;
       font-weight: 700;
       background: var(--surface, #141826);
       border: 1.5px solid var(--border);
@@ -218,6 +218,7 @@
       cursor: pointer;
       flex-shrink: 0;
       align-self: center;
+      min-height: 28px;
     }
     .scoring-clear-btn:hover { border-color: #ef4444; color: #ef4444; }
     .scoring-display-row {
@@ -226,35 +227,64 @@
       justify-content: space-between;
       padding: 0 2px;
     }
-    .scoring-advance-row {
+    .scoring-nav-row {
       display: flex;
-      justify-content: space-between;
-      gap: 8px;
+      gap: 5px;
+      align-items: stretch;
     }
-    .scoring-advance-btn {
-      min-height: 44px;
+    .scoring-nav-btn {
+      min-height: 36px;
+      height: 36px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0 10px;
+      flex-shrink: 0;
+      border-radius: 7px;
+      border: 1.5px solid var(--border);
+      background: var(--surface, #141826);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .scoring-nav-btn:disabled { opacity: 0.4; cursor: default; }
+    .scoring-nav-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+    .scoring-complete-btn {
       flex: 1;
-      font-size: 0.85rem;
+      min-height: 36px;
+      height: 36px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 7px;
+      background: var(--accent, #14b8a6);
+      color: #000;
+      cursor: pointer;
+      transition: opacity 0.1s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
+    .scoring-complete-btn:disabled { opacity: 0.4; cursor: default; }
     .scoring-number {
-      font-size: 2.2rem;
+      font-size: 1.6rem;
       font-weight: 800;
       color: var(--accent, #14b8a6);
       line-height: 1;
     }
     .scoring-number.unscored {
       color: var(--text-secondary);
-      font-size: 1.7rem;
+      font-size: 1.3rem;
     }
     .calc-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
+      gap: 3px;
     }
     .calc-btn {
       padding: 0;
-      min-height: 44px;
-      font-size: 0.95rem;
+      min-height: 34px;
+      height: 34px;
+      font-size: 0.88rem;
       font-weight: 700;
       border-radius: 7px;
       border: 1.5px solid var(--border);
@@ -266,18 +296,6 @@
     }
     .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
     .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
-
-    /* Complete Diver bar — pinned at bottom of skill-col */
-    .complete-diver-bar {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 12px;
-      padding: 10px 14px;
-      background: var(--surface, #141826);
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
 
     /* Mobile: flex column, full height minus bottom nav */
     @media (max-width: 768px) {
@@ -296,14 +314,14 @@
         overflow-x: auto;
         overflow-y: hidden;
         height: auto;
-        min-height: 90px;
+        min-height: 72px;
         border-right: none;
         border-bottom: 1px solid var(--border);
-        padding: 10px 12px;
+        padding: 8px 10px;
       }
       .diver-avatar-btn {
-        min-width: 64px;
-        max-width: 80px;
+        min-width: 54px;
+        max-width: 66px;
       }
       .skill-col {
         flex: 1;
@@ -526,11 +544,6 @@
         <div class="skill-col">
           <div class="skill-list" id="skill-list"></div>
           <div class="scoring-panel" id="scoring-panel"></div>
-          <div class="complete-diver-bar" id="complete-diver-bar">
-            <button id="btn-complete-diver" class="btn btn-primary" onclick="confirmCompleteDiver()" disabled>
-              Complete Diver (0/0 scored)
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -959,6 +972,9 @@
     const isFirstSkill    = currentSkillIdx === 0;
     const isLastSkill     = currentSkillIdx >= 0 && currentSkillIdx === (sd.skills?.length || 0) - 1;
 
+    const scored = Object.keys(sessionScores[sd.diver.id] || {}).length;
+    const total  = sd.skills?.length || 0;
+
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-display-row">
         <div class="${numClass}" id="scoring-number">${numText}</div>
@@ -978,12 +994,14 @@
         <button class="calc-btn" onclick="calcInput(10)">10</button>
         <button class="calc-btn" onclick="calcInput(0.5)">.5</button>
       </div>
-      <div class="scoring-advance-row">
-        <button class="btn btn-secondary scoring-advance-btn" id="btn-prev"
-          onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>
-          ← Prev
+      <div class="scoring-nav-row">
+        <button class="scoring-nav-btn" id="btn-prev"
+          onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>← Prev</button>
+        <button class="scoring-complete-btn" id="btn-complete-diver"
+          onclick="confirmCompleteDiver()" ${scored === 0 ? 'disabled' : ''}>
+          Complete Diver (${scored}/${total})
         </button>
-        <button class="btn btn-secondary scoring-advance-btn" id="btn-advance"
+        <button class="scoring-nav-btn" id="btn-advance"
           onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
           ${isLastSkill ? 'Last ✓' : 'Next →'}
         </button>
@@ -1104,7 +1122,7 @@
     const btn    = document.getElementById('btn-complete-diver');
     if (btn) {
       btn.disabled    = scored === 0;
-      btn.textContent = `Complete Diver (${scored}/${total} scored)`;
+      btn.textContent = `Complete Diver (${scored}/${total})`;
     }
   }
 
@@ -1206,9 +1224,8 @@
         ` : `<div class="text-sm" style="color:#22c55e">✓ All skills scored ≥ 5.0</div>`}
       </div>`;
 
-    document.getElementById('scoring-panel').innerHTML = '';
-    document.getElementById('complete-diver-bar').innerHTML =
-      `<span style="color:#22c55e;font-weight:600">✓ Saved successfully</span>`;
+    document.getElementById('scoring-panel').innerHTML =
+      `<div style="padding:8px 0;text-align:center;color:#22c55e;font-weight:600;font-size:0.9rem">✓ Saved successfully</div>`;
   }
 
   // =============================================
