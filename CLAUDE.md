@@ -59,7 +59,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=5 |
-| js/supabase.js | v=9 |
+| js/supabase.js | v=10 |
 | js/auth.js | v=2 |
 | js/skills.js | v=3 |
 | css/styles.css | v=5 |
