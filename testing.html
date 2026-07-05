@@ -398,31 +398,104 @@
     }
     .skills-below-list li { margin: 2px 0; }
 
-    /* ---- Diver row (step 1) ---- */
-    .diver-select-row {
+    /* ---- Step 1 search ---- */
+    .search-wrapper {
+      position: relative;
+      max-width: 520px;
+    }
+    .search-wrapper .form-input {
+      padding-right: 40px;
+      font-size: 1rem;
+      height: 50px;
+    }
+    .search-clear-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.3rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 6px;
+      display: none;
+    }
+    .search-clear-btn:hover { color: var(--text-primary); }
+    .search-results-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: var(--surface-2, #1a1f2e);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      z-index: 200;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.45);
+    }
+    .search-result-row {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 14px;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .search-result-row:hover { background: rgba(255,255,255,0.04); }
+    .search-result-row + .search-result-row { border-top: 1px solid var(--border); }
+    .search-result-row.already-selected { opacity: 0.42; cursor: default; pointer-events: none; }
+    .search-result-info { flex: 1; min-width: 0; }
+    .search-result-name { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
+    .search-result-badges { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
+    .search-no-results { padding: 14px 16px; color: var(--text-secondary); font-size: 0.88rem; text-align: center; }
+    .search-add-btn {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border-radius: 7px;
+      border: 1.5px solid var(--accent, #14b8a6);
+      background: transparent;
+      color: var(--accent, #14b8a6);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.1s;
+      min-height: 36px;
+    }
+    .search-add-btn:hover { background: rgba(20, 184, 166, 0.15); }
+    .selected-diver-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
       border-radius: 10px;
       border: 1.5px solid var(--border);
       background: var(--surface, #141826);
-      transition: border-color 0.15s;
     }
-    .diver-select-row.selected {
-      border-color: var(--accent, #14b8a6);
-      background: rgba(20, 184, 166, 0.04);
-    }
-    .diver-select-row input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--accent, #14b8a6);
+    .selected-diver-remove {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 6px;
       cursor: pointer;
       flex-shrink: 0;
+      transition: border-color 0.1s, color 0.1s;
+      min-height: 34px;
     }
-    .level-select-inline {
-      margin-left: auto;
-      min-width: 120px;
+    .selected-diver-remove:hover { border-color: #ef4444; color: #ef4444; }
+    .step1-section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .testing-step { padding-bottom: 32px; }
     .testing-actions {
@@ -445,14 +518,35 @@
     <div id="step-1" class="testing-step">
       <div class="page-header">
         <h1>Testing Session</h1>
-        <p>Select divers and the level to test.</p>
+        <p>Search for divers to add to this testing session.</p>
       </div>
-      <div id="step1-content">
+
+      <div id="step1-loading" style="display:none;">
         <div class="loading-overlay">
           <div class="loading-spinner loading-spinner-lg"></div>
           <span>Loading…</span>
         </div>
       </div>
+
+      <div id="step1-search-ui" style="display:none;">
+        <div class="search-wrapper">
+          <input id="diver-search" class="form-input" type="text"
+            placeholder="Search by name…" autocomplete="off" spellcheck="false"
+            oninput="onDiverSearchInput(this.value)">
+          <button id="diver-search-clear" class="search-clear-btn"
+            onclick="clearDiverSearch()" aria-label="Clear search">×</button>
+          <div id="search-results" class="search-results-dropdown" style="display:none;"></div>
+        </div>
+
+        <div id="selected-section" style="display:none; margin-top:28px; max-width:520px;">
+          <div class="step1-section-label">
+            Selected for this session
+            <span id="selected-count" class="badge"></span>
+          </div>
+          <div id="selected-divers-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+
       <div class="testing-actions">
         <button id="btn-to-step2" class="btn btn-primary btn-lg" onclick="goToStep2()" disabled>
           Continue to Session Summary →
@@ -557,11 +651,16 @@
   })();
 
   // =============================================
-  // STEP 1 — Select Divers
+  // STEP 1 — Select Divers (search-based)
   // =============================================
+  let step1SearchQuery = '';
+
   async function loadStep1() {
-    const container = document.getElementById('step1-content');
-    container.innerHTML = `<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading…</span></div>`;
+    const loadingEl = document.getElementById('step1-loading');
+    const searchUi  = document.getElementById('step1-search-ui');
+    loadingEl.style.display = 'block';
+    searchUi.style.display  = 'none';
+
     try {
       const roster = await SupabaseDB.getRoster(currentUser.id);
       rosterDivers = roster.map(r => r.diver);
@@ -571,69 +670,148 @@
         if (aL !== bL) return aL < bL ? -1 : 1;
         return (a.first_name || '').toLowerCase() < (b.first_name || '').toLowerCase() ? -1 : 1;
       });
+      loadingEl.style.display = 'none';
 
       if (!rosterDivers.length) {
-        container.innerHTML = `
-          <div class="empty-state" style="padding:40px">
-            <div class="empty-state-icon">📋</div>
-            <p>No divers on your roster yet.</p>
-          </div>`;
+        searchUi.innerHTML = `<div class="empty-state" style="padding:40px">
+          <div class="empty-state-icon">📋</div>
+          <p>No divers on your roster yet.</p>
+        </div>`;
+        searchUi.style.display = 'block';
         return;
       }
 
-      container.innerHTML = `
-        <div class="card card-sm" style="overflow:visible">
-          ${rosterDivers.map(diver => buildDiverSelectRow(diver)).join('')}
-        </div>`;
+      searchUi.style.display = 'block';
+      setTimeout(() => document.getElementById('diver-search')?.focus(), 60);
     } catch (err) {
-      container.innerHTML = `<div class="empty-state"><p>Error loading divers: ${App.escHtml(err.message)}</p></div>`;
+      loadingEl.style.display = 'none';
+      searchUi.innerHTML = `<div class="empty-state"><p>Error loading divers: ${App.escHtml(err.message)}</p></div>`;
+      searchUi.style.display = 'block';
     }
   }
 
-  function buildDiverSelectRow(diver) {
-    const initials = Auth.getInitials(diver.full_name);
-    const currentLevel = Math.max(1, diver.current_level ?? 1);
-    const levelOptions = Array.from({ length: 12 }, (_, i) => i + 1)
-      .map(i => `<option value="${i}"${i === currentLevel ? ' selected' : ''}>Level ${i}</option>`)
-      .join('');
+  function onDiverSearchInput(value) {
+    step1SearchQuery = value;
+    const clearBtn = document.getElementById('diver-search-clear');
+    if (clearBtn) clearBtn.style.display = value.length ? 'block' : 'none';
 
-    return `
-      <div class="diver-select-row" id="diver-row-${diver.id}">
-        <input type="checkbox" id="chk-${diver.id}"
-          onchange="toggleDiverSelected('${diver.id}')">
-        <div class="avatar-sm">${App.escHtml(initials)}</div>
-        <div class="list-item-content">
-          <div class="list-item-title">${App.escHtml(App.formatNameLastFirst(diver))}</div>
-          <div class="flex gap-2 mt-1 flex-wrap">
-            <span class="badge badge-level">L${currentLevel}</span>
+    const q = value.trim().toLowerCase();
+    if (!q) { hideSearchResults(); return; }
+
+    const matches = rosterDivers.filter(d => {
+      const first = (d.first_name || '').toLowerCase();
+      const last  = (d.last_name  || '').toLowerCase();
+      const full  = (d.full_name  || '').toLowerCase();
+      return first.includes(q) || last.includes(q) || full.includes(q);
+    }).slice(0, 5);
+
+    renderSearchResults(matches);
+  }
+
+  function renderSearchResults(divers) {
+    const dropdown = document.getElementById('search-results');
+    if (!dropdown) return;
+    if (!divers.length) {
+      dropdown.innerHTML = `<div class="search-no-results">No divers found matching your search</div>`;
+      dropdown.style.display = 'block';
+      return;
+    }
+    dropdown.innerHTML = divers.map(d => {
+      const initials  = Auth.getInitials(d.full_name);
+      const name      = App.escHtml(App.formatNameLastFirst(d));
+      const lvl       = d.current_level === 0 ? 'Beginner' : `L${d.current_level ?? 1}`;
+      const lvlCls    = d.current_level === 0 ? 'badge badge-secondary' : 'badge badge-level';
+      const genderBadge = d.gender ? `<span class="badge">${App.escHtml(d.gender)}</span>` : '';
+      const already   = !!selectedMap[d.id];
+      return `
+        <div class="search-result-row${already ? ' already-selected' : ''}"
+          ${already ? '' : `onclick="addDiverToSession('${d.id}')"`}>
+          <div class="avatar-sm">${App.escHtml(initials)}</div>
+          <div class="search-result-info">
+            <div class="search-result-name">${name}</div>
+            <div class="search-result-badges">
+              <span class="${lvlCls}">${lvl}</span>
+              ${genderBadge}
+            </div>
           </div>
-        </div>
-        <select id="level-sel-${diver.id}" class="form-select level-select-inline" style="display:none"
-          onchange="updateSelectedLevel('${diver.id}', this.value)">
-          ${levelOptions}
-        </select>
-      </div>`;
+          ${already
+            ? `<span style="color:var(--accent);font-weight:700;font-size:0.9rem;">✓</span>`
+            : `<button class="search-add-btn" onclick="event.stopPropagation();addDiverToSession('${d.id}')">+ Add</button>`}
+        </div>`;
+    }).join('');
+    dropdown.style.display = 'block';
   }
 
-  function toggleDiverSelected(diverId) {
-    const chk   = document.getElementById(`chk-${diverId}`);
-    const row   = document.getElementById(`diver-row-${diverId}`);
-    const diver = rosterDivers.find(d => d.id === diverId);
-    if (!diver) return;
+  function hideSearchResults() {
+    const el = document.getElementById('search-results');
+    if (el) el.style.display = 'none';
+  }
 
-    if (chk.checked) {
-      const defaultLevel = Math.max(1, diver.current_level ?? 1);
-      selectedMap[diverId] = { diver, selectedLevel: defaultLevel };
-      row.classList.add('selected');
-      const sel = document.getElementById(`level-sel-${diverId}`);
-      if (sel) { sel.style.display = ''; sel.value = defaultLevel; }
-    } else {
-      delete selectedMap[diverId];
-      row.classList.remove('selected');
-      const sel = document.getElementById(`level-sel-${diverId}`);
-      if (sel) sel.style.display = 'none';
+  function addDiverToSession(diverId) {
+    const diver = rosterDivers.find(d => d.id === diverId);
+    if (!diver || selectedMap[diverId]) return;
+    selectedMap[diverId] = { diver, selectedLevel: Math.max(1, diver.current_level ?? 1) };
+    renderSelectedDivers();
+    updateContinueButton();
+    clearDiverSearch();
+  }
+
+  function removeDiverFromSession(diverId) {
+    delete selectedMap[diverId];
+    renderSelectedDivers();
+    updateContinueButton();
+  }
+
+  function renderSelectedDivers() {
+    const section = document.getElementById('selected-section');
+    const list    = document.getElementById('selected-divers-list');
+    const countEl = document.getElementById('selected-count');
+    const entries = Object.values(selectedMap);
+
+    if (!entries.length) {
+      section.style.display = 'none';
+      return;
     }
-    document.getElementById('btn-to-step2').disabled = Object.keys(selectedMap).length === 0;
+    section.style.display = 'block';
+    if (countEl) countEl.textContent = `(${entries.length})`;
+
+    list.innerHTML = entries.map(({ diver, selectedLevel }) => {
+      const initials = Auth.getInitials(diver.full_name);
+      const name     = App.escHtml(App.formatNameLastFirst(diver));
+      const opts     = Array.from({ length: 12 }, (_, i) => i + 1)
+        .map(i => `<option value="${i}"${i === selectedLevel ? ' selected' : ''}>Level ${i}</option>`)
+        .join('');
+      return `
+        <div class="selected-diver-card">
+          <div class="avatar-sm">${App.escHtml(initials)}</div>
+          <div class="search-result-info">
+            <div class="search-result-name">${name}</div>
+          </div>
+          <select class="form-select" style="min-width:110px;font-size:0.82rem;"
+            onchange="updateSelectedLevel('${diver.id}', this.value)">${opts}</select>
+          <button class="selected-diver-remove"
+            onclick="removeDiverFromSession('${diver.id}')" aria-label="Remove">✕</button>
+        </div>`;
+    }).join('');
+  }
+
+  function updateContinueButton() {
+    const btn   = document.getElementById('btn-to-step2');
+    if (!btn) return;
+    const count = Object.keys(selectedMap).length;
+    btn.disabled    = count === 0;
+    btn.textContent = count === 0
+      ? 'Continue to Session Summary →'
+      : `Continue with ${count} diver${count !== 1 ? 's' : ''} →`;
+  }
+
+  function clearDiverSearch() {
+    const input = document.getElementById('diver-search');
+    if (input) { input.value = ''; input.focus(); }
+    const clearBtn = document.getElementById('diver-search-clear');
+    if (clearBtn) clearBtn.style.display = 'none';
+    hideSearchResults();
+    step1SearchQuery = '';
   }
 
   function updateSelectedLevel(diverId, level) {
@@ -1149,15 +1327,22 @@
     sessionScores   = {};
     diverNotes      = {};
     completedDivers = {};
-    document.getElementById('btn-to-step2').disabled = true;
 
     const main = document.getElementById('main-content');
     main.style.padding  = '';
     main.style.maxWidth = '';
     main.style.overflow = '';
 
+    // Reset search UI — roster already in memory, no need to refetch.
+    clearDiverSearch();
+    const section = document.getElementById('selected-section');
+    if (section) section.style.display = 'none';
+    const list = document.getElementById('selected-divers-list');
+    if (list) list.innerHTML = '';
+    updateContinueButton();
+
     showStep('step-1');
-    loadStep1();
+    setTimeout(() => document.getElementById('diver-search')?.focus(), 60);
   }
 
   // =============================================
@@ -1222,6 +1407,11 @@
 
   document.getElementById('confirm-modal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeConfirmModal();
+  });
+
+  document.addEventListener('click', (e) => {
+    const wrapper = document.querySelector('.search-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) hideSearchResults();
   });
 </script>
 
