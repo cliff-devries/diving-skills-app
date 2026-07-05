@@ -111,6 +111,14 @@ const SupabaseDB = {
     if (error) throw new Error(error.message);
   },
 
+  // Bulk-recalculates aqua_group for all divers from date_of_birth.
+  // Super user only. Returns the count of updated rows.
+  async updateAllAquaGroups() {
+    const { data, error } = await this.db.rpc('update_all_aqua_groups');
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
   // Returns all active coaches sorted by last name then first name.
   async getActiveCoaches() {
     const { data, error } = await this.db

@@ -198,8 +198,8 @@
         <input type="date" id="ep-start-date" class="form-input">
       </div>
       <div class="form-group">
-        <label class="form-label">AQUA Group</label>
-        <input type="text" id="ep-aqua-group" class="form-input" placeholder="TBD">
+        <label class="form-label">AQUA Age <span style="font-weight:400;color:var(--text-secondary)">(auto)</span></label>
+        <div class="form-input" id="ep-aqua-display" style="background:var(--bg-secondary);cursor:default;user-select:none">—</div>
       </div>
     </div>
     <div class="form-row">
@@ -224,7 +224,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=15"></script>
+<script src="js/supabase.js?v=16"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=5"></script>
@@ -336,7 +336,9 @@
     const age         = calcAge(diver.date_of_birth);
     const dob         = formatDOB(diver.date_of_birth);
     const diverGroup  = diver.diver_group || '—';
-    const aquaGroup   = diver.aqua_group  || 'TBD';
+    const aquaGroup   = diver.date_of_birth
+      ? String(new Date().getFullYear() - new Date(diver.date_of_birth + 'T00:00:00').getFullYear())
+      : (diver.aqua_group || 'TBD');
     const startDate   = diver.start_date  ? formatDOB(diver.start_date) : 'Not set';
     const displayName = App.formatNameLastFirst(diver) || diver.full_name || '';
 
@@ -452,9 +454,9 @@
     lvlSel.value = d.current_level != null ? String(d.current_level) : '';
     document.getElementById('ep-diver-group').value  = d.diver_group          || '';
     coachSel.value = d.assigned_coach_name || '';
-    document.getElementById('ep-start-date').value   = d.start_date           || '';
-    document.getElementById('ep-aqua-group').value   = (d.aqua_group && d.aqua_group !== 'TBD') ? d.aqua_group : '';
-    document.getElementById('ep-parent-email').value = d.parent_email         || '';
+    document.getElementById('ep-start-date').value   = d.start_date || '';
+    updateAquaDisplay(d.date_of_birth);
+    document.getElementById('ep-parent-email').value = d.parent_email || '';
     document.getElementById('ep-parent-phone').value = d.parent_phone         || '';
     document.getElementById('edit-profile-alert').className = 'alert mb-4';
 
@@ -468,18 +470,20 @@
     alertEl.className = 'alert mb-4';
     App.setBtnLoading(btn, true);
     try {
-      const level = document.getElementById('ep-level').value;
+      const level  = document.getElementById('ep-level').value;
+      const dob    = document.getElementById('ep-dob').value || null;
+      const aquaGroup = dob ? String(new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear()) : 'TBD';
       await SupabaseDB.updateDiverProfileByCoach(targetDiverId, {
-        firstName:         document.getElementById('ep-first-name').value.trim()  || null,
-        lastName:          document.getElementById('ep-last-name').value.trim()   || null,
-        dateOfBirth:       document.getElementById('ep-dob').value                || null,
+        firstName:         document.getElementById('ep-first-name').value.trim()   || null,
+        lastName:          document.getElementById('ep-last-name').value.trim()    || null,
+        dateOfBirth:       dob,
         currentLevel:      level !== '' ? parseInt(level, 10) : null,
-        diverGroup:        document.getElementById('ep-diver-group').value        || null,
-        assignedCoachName: document.getElementById('ep-coach').value              || null,
-        startDate:         document.getElementById('ep-start-date').value         || null,
+        diverGroup:        document.getElementById('ep-diver-group').value         || null,
+        assignedCoachName: document.getElementById('ep-coach').value               || null,
+        startDate:         document.getElementById('ep-start-date').value          || null,
         parentEmail:       document.getElementById('ep-parent-email').value.trim() || null,
         parentPhone:       document.getElementById('ep-parent-phone').value.trim() || null,
-        aquaGroup:         document.getElementById('ep-aqua-group').value.trim()  || null,
+        aquaGroup,
       });
 
       targetDiver = await SupabaseDB.getProfileById(targetDiverId);
@@ -494,6 +498,16 @@
       App.setBtnLoading(btn, false);
     }
   }
+
+  function updateAquaDisplay(dob) {
+    const el = document.getElementById('ep-aqua-display');
+    if (!el) return;
+    el.textContent = dob ? String(new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear()) : 'TBD';
+  }
+
+  document.getElementById('ep-dob').addEventListener('change', function() {
+    updateAquaDisplay(this.value);
+  });
 
   document.getElementById('edit-profile-modal').addEventListener('click', function(e) {
     if (e.target === this) App.closeModal('edit-profile-modal');

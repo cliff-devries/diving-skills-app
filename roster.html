@@ -63,9 +63,10 @@
           <h1>Roster</h1>
           <p>Manage your divers and track their progress.</p>
         </div>
-        <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">
-          + Add Diver
-        </button>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" id="update-aqua-btn" hidden onclick="updateAquaAges()">Update AQUA Ages</button>
+          <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">+ Add Diver</button>
+        </div>
       </div>
     </div>
 
@@ -330,7 +331,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=15"></script>
+<script src="js/supabase.js?v=16"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
@@ -348,6 +349,7 @@
     currentUser = user;
     Auth.requireRole('coach');
     App.renderNav(user);
+    if (user.is_super_user) document.getElementById('update-aqua-btn').hidden = false;
 
     // Populate add-diver level dropdown (0–12)
     const levelSel = document.getElementById('new-current-level');
@@ -435,6 +437,25 @@
     }
   }
 
+  function calcAquaAge(dob) {
+    if (!dob) return 'TBD';
+    return String(new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear());
+  }
+
+  async function updateAquaAges() {
+    const btn = document.getElementById('update-aqua-btn');
+    App.setBtnLoading(btn, true);
+    try {
+      const count = await SupabaseDB.updateAllAquaGroups();
+      App.showToast(`Updated AQUA ages for ${count} diver${count === 1 ? '' : 's'}.`);
+      await loadRoster();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
   function calcAge(dob) {
     if (!dob) return '—';
     const birth = new Date(dob + 'T00:00:00');
@@ -465,7 +486,7 @@
     const dob          = formatDOB(diver.date_of_birth);
     const diverGroup   = App.escHtml(diver.diver_group  || '—');
     const assignedCoach = App.escHtml(diver.assigned_coach_name || currentUser.full_name || '—');
-    const aquaGroup    = App.escHtml(diver.aqua_group   || 'TBD');
+    const aquaGroup    = calcAquaAge(diver.date_of_birth);
 
     return `
       <div class="diver-row" id="diver-row-${diver.id}" style="cursor:default;flex-wrap:wrap">
