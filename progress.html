@@ -33,6 +33,8 @@
     .profile-header-info {
       flex: 1;
       min-width: 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .profile-name-row {
       display: flex;
@@ -86,12 +88,7 @@
     .profile-invite-label {
       color: var(--text-secondary);
     }
-    @media (max-width: 600px) {
-      .profile-avatar-lg { width: 60px; height: 60px; font-size: 1.1rem; }
-      .profile-header-actions { flex-direction: row; align-items: center; }
-    }
-
-    /* Progress levels / skills (unchanged) */
+    /* Progress levels / skills */
     .level-skills-header {
       display: flex;
       align-items: flex-start;
@@ -109,7 +106,40 @@
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
-    @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
+    /* ---- Mobile responsive ---- */
+    @media (max-width: 600px) {
+      /* Shrink avatar slightly */
+      .profile-avatar-lg { width: 56px; height: 56px; font-size: 1.05rem; }
+      /* Allow actions row to wrap below avatar+info instead of overflowing */
+      .profile-header-top { flex-wrap: wrap; }
+      .profile-header-actions {
+        flex: 0 0 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-start;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+        margin-top: 4px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      /* Modal form: single column */
+      .form-row { grid-template-columns: 1fr; }
+      /* Stat cards: reduce padding so labels don't clip at 3-column */
+      .profile-stats-row { gap: 6px; margin-top: 12px; padding-top: 12px; }
+      .stat-card { padding: 10px 5px; text-align: center; }
+      .stat-value { font-size: 1.5rem; }
+      .stat-label { font-size: 0.62rem; letter-spacing: 0; }
+      /* Level header: let right-side % wrap if too narrow */
+      .level-skills-header { flex-wrap: wrap; }
+      /* Attempts table: prevent notes column from forcing horizontal scroll */
+      .attempts-table { word-break: break-word; }
+      .attempts-table th, .attempts-table td { padding: 5px 6px; }
+    }
   </style>
 </head>
 <body>
