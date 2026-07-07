@@ -6,6 +6,46 @@
   <title>Dive Drills — Skills</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <link rel="stylesheet" href="css/styles.css?v=5">
+  <style>
+    .upload-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .upload-media-btn { min-height: 48px; padding: 8px 16px; font-size: 0.875rem; }
+    .upload-media-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .upload-status-msg { font-size: 0.82rem; color: var(--accent); }
+    .upload-video-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 140px;
+    }
+    .upload-video-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .upload-video-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.15s;
+    }
+    .upload-video-pct {
+      font-size: 0.78rem;
+      color: var(--accent);
+      font-weight: 600;
+      flex-shrink: 0;
+      min-width: 44px;
+      text-align: right;
+    }
+  </style>
 </head>
 <body>
 
@@ -187,7 +227,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=17"></script>
+<script src="js/supabase.js?v=18"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=5"></script>
@@ -543,15 +583,36 @@
         <textarea id="edit-coaching-notes" class="form-input" rows="3" style="resize:vertical">${App.escHtml(skill.coachingNotes || '')}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Photo URL</label>
+        <label class="form-label">Photo</label>
         <input type="url" id="edit-photo-url" class="form-input" placeholder="https://media.divedrills.com/dive-photos/skill-name.jpg" value="${App.escHtml(skill.photoUrl || '')}">
-        <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.jpg</div>
+        <div class="upload-row">
+          <button type="button" class="btn btn-secondary btn-sm upload-media-btn" id="edit-photo-upload-btn"
+            onclick="document.getElementById('edit-photo-file').click()">
+            📷 ${skill.photoUrl ? 'Replace Photo' : 'Upload Photo'}
+          </button>
+          <input type="file" id="edit-photo-file" accept="image/jpeg,image/png,image/webp,image/heic"
+            style="display:none" onchange="handlePhotoUpload(this)">
+          <span class="upload-status-msg" id="edit-photo-status"></span>
+        </div>
         <div id="edit-photo-preview" class="mt-2"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Video URL</label>
+        <label class="form-label">Video</label>
         <input type="url" id="edit-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4" value="${App.escHtml(skill.videoUrl || '')}">
-        <div class="text-secondary text-sm mt-1">Use lowercase filenames with hyphens. Example: forward-dive-pike.mp4</div>
+        <div class="upload-row">
+          <button type="button" class="btn btn-secondary btn-sm upload-media-btn" id="edit-video-upload-btn"
+            onclick="document.getElementById('edit-video-file').click()">
+            🎬 ${skill.videoUrl ? 'Replace Video' : 'Upload Video'}
+          </button>
+          <input type="file" id="edit-video-file" accept="video/mp4,video/quicktime,.mov"
+            style="display:none" onchange="handleVideoUpload(this)">
+          <div class="upload-video-progress" id="edit-video-progress" style="display:none">
+            <div class="upload-video-bar-wrap">
+              <div class="upload-video-bar" id="edit-video-bar" style="width:0%"></div>
+            </div>
+            <span class="upload-video-pct" id="edit-video-pct">⬆ 0%</span>
+          </div>
+        </div>
       </div>
       <div class="section-title mb-2" style="font-size:0.7rem">Advanced</div>
       <div class="form-group">
@@ -595,6 +656,71 @@
     const img = preview.querySelector('img');
     img.src = url;
     img.addEventListener('click', () => App.openImageLightbox(url));
+  }
+
+  async function handlePhotoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      App.showToast('Photo must be under 10 MB.', 'error');
+      input.value = '';
+      return;
+    }
+    const btn      = document.getElementById('edit-photo-upload-btn');
+    const statusEl = document.getElementById('edit-photo-status');
+    const urlInput = document.getElementById('edit-photo-url');
+    btn.disabled         = true;
+    statusEl.textContent = '⬆ Uploading…';
+    try {
+      const url = await SupabaseDB.uploadSkillPhoto(activeSkill.id, file);
+      urlInput.value       = url;
+      statusEl.textContent = '✓ Uploaded';
+      updateEditPhotoPreview();
+      App.showToast('Photo uploaded successfully.');
+      btn.textContent = '📷 Replace Photo';
+    } catch (err) {
+      statusEl.textContent = '';
+      App.showToast('Photo upload failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      input.value  = '';
+    }
+  }
+
+  async function handleVideoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 200 * 1024 * 1024) {
+      App.showToast('Video must be under 200 MB.', 'error');
+      input.value = '';
+      return;
+    }
+    const btn        = document.getElementById('edit-video-upload-btn');
+    const progressEl = document.getElementById('edit-video-progress');
+    const barEl      = document.getElementById('edit-video-bar');
+    const pctEl      = document.getElementById('edit-video-pct');
+    const urlInput   = document.getElementById('edit-video-url');
+    btn.disabled          = true;
+    progressEl.style.display = '';
+    barEl.style.width     = '0%';
+    pctEl.textContent     = '⬆ 0%';
+    try {
+      const url = await SupabaseDB.uploadSkillVideo(activeSkill.id, file, (pct) => {
+        barEl.style.width = `${pct}%`;
+        pctEl.textContent = `⬆ ${pct}%`;
+      });
+      urlInput.value    = url;
+      barEl.style.width = '100%';
+      pctEl.textContent = '✓ Done';
+      App.showToast('Video uploaded successfully.');
+      btn.textContent = '🎬 Replace Video';
+    } catch (err) {
+      progressEl.style.display = 'none';
+      App.showToast('Video upload failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      input.value  = '';
+    }
   }
 
   async function saveSkillEdit(skillId) {

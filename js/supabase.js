@@ -1043,4 +1043,64 @@ const SupabaseDB = {
       .eq('id', skillId);
     if (error) throw new Error(error.message);
   },
+
+  // =============================================
+  // STORAGE — SKILL MEDIA UPLOADS
+  // =============================================
+
+  // Upload a photo file to the skill-photos bucket.
+  // Returns the public URL. Coaches only (enforced by storage RLS).
+  async uploadSkillPhoto(skillId, file) {
+    const path = `skills/${skillId}/photo-${Date.now()}.jpg`;
+    const { error } = await this.db.storage
+      .from('skill-photos')
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+    if (error) throw new Error(error.message);
+    const { data: { publicUrl } } = this.db.storage
+      .from('skill-photos')
+      .getPublicUrl(path);
+    return publicUrl;
+  },
+
+  // Upload a video file to the skill-videos bucket with XHR progress callbacks.
+  // onProgress(pct: number) is called as the upload advances (0–100).
+  // Returns the public URL. Coaches only (enforced by storage RLS).
+  async uploadSkillVideo(skillId, file, onProgress) {
+    const path = `skills/${skillId}/video-${Date.now()}.mp4`;
+    const { data: { session } } = await this.db.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const uploadUrl = `${CONFIG.SUPABASE_URL}/storage/v1/object/skill-videos/${path}`;
+
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl);
+      xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
+      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+      xhr.setRequestHeader('x-upsert', 'false');
+
+      xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          let msg = `Upload failed (HTTP ${xhr.status})`;
+          try { msg = JSON.parse(xhr.responseText).message || msg; } catch {}
+          reject(new Error(msg));
+        }
+      });
+      xhr.addEventListener('error', () => reject(new Error('Network error during video upload')));
+      xhr.send(file);
+    });
+
+    const { data: { publicUrl } } = this.db.storage
+      .from('skill-videos')
+      .getPublicUrl(path);
+    return publicUrl;
+  },
 };
