@@ -358,8 +358,12 @@
       border-radius: 10px;
       padding: 16px;
     }
-    .diver-result-card.has-designation {
+    .diver-result-card.has-designation,
+    .diver-result-card.has-passed {
       border-color: var(--accent, #14b8a6);
+    }
+    .diver-result-card.has-failed {
+      border-color: #ef4444;
     }
     .skills-below-list {
       margin-top: 8px;
@@ -589,7 +593,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=18"></script>
+<script src="js/supabase.js?v=19"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=5"></script>
 
@@ -1210,9 +1214,10 @@
       return s && parseFloat(s.value) < 5.0;
     });
 
-    const desigHtml = designationHtml(result.designation);
+    const desigHtml   = designationHtml(result.designation, result.passed);
+    const borderColor = result.passed ? 'var(--accent)' : '#ef4444';
     document.getElementById('skill-list').innerHTML = `
-      <div class="card" style="margin:16px;border-color:var(--accent)">
+      <div class="card" style="margin:16px;border-color:${borderColor}">
         <div class="flex items-center gap-3 mb-4">
           <div class="avatar-sm">${App.escHtml(Auth.getInitials(sd.diver.full_name))}</div>
           <div>
@@ -1232,8 +1237,8 @@
           </div>
         </div>
         ${below.length ? `
-          <div class="text-sm" style="font-weight:600;color:var(--pending);margin-bottom:4px">
-            Skills to review (score &lt; 5.0):
+          <div class="text-sm" style="font-weight:600;color:#ef4444;margin-bottom:4px">
+            Skills below passing score:
           </div>
           <ul class="skills-below-list">
             ${below.map(sk => `<li>· ${App.escHtml(sk.name)} — ${(parseFloat(scores[sk.id]?.value) || 0).toFixed(1)}</li>`).join('')}
@@ -1261,15 +1266,16 @@
           const s = d.scores[sk.id];
           return s && parseFloat(s.value) < 5.0;
         });
+        const cardClass = d.designation ? 'has-designation' : d.passed ? 'has-passed' : 'has-failed';
         return `
-          <div class="diver-result-card ${d.designation ? 'has-designation' : ''}">
+          <div class="diver-result-card ${cardClass}">
             <div class="flex items-center gap-3 mb-3">
               <div class="avatar-sm">${App.escHtml(Auth.getInitials(d.diver.full_name))}</div>
               <div>
                 <div style="font-weight:600">${App.escHtml(App.formatNameLastFirst(d.diver))}</div>
                 <div class="text-sm text-secondary">Level ${d.level}</div>
               </div>
-              ${designationHtml(d.designation)}
+              ${designationHtml(d.designation, d.passed)}
             </div>
             <div class="flex gap-3 flex-wrap">
               <span class="text-sm text-secondary">Avg: <strong style="color:var(--accent)">${d.averageScore.toFixed(1)}</strong></span>
@@ -1277,8 +1283,8 @@
             </div>
             ${below.length ? `
               <div class="skills-below-list mt-2">
-                <div style="font-size:0.75rem;font-weight:600;color:var(--pending)">To review:</div>
-                <ul>${below.map(sk => `<li>· ${App.escHtml(sk.name)}</li>`).join('')}</ul>
+                <div style="font-size:0.75rem;font-weight:600;color:#ef4444">Skills below passing score:</div>
+                <ul>${below.map(sk => `<li>· ${App.escHtml(sk.name)} — ${(parseFloat(d.scores[sk.id]?.value) || 0).toFixed(1)}</li>`).join('')}</ul>
               </div>
             ` : ''}
           </div>`;
@@ -1327,12 +1333,12 @@
     window.scrollTo(0, 0);
   }
 
-  function designationHtml(designation) {
-    if (!designation) return '<span class="badge">Passed</span>';
+  function designationHtml(designation, passed) {
+    if (!passed) return '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ Not Passed</span>';
     if (designation === 'gold')   return '<span class="badge badge-gold">🥇 Gold</span>';
     if (designation === 'silver') return '<span class="badge badge-silver">🥈 Silver</span>';
     if (designation === 'bronze') return '<span class="badge badge-bronze">🥉 Bronze</span>';
-    return '';
+    return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
   }
 
   // =============================================

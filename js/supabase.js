@@ -886,12 +886,15 @@ const SupabaseDB = {
 
     const scoreValues = entries.map(([, s]) => parseFloat(s.value));
     const avg         = scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length;
+    const allPassed   = scoreValues.every(v => v >= 5.0);
     let designation   = null;
-    if (avg >= 9.0)      designation = 'gold';
-    else if (avg >= 8.0) designation = 'silver';
-    else if (avg >= 7.0) designation = 'bronze';
+    if (allPassed) {
+      if (avg >= 9.0)      designation = 'gold';
+      else if (avg >= 8.0) designation = 'silver';
+      else if (avg >= 7.0) designation = 'bronze';
+    }
 
-    console.log('[saveTestingSessionDiver] avg:', avg.toFixed(2), 'designation:', designation);
+    console.log('[saveTestingSessionDiver] avg:', avg.toFixed(2), 'allPassed:', allPassed, 'designation:', designation);
 
     // Save each skill one at a time so failures are isolated and visible.
     for (const [skillIdStr, s] of entries) {
@@ -954,6 +957,7 @@ const SupabaseDB = {
       completed_at:  new Date().toISOString(),
       average_score: parseFloat(avg.toFixed(2)),
       designation:   designation || null,
+      passed:        allPassed,
       notes:         notes || null,
       coach_id:      coachId,
     };
@@ -968,8 +972,8 @@ const SupabaseDB = {
       console.warn('[saveTestingSessionDiver] level_completions upsert returned no rows — possible RLS block');
     }
 
-    console.log('[saveTestingSessionDiver] DONE — avg:', avg.toFixed(2), 'designation:', designation, 'scored:', entries.length);
-    return { averageScore: avg, designation, scoredCount: entries.length };
+    console.log('[saveTestingSessionDiver] DONE — avg:', avg.toFixed(2), 'allPassed:', allPassed, 'designation:', designation, 'scored:', entries.length);
+    return { averageScore: avg, designation, passed: allPassed, scoredCount: entries.length };
   },
 
   // Total count of diver profiles in the club (all coaches' rosters combined).

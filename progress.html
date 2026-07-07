@@ -306,7 +306,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=18"></script>
+<script src="js/supabase.js?v=19"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=5"></script>
@@ -768,9 +768,16 @@
     const groups = groupSkillsByType(lvlSkills);
 
     const levelComp = (window._levelCompMap || {})[level];
-    const desigBadge = levelComp?.designation
-      ? levelDesignationBadge(levelComp.designation)
-      : '';
+    let desigBadge = '';
+    if (levelComp) {
+      if (levelComp.passed === false) {
+        desigBadge = '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ Not Passed</span>';
+      } else if (levelComp.designation) {
+        desigBadge = levelDesignationBadge(levelComp.designation);
+      } else {
+        desigBadge = '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
+      }
+    }
 
     container.innerHTML = `
       <div class="card fade-in">
