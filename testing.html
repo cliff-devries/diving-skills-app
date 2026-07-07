@@ -152,6 +152,14 @@
       flex: 1;
       min-width: 0;
     }
+    .skill-name-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .skill-type-tag { font-size: 0.6rem; flex-shrink: 0; margin-top: 1px; }
     .skill-row-name {
       font-weight: 600;
       font-size: 0.86rem;
@@ -930,18 +938,23 @@
   }
 
   function buildSkillRow(skill, diverId, scores) {
-    const scored   = scores[skill.id];
-    const scoreVal = scored ? parseFloat(scored.value) : null;
-    const isScored = scoreVal !== null;
-    const catBadge = skill.category
+    const scored    = scores[skill.id];
+    const scoreVal  = scored ? parseFloat(scored.value) : null;
+    const isScored  = scoreVal !== null;
+    const typeBadge = skill.type
+      ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : '';
+    const catBadge  = skill.category
       ? `<span class="skill-row-cat">${App.escHtml(skill.category)}</span>` : '';
-    const descHtml = skill.description
+    const descHtml  = skill.description
       ? `<div class="skill-row-desc">${App.escHtml(skill.description)}</div>` : '';
     return `
       <div class="skill-row${isScored ? ' scored' : ''}" id="skill-row-${skill.id}"
         data-skill-id="${skill.id}" onclick="selectSkillForScoring(${skill.id})">
         <div class="skill-row-info">
-          <div class="skill-row-name">${App.escHtml(skill.name)}</div>
+          <div class="skill-name-row">
+            <span class="skill-row-name">${App.escHtml(skill.name)}</span>
+            ${typeBadge}
+          </div>
           ${descHtml}
           ${catBadge}
         </div>
@@ -978,7 +991,10 @@
 
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-display-row">
-        <div class="${numClass}" id="scoring-number">${numText}</div>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <div class="${numClass}" id="scoring-number">${numText}</div>
+          ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
+        </div>
         <button class="scoring-clear-btn" onclick="clearScore()">C</button>
       </div>
       <div class="calc-grid">
