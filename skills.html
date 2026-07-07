@@ -194,12 +194,35 @@
     <div class="form-group">
       <label class="form-label">Photo URL</label>
       <input type="url" id="create-skill-photo-url" class="form-input" placeholder="https://media.divedrills.com/dive-photos/skill-name.jpg">
+      <div class="upload-row">
+        <button type="button" class="btn btn-secondary btn-sm upload-media-btn" id="create-photo-upload-btn"
+          onclick="document.getElementById('create-photo-file').click()">
+          📷 Upload Photo
+        </button>
+        <input type="file" id="create-photo-file" accept="image/jpeg,image/png,image/webp,image/heic"
+          style="display:none" onchange="handleCreatePhotoUpload(this)">
+        <span class="upload-status-msg" id="create-photo-status"></span>
+      </div>
       <div id="create-skill-photo-preview" class="mt-2"></div>
     </div>
 
     <div class="form-group">
       <label class="form-label">Video URL</label>
       <input type="url" id="create-skill-video-url" class="form-input" placeholder="https://media.divedrills.com/dive-videos/skill-name.mp4">
+      <div class="upload-row">
+        <button type="button" class="btn btn-secondary btn-sm upload-media-btn" id="create-video-upload-btn"
+          onclick="document.getElementById('create-video-file').click()">
+          🎬 Upload Video
+        </button>
+        <input type="file" id="create-video-file" accept="video/mp4,video/quicktime,.mov"
+          style="display:none" onchange="handleCreateVideoUpload(this)">
+        <div class="upload-video-progress" id="create-video-progress" style="display:none">
+          <div class="upload-video-bar-wrap">
+            <div class="upload-video-bar" id="create-video-bar" style="width:0%"></div>
+          </div>
+          <span class="upload-video-pct" id="create-video-pct">⬆ 0%</span>
+        </div>
+      </div>
       <div id="create-skill-video-status" class="text-sm mt-1"></div>
     </div>
 
@@ -723,6 +746,73 @@
     }
   }
 
+  async function handleCreatePhotoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      App.showToast('Photo must be under 10 MB.', 'error');
+      input.value = '';
+      return;
+    }
+    const btn      = document.getElementById('create-photo-upload-btn');
+    const statusEl = document.getElementById('create-photo-status');
+    const urlInput = document.getElementById('create-skill-photo-url');
+    btn.disabled         = true;
+    statusEl.textContent = '⬆ Uploading…';
+    try {
+      const tempId = `new-skill-${Date.now()}`;
+      const url = await SupabaseDB.uploadSkillPhoto(tempId, file);
+      urlInput.value       = url;
+      statusEl.textContent = '✓ Uploaded';
+      updateCreateSkillPhotoPreview();
+      App.showToast('Photo uploaded successfully.');
+      btn.textContent = '📷 Replace Photo';
+    } catch (err) {
+      statusEl.textContent = '';
+      App.showToast('Photo upload failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      input.value  = '';
+    }
+  }
+
+  async function handleCreateVideoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 200 * 1024 * 1024) {
+      App.showToast('Video must be under 200 MB.', 'error');
+      input.value = '';
+      return;
+    }
+    const btn        = document.getElementById('create-video-upload-btn');
+    const progressEl = document.getElementById('create-video-progress');
+    const barEl      = document.getElementById('create-video-bar');
+    const pctEl      = document.getElementById('create-video-pct');
+    const urlInput   = document.getElementById('create-skill-video-url');
+    btn.disabled             = true;
+    progressEl.style.display = '';
+    barEl.style.width        = '0%';
+    pctEl.textContent        = '⬆ 0%';
+    try {
+      const tempId = `new-skill-${Date.now()}`;
+      const url = await SupabaseDB.uploadSkillVideo(tempId, file, (pct) => {
+        barEl.style.width = `${pct}%`;
+        pctEl.textContent = `⬆ ${pct}%`;
+      });
+      urlInput.value    = url;
+      barEl.style.width = '100%';
+      pctEl.textContent = '✓ Done';
+      App.showToast('Video uploaded successfully.');
+      btn.textContent = '🎬 Replace Video';
+    } catch (err) {
+      progressEl.style.display = 'none';
+      App.showToast('Video upload failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      input.value  = '';
+    }
+  }
+
   async function saveSkillEdit(skillId) {
     const btn      = document.getElementById('save-skill-edit-btn');
     const name     = document.getElementById('edit-skill-name').value.trim();
@@ -825,6 +915,10 @@
     document.getElementById('create-skill-video-url').value   = '';
     document.getElementById('create-skill-photo-preview').innerHTML = '';
     document.getElementById('create-skill-video-status').innerHTML  = '';
+    document.getElementById('create-photo-upload-btn').textContent  = '📷 Upload Photo';
+    document.getElementById('create-photo-status').textContent      = '';
+    document.getElementById('create-video-upload-btn').textContent  = '🎬 Upload Video';
+    document.getElementById('create-video-progress').style.display  = 'none';
     App.hideAlert('create-skill-alert');
     App.openModal('create-skill-modal');
 
