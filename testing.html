@@ -612,6 +612,24 @@
   let completedDivers = {};  // {diverId: result}
   let confirmCallback = null;
 
+  // Display order for skill-type groups — matches skills.html / progress.html
+  // so Step 3's skill list follows the same curriculum order everywhere.
+  const SECTION_ORDER = [
+    'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
+    'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
+    '1m Springboard', '3m Springboard', 'Platform', 'Pool', 'Games', 'Bonus',
+  ];
+
+  // Sort by SECTION_ORDER position first (unknown types sort last), then by
+  // skill_order within each type.
+  function compareBySection(a, b) {
+    const aIdx = SECTION_ORDER.indexOf(a.type);
+    const bIdx = SECTION_ORDER.indexOf(b.type);
+    const sectionDiff = (aIdx === -1 ? SECTION_ORDER.length : aIdx) - (bIdx === -1 ? SECTION_ORDER.length : bIdx);
+    if (sectionDiff !== 0) return sectionDiff;
+    return App.compareSkillOrder(a, b);
+  }
+
   // =============================================
   // Init
   // =============================================
@@ -870,6 +888,7 @@
     if (sd.skills !== null) return;
     try {
       sd.skills = await SupabaseDB.getTestingSkillsForDiverLevel(sd.diver.id, sd.level);
+      sd.skills.sort(compareBySection);
       sessionScores[sd.diver.id] = {};
     } catch (err) {
       sd.skills = [];
