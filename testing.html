@@ -433,9 +433,21 @@
       cursor: pointer;
       transition: var(--transition, all 0.18s ease);
     }
+    /* Global a:hover { text-decoration: underline } in styles.css beats a
+       plain .diver-result-card class on specificity, so the base
+       text-decoration:none above gets overridden on hover unless repeated
+       here — same reason .diver-row:hover repeats it on the roster page.
+       Also cover descendants in case any child sets its own decoration. */
     .diver-result-card:hover {
       border-color: rgba(0, 201, 167, 0.4);
       background: var(--surface-2, #1a1f2e);
+      text-decoration: none;
+    }
+    .diver-result-card,
+    .diver-result-card:hover,
+    .diver-result-card *,
+    .diver-result-card:hover * {
+      text-decoration: none;
     }
     .diver-result-card.has-designation,
     .diver-result-card.has-passed {
