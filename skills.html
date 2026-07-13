@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Drills — Skills</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=5">
+  <link rel="stylesheet" href="css/styles.css?v=6">
   <style>
     .upload-row {
       display: flex;
@@ -110,6 +110,7 @@
     <div class="modal-header">
       <div>
         <h2 class="modal-title" id="modal-skill-name">Skill Name</h2>
+        <div id="modal-skill-rating" class="mt-1"></div>
         <div id="modal-skill-meta" class="skill-meta mt-1"></div>
       </div>
       <button class="modal-close" onclick="App.closeModal('skill-modal')" aria-label="Close">✕</button>
@@ -119,6 +120,11 @@
       <div id="modal-skill-order" class="text-secondary mb-3" style="font-size:0.7rem"></div>
 
       <div id="modal-status-badge" class="mb-4"></div>
+
+      <div id="modal-rating-section" class="content-section hidden">
+        <div class="section-title mb-2">Your Rating</div>
+        <div id="modal-rating-input"></div>
+      </div>
 
       <div class="content-section">
         <div class="section-title mb-2">Description</div>
@@ -250,17 +256,18 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=19"></script>
+<script src="js/supabase.js?v=20"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/app.js?v=6"></script>
 
 <script>
-  let allSkills     = [];
-  let completionMap = {};
-  let currentUser   = null;
-  let activeSkill   = null;
-  let activeTab     = 'all';
+  let allSkills       = [];
+  let completionMap   = {};
+  let skillRatingsMap = {}; // { [skillId]: { average, count } } — fetched once, updated on rating save
+  let currentUser     = null;
+  let activeSkill     = null;
+  let activeTab       = 'all';
 
   // Display order for skill-type sections on the library page.
   const SECTION_ORDER = [
@@ -286,6 +293,9 @@
 
     allSkills     = skills;
     completionMap = cMap;
+
+    // One bulk query for all ratings, not 644 individual ones.
+    skillRatingsMap = await SupabaseDB.getBulkSkillRatings(skills.map(s => s.id));
 
     if (user.role === 'coach') {
       document.getElementById('create-skill-btn').classList.remove('hidden');
@@ -456,6 +466,7 @@
               <div class="skill-name">${App.escHtml(skill.name)}${skill.requiresHarness ? ' <span title="Requires harness">+</span>' : ''}</div>
               ${App.stageBadgeHtml(completion)}
             </div>
+            ${App.starRatingCompactHtml(skillRatingsMap[skill.id]?.average, skillRatingsMap[skill.id]?.count)}
             ${skill.description
               ? `<div class="skill-description">${App.escHtml(skill.description.slice(0, 100))}${skill.description.length > 100 ? '…' : ''}</div>`
               : ''}
@@ -492,6 +503,20 @@
     document.getElementById('modal-skill-order').textContent = `Skill Order: ${skill.order ?? '—'}`;
 
     document.getElementById('modal-status-badge').innerHTML = App.stageBadgeHtml(completion) || '';
+
+    const ratingData = skillRatingsMap[skill.id] || { average: 0, count: 0 };
+    document.getElementById('modal-skill-rating').innerHTML = App.starRatingFullHtml(ratingData.average || 0, ratingData.count || 0);
+
+    const ratingSection = document.getElementById('modal-rating-section');
+    if (currentUser.role === 'coach') {
+      ratingSection.classList.remove('hidden');
+      renderRatingInput(skill.id, null);
+      SupabaseDB.getCoachSkillRating(skill.id, currentUser.id).then(rating => {
+        if (activeSkill?.id === skill.id) renderRatingInput(skill.id, rating);
+      });
+    } else {
+      ratingSection.classList.add('hidden');
+    }
     document.getElementById('modal-description').textContent = skill.description || 'No description available.';
 
     const coachingWrap = document.getElementById('modal-coaching');
@@ -560,6 +585,81 @@
       area.innerHTML = `<button class="btn btn-primary btn-full" onclick="openSkillEditForm(${skill.id})">Edit Skill</button>`;
     } else {
       area.innerHTML = '';
+    }
+  }
+
+  // =============================================
+  // COACH — STAR RATING INPUT
+  // =============================================
+  let ratingInputLiveValue = 0; // tracks the currently-saved value shown on mouseleave
+
+  function starCellFillPct(rating, index) {
+    return Math.max(0, Math.min(1, rating - (index - 1))) * 100;
+  }
+
+  function ratingYourText(rating) {
+    return rating
+      ? `Your rating: <strong>${rating.toFixed(1)} ★</strong>`
+      : 'You have not rated this skill yet.';
+  }
+
+  function renderRatingInput(skillId, currentRating) {
+    const wrap = document.getElementById('modal-rating-input');
+    ratingInputLiveValue = currentRating || 0;
+
+    wrap.innerHTML = `
+      <div class="star-input" id="rating-star-input">
+        ${[1, 2, 3, 4, 5].map(i => `
+          <span class="star-input-star" data-index="${i}">
+            <span class="star-input-star-bg">☆</span>
+            <span class="star-input-star-fg" style="width:${starCellFillPct(ratingInputLiveValue, i)}%">★</span>
+          </span>
+        `).join('')}
+      </div>
+      <div class="star-input-your-rating" id="rating-your-text">${ratingYourText(currentRating)}</div>
+    `;
+
+    const stars = [...wrap.querySelectorAll('.star-input-star')];
+
+    const updateFill = (val) => {
+      stars.forEach((star, idx) => {
+        star.querySelector('.star-input-star-fg').style.width = `${starCellFillPct(val, idx + 1)}%`;
+      });
+    };
+
+    const valueFromEvent = (e, star, index) => {
+      const rect    = star.getBoundingClientRect();
+      const clientX = e.clientX;
+      const frac    = (clientX - rect.left) / rect.width;
+      return frac < 0.5 ? index - 0.5 : index;
+    };
+
+    stars.forEach((star, idx) => {
+      const index = idx + 1;
+      star.addEventListener('mousemove', e => updateFill(valueFromEvent(e, star, index)));
+      star.addEventListener('mouseleave', () => updateFill(ratingInputLiveValue));
+      star.addEventListener('click', e => {
+        submitSkillRating(skillId, valueFromEvent(e, star, index), updateFill);
+      });
+    });
+  }
+
+  async function submitSkillRating(skillId, rating, updateFill) {
+    try {
+      await SupabaseDB.saveSkillRating(skillId, currentUser.id, rating);
+
+      ratingInputLiveValue = rating;
+      updateFill(rating);
+      document.getElementById('rating-your-text').innerHTML = ratingYourText(rating);
+
+      const { average, count } = await SupabaseDB.getSkillRating(skillId);
+      skillRatingsMap[skillId] = { average, count };
+      document.getElementById('modal-skill-rating').innerHTML = App.starRatingFullHtml(average || 0, count);
+      applyFilters();
+
+      App.showToast('Rating saved');
+    } catch (err) {
+      App.showToast(err.message, 'error');
     }
   }
 

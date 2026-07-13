@@ -678,6 +678,59 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 .skill-meta { display: flex; align-items: center; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
 
 /* =============================================
+   STAR RATINGS
+   Two-layer glyph trick: gray empty stars underneath, gold full stars
+   on top clipped to a percentage width — gives smooth half-star (and
+   any fractional) fill without needing a half-star unicode glyph.
+   ============================================= */
+.star-rating { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.star-rating-value { font-weight: 600; color: var(--text-primary); }
+.star-rating-count { font-size: 0.75rem; color: var(--text-secondary); }
+
+.star-rating-stars { position: relative; display: inline-block; line-height: 1; white-space: nowrap; letter-spacing: 1px; }
+.star-rating-stars-bg { color: #444444; }
+.star-rating-stars-fg {
+  position: absolute;
+  top: 0; left: 0;
+  overflow: hidden;
+  color: #f5c518;
+  white-space: nowrap;
+}
+
+.star-rating-sm .star-rating-value { font-size: 0.78rem; }
+.star-rating-sm .star-rating-stars { font-size: 0.82rem; }
+.star-rating-sm .star-rating-count { font-size: 0.7rem; }
+
+.star-rating-lg .star-rating-value { font-size: 1.15rem; }
+.star-rating-lg .star-rating-stars { font-size: 1.4rem; }
+
+/* Interactive coach rating input — tap/click left half of a star for a
+   half rating, right half for a full rating. Each star is >=32px for
+   comfortable poolside mobile tapping. */
+.star-input { display: inline-flex; gap: 4px; }
+.star-input-star {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  font-size: 32px;
+  line-height: 36px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+.star-input-star-bg { color: #444444; }
+.star-input-star-fg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 0%;
+  overflow: hidden;
+  color: #f5c518;
+  pointer-events: none;
+}
+.star-input-your-rating { font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; }
+.star-input-your-rating strong { color: var(--text-primary); }
+
+/* =============================================
    SKILL PHOTO THUMBNAILS + LIGHTBOX
    ============================================= */
 .skill-card-body { display: flex; gap: 12px; }

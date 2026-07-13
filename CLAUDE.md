@@ -58,11 +58,11 @@ This has caused repeated bugs throughout development.
 
 | File | Version |
 |------|---------|
-| js/app.js | v=5 |
-| js/supabase.js | v=19 |
+| js/app.js | v=6 |
+| js/supabase.js | v=20 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
-| css/styles.css | v=5 |
+| css/styles.css | v=6 |
 
 ---
 
@@ -72,7 +72,7 @@ Pure HTML/CSS/JS — no bundler, no build step. Supabase (auth + DB). Netlify (d
 
 **3 roles:** coach (full access), diver (own profile), parent (read-only linked diver)
 
-**DB tables:** profiles, roster, parent_diver, skill_completions, skill_test_attempts, level_completions, club_settings
+**DB tables:** profiles, roster, parent_diver, skill_completions, skill_test_attempts, level_completions, club_settings, skill_ratings
 
 **Script load order matters (no bundler):** config → supabase → auth → [skills] → app → page inline script
 

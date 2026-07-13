@@ -1049,6 +1049,71 @@ const SupabaseDB = {
   },
 
   // =============================================
+  // SKILL RATINGS (coach 1.0-5.0 star ratings)
+  // =============================================
+
+  // Average rating + count for one skill. Returns { average: number|null, count: number }.
+  async getSkillRating(skillId) {
+    const { data, error } = await this.db
+      .from('skill_ratings')
+      .select('rating')
+      .eq('skill_id', skillId);
+    if (error) { console.error('[SupabaseDB] getSkillRating:', error.message); return { average: null, count: 0 }; }
+    const rows = data ?? [];
+    if (!rows.length) return { average: null, count: 0 };
+    const avg = rows.reduce((sum, r) => sum + Number(r.rating), 0) / rows.length;
+    return { average: avg, count: rows.length };
+  },
+
+  // This coach's own rating for a skill, or null if they haven't rated it yet.
+  async getCoachSkillRating(skillId, coachId) {
+    const { data, error } = await this.db
+      .from('skill_ratings')
+      .select('rating')
+      .eq('skill_id', skillId)
+      .eq('coach_id', coachId)
+      .maybeSingle();
+    if (error) { console.error('[SupabaseDB] getCoachSkillRating:', error.message); return null; }
+    return data ? Number(data.rating) : null;
+  },
+
+  // Upserts a coach's rating for a skill (one row per skill/coach pair).
+  async saveSkillRating(skillId, coachId, rating) {
+    const { error } = await this.db
+      .from('skill_ratings')
+      .upsert(
+        { skill_id: skillId, coach_id: coachId, rating },
+        { onConflict: 'skill_id,coach_id' }
+      );
+    if (error) throw new Error(error.message);
+  },
+
+  // Average rating + count for many skills in one query — used by the
+  // skills library list so it doesn't fire one query per skill card.
+  // Returns a map: { [skillId]: { average: number, count: number } }.
+  async getBulkSkillRatings(skillIds) {
+    const map = {};
+    if (!skillIds.length) return map;
+
+    const { data, error } = await this.db
+      .from('skill_ratings')
+      .select('skill_id, rating')
+      .in('skill_id', skillIds);
+    if (error) { console.error('[SupabaseDB] getBulkSkillRatings:', error.message); return map; }
+
+    const sums   = {};
+    const counts = {};
+    (data ?? []).forEach(row => {
+      sums[row.skill_id]   = (sums[row.skill_id]   || 0) + Number(row.rating);
+      counts[row.skill_id] = (counts[row.skill_id] || 0) + 1;
+    });
+    Object.keys(counts).forEach(id => {
+      map[id] = { average: sums[id] / counts[id], count: counts[id] };
+    });
+    return map;
+  },
+
+  // =============================================
   // STORAGE — SKILL MEDIA UPLOADS
   // =============================================
 

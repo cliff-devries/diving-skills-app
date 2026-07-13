@@ -232,6 +232,54 @@ const App = {
   },
 
   // =============================================
+  // STAR RATINGS
+  // Renders a gold/gray star bar sized by percentage fill (via CSS clip),
+  // so half-star (and any fractional) ratings render smoothly without
+  // relying on a half-star glyph.
+  // =============================================
+
+  // Compact read-only stars for skill cards — numeric + stars, no count.
+  // Returns '' if there are no ratings yet (cards show nothing in that case).
+  starRatingCompactHtml(average, count) {
+    if (!count) return '';
+    const pct = Math.max(0, Math.min(100, (average / 5) * 100));
+    return `
+      <span class="star-rating star-rating-sm">
+        <span class="star-rating-value">${average.toFixed(1)}</span>
+        <span class="star-rating-stars">
+          <span class="star-rating-stars-bg">☆☆☆☆☆</span>
+          <span class="star-rating-stars-fg" style="width:${pct}%">★★★★★</span>
+        </span>
+      </span>
+    `;
+  },
+
+  // Full read-only stars for the skill detail modal — numeric + stars + count.
+  starRatingFullHtml(average, count) {
+    if (!count) {
+      return `
+        <span class="star-rating star-rating-lg">
+          <span class="star-rating-stars">
+            <span class="star-rating-stars-bg">☆☆☆☆☆</span>
+          </span>
+          <span class="star-rating-count">No ratings yet</span>
+        </span>
+      `;
+    }
+    const pct = Math.max(0, Math.min(100, (average / 5) * 100));
+    return `
+      <span class="star-rating star-rating-lg">
+        <span class="star-rating-value">${average.toFixed(1)}</span>
+        <span class="star-rating-stars">
+          <span class="star-rating-stars-bg">☆☆☆☆☆</span>
+          <span class="star-rating-stars-fg" style="width:${pct}%">★★★★★</span>
+        </span>
+        <span class="star-rating-count">(${count} rating${count !== 1 ? 's' : ''})</span>
+      </span>
+    `;
+  },
+
+  // =============================================
   // NAME FORMATTING — first_name/last_name aware helpers.
   // Fall back to splitting full_name for any records that
   // haven't been backfilled yet.
