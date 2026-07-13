@@ -229,17 +229,49 @@
       min-height: 28px;
     }
     .scoring-clear-btn:hover { border-color: #ef4444; color: #ef4444; }
-    .scoring-display-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 2px;
-    }
-    /* Two-column body: calculator (left) + stacked nav buttons (right) */
+    /* Three-column body: score display (left) + calculator (middle) + stacked nav buttons (right) */
     .scoring-body {
       display: flex;
       gap: 8px;
       align-items: stretch;
+    }
+    /* Left column — Clear button / score value / skill type badge, stacked
+       and filling the full height of the calculator grid. A slightly
+       lighter surface than the panel background sets it apart visually. */
+    .scoring-score-col {
+      flex: 0 0 60px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--surface, #141826);
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 4px;
+      gap: 4px;
+    }
+    .scoring-number-wrap {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Long labels ("Trampoline in Belt") wrap at word boundaries onto up to
+       2 lines, then ellipsis — never break mid-word, that's unreadable. */
+    .scoring-score-col .skill-type-tag {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: center;
+      line-height: 1.2;
+      font-size: 0.5rem;
+      padding: 2px 3px;
+      max-width: 100%;
     }
     .calc-grid {
       flex: 1;
@@ -332,14 +364,15 @@
     }
     .scoring-nav-btn.scoring-complete-btn:disabled { opacity: 0.4; cursor: default; }
     .scoring-number {
-      font-size: 1.6rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: var(--accent, #14b8a6);
       line-height: 1;
+      text-align: center;
     }
     .scoring-number.unscored {
       color: var(--text-secondary);
-      font-size: 1.3rem;
+      font-size: 1.1rem;
     }
 
     /* Very narrow screens: shrink calculator buttons only — nav buttons stay >=44px */
@@ -347,6 +380,9 @@
       .calc-btn { min-width: 26px; max-width: 36px; font-size: 0.78rem; }
       .scoring-nav-col { flex-basis: 76px; }
       .scoring-nav-btn { font-size: 0.68rem; }
+      .scoring-score-col { flex-basis: 46px; padding: 5px 3px; }
+      .scoring-number { font-size: 1.1rem; }
+      .scoring-number.unscored { font-size: 0.95rem; }
     }
 
     /* Mobile: flex column, full height minus bottom nav */
@@ -1056,14 +1092,14 @@
     const total       = sd.skills?.length || 0;
 
     document.getElementById('scoring-panel').innerHTML = `
-      <div class="scoring-display-row">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0">
-          <div class="${numClass}" id="scoring-number">${numText}</div>
+      <div class="scoring-body">
+        <div class="scoring-score-col">
+          <button class="scoring-clear-btn" onclick="clearScore()">C</button>
+          <div class="scoring-number-wrap">
+            <div class="${numClass}" id="scoring-number">${numText}</div>
+          </div>
           ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
         </div>
-        <button class="scoring-clear-btn" onclick="clearScore()">C</button>
-      </div>
-      <div class="scoring-body">
         <div class="calc-grid">
           <button class="calc-btn" onclick="calcInput(7)">7</button>
           <button class="calc-btn" onclick="calcInput(8)">8</button>
