@@ -271,6 +271,27 @@
     .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
     .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
 
+    /* Desktop: compact, left-aligned, rectangular keys — mobile keeps the
+       stretched-square behavior above unchanged. */
+    @media (min-width: 600px) {
+      .calc-grid {
+        flex: 0 0 auto;
+        max-width: 190px;
+        grid-template-columns: repeat(3, 54px);
+        gap: 4px;
+        justify-items: stretch;
+      }
+      .calc-btn {
+        width: 54px;
+        min-width: 54px;
+        max-width: 54px;
+        aspect-ratio: unset;
+        height: 36px;
+        min-height: 36px;
+        max-height: 36px;
+      }
+    }
+
     /* Right column: Prev / Complete Diver / Next, stacked and identically sized */
     .scoring-nav-col {
       flex: 0 0 90px;
