@@ -418,11 +418,24 @@
       gap: 14px;
       margin-top: 16px;
     }
+    /* The whole card is a link (same pattern as .diver-row on the roster
+       page) — block anchor, inherited text color, subtle teal hover. */
     .diver-result-card {
+      display: block;
+      position: relative;
       background: var(--surface, #141826);
       border: 1.5px solid var(--border);
       border-radius: 10px;
       padding: 16px;
+      padding-bottom: 32px;
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: var(--transition, all 0.18s ease);
+    }
+    .diver-result-card:hover {
+      border-color: rgba(0, 201, 167, 0.4);
+      background: var(--surface-2, #1a1f2e);
     }
     .diver-result-card.has-designation,
     .diver-result-card.has-passed {
@@ -431,17 +444,15 @@
     .diver-result-card.has-failed {
       border-color: #ef4444;
     }
-    .diver-name-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      font-weight: 600;
-      color: var(--accent, #00c9a7);
-      text-decoration: none;
-      cursor: pointer;
+    .diver-card-hint {
+      position: absolute;
+      right: 14px;
+      bottom: 10px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      transition: color 0.15s;
     }
-    .diver-name-link:hover { text-decoration: underline; }
-    .diver-name-link-arrow { font-weight: 400; }
+    .diver-result-card:hover .diver-card-hint { color: var(--accent, #00c9a7); }
     .skills-below-list {
       margin-top: 8px;
       font-size: 0.78rem;
@@ -1366,14 +1377,11 @@
         });
         const cardClass = d.designation ? 'has-designation' : d.passed ? 'has-passed' : 'has-failed';
         return `
-          <div class="diver-result-card ${cardClass}">
+          <a class="diver-result-card ${cardClass}" href="progress.html?diver=${encodeURIComponent(d.diver.id)}">
             <div class="flex items-center gap-3 mb-3">
               <div class="avatar-sm">${App.escHtml(Auth.getInitials(d.diver.full_name))}</div>
               <div>
-                <a class="diver-name-link" href="progress.html?diver=${encodeURIComponent(d.diver.id)}">
-                  ${App.escHtml(App.formatNameLastFirst(d.diver))}
-                  <span class="diver-name-link-arrow" aria-hidden="true">→</span>
-                </a>
+                <div style="font-weight:600">${App.escHtml(App.formatNameLastFirst(d.diver))}</div>
                 <div class="text-sm text-secondary">Level ${d.level}</div>
               </div>
               ${designationHtml(d.designation, d.passed)}
@@ -1388,7 +1396,8 @@
                 <ul>${below.map(sk => `<li>· ${App.escHtml(sk.name)} — ${(parseFloat(d.scores[sk.id]?.value) || 0).toFixed(1)}</li>`).join('')}</ul>
               </div>
             ` : ''}
-          </div>`;
+            <div class="diver-card-hint">→ View Progress</div>
+          </a>`;
       }).join('');
 
     const main = document.getElementById('main-content');
