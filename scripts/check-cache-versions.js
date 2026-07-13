@@ -13,6 +13,7 @@ const TRACKED = [
   { file: 'js/supabase.js',  pattern: /js\/supabase\.js\?v=(\d+)/g },
   { file: 'js/auth.js',      pattern: /js\/auth\.js\?v=(\d+)/g },
   { file: 'js/skills.js',    pattern: /js\/skills\.js\?v=(\d+)/g },
+  { file: 'js/reports.js',   pattern: /js\/reports\.js\?v=(\d+)/g },
   { file: 'css/styles.css',  pattern: /css\/styles\.css\?v=(\d+)/g },
 ];
 
@@ -35,9 +36,9 @@ for (const { file, pattern } of TRACKED) {
 
     if (matches.length === 0) {
       // Only flag as missing if the file is expected to load this asset.
-      // (skills.js is only on skills.html — other pages legitimately omit it)
-      const isExpected = file !== 'js/skills.js' ||
-        content.includes('skills.js');
+      // (skills.js/reports.js are only on some pages — others legitimately omit them)
+      const isExpected = (file !== 'js/skills.js' || content.includes('skills.js'))
+        && (file !== 'js/reports.js' || content.includes('reports.js'));
       if (isExpected && content.includes(file.split('?')[0].split('/').pop())) {
         missing.push(html);
       }

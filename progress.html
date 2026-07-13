@@ -304,12 +304,39 @@
 </div>
 
 
+<!-- =============================================
+     SEND REPORT TO PARENT MODAL (coach only)
+============================================= -->
+<div class="modal-overlay" id="send-report-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h2 class="modal-title">Send Report to Parent</h2>
+      <button class="modal-close" onclick="App.closeModal('send-report-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="send-report-desc"></p>
+    <div class="form-group">
+      <label class="form-label">Message (optional)</label>
+      <textarea id="send-report-message" class="form-input" rows="3" style="resize:vertical"
+        placeholder="Add a personal note for the parent…"></textarea>
+    </div>
+    <div id="send-report-alert" class="alert mb-3"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('send-report-modal')">Cancel</button>
+      <button class="btn btn-primary" id="send-report-confirm-btn" onclick="confirmSendReport()">Send Email</button>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=20"></script>
+<script src="js/supabase.js?v=21"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=6"></script>
+<script src="js/reports.js?v=1"></script>
 
 <script>
   let allSkills       = [];
@@ -663,7 +690,7 @@
     updateAquaDisplay(this.value);
   });
 
-  ['edit-profile-modal', 'invite-modal', 'remove-from-roster-modal'].forEach(id => {
+  ['edit-profile-modal', 'invite-modal', 'remove-from-roster-modal', 'send-report-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });
@@ -779,6 +806,10 @@
       }
     }
 
+    // A report is only meaningful once at least one skill in this level has a score.
+    const hasTestedSkills = lvlSkills.some(s => completionMap[s.id]?.latest_score != null);
+    const canEmailReport  = currentUser.role === 'coach' && hasTestedSkills && !!linkedParent?.email;
+
     container.innerHTML = `
       <div class="card fade-in">
         <div class="level-skills-header">
@@ -792,7 +823,17 @@
             </div>
           </div>
           <div class="flex flex-col items-end gap-1">
-            <div class="text-accent" style="font-size:1.5rem;font-weight:800" id="level-progress-pct">${pct}%</div>
+            <div class="flex items-center gap-2">
+              ${canEmailReport ? `
+                <button class="btn btn-ghost btn-sm" id="send-report-btn-${level}" title="Send Report to Parent"
+                  style="padding:4px 8px" onclick="openSendReportModal(${level})">✉️</button>
+              ` : ''}
+              ${hasTestedSkills ? `
+                <button class="btn btn-ghost btn-sm" id="pdf-report-btn-${level}" title="Download Test Report"
+                  style="padding:4px 8px" onclick="downloadLevelReport(${level})">📄</button>
+              ` : ''}
+              <div class="text-accent" style="font-size:1.5rem;font-weight:800" id="level-progress-pct">${pct}%</div>
+            </div>
             <div class="level-cert-count" id="level-cert-count">${certified}/${total} certified</div>
           </div>
         </div>
@@ -812,6 +853,56 @@
         App.openImageLightbox(thumb.dataset.lightboxUrl);
       });
     });
+  }
+
+  // =============================================
+  // TEST REPORT PDF — download + email to parent
+  // =============================================
+  let sendReportLevel = null;
+
+  async function downloadLevelReport(level) {
+    const btn = document.getElementById(`pdf-report-btn-${level}`);
+    App.setBtnLoading(btn, true);
+    try {
+      await Reports.downloadTestReport(targetDiverId, level);
+    } catch (err) {
+      App.showToast('Could not generate report: ' + err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  function openSendReportModal(level) {
+    sendReportLevel = level;
+    const parentName = linkedParent?.full_name || 'the parent';
+    document.getElementById('send-report-desc').textContent =
+      `Send Level ${level} test report to ${parentName} at ${linkedParent?.email}?`;
+    document.getElementById('send-report-message').value = '';
+    App.hideAlert('send-report-alert');
+    App.openModal('send-report-modal');
+  }
+
+  async function confirmSendReport() {
+    if (sendReportLevel === null || !linkedParent?.email) return;
+    const btn = document.getElementById('send-report-confirm-btn');
+    App.setBtnLoading(btn, true);
+    App.hideAlert('send-report-alert');
+    try {
+      await Reports.emailTestReport({
+        diverId:      targetDiverId,
+        level:        sendReportLevel,
+        parentEmail:  linkedParent.email,
+        parentName:   linkedParent.full_name || 'Parent',
+        coachName:    currentUser.full_name || 'Your coach',
+        coachMessage: document.getElementById('send-report-message').value.trim(),
+      });
+      App.closeModal('send-report-modal');
+      App.showToast(`Report sent to ${linkedParent.full_name || 'parent'}`);
+    } catch (err) {
+      App.showAlert('send-report-alert', err.message);
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
   }
 
   // ---- Group a level's skills by skill type, in standardized order ----

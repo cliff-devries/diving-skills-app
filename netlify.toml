@@ -3,8 +3,9 @@
 # =============================================
 
 [build]
-  command = "node scripts/generate-config.js"
-  publish = "."
+  command   = "node scripts/generate-config.js"
+  publish   = "."
+  functions = "netlify/functions"
 
 # js/config.js is generated at build time from the SUPABASE_URL and
 # SUPABASE_ANON_KEY environment variables (see scripts/generate-config.js).

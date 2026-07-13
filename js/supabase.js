@@ -849,7 +849,7 @@ const SupabaseDB = {
 
     const { data: completions, error: compErr } = await this.db
       .from('skill_completions')
-      .select('id, skill_id, latest_score, latest_test_date')
+      .select('id, skill_id, latest_score, latest_test_date, tested_and_passed')
       .eq('diver_id', diverId)
       .in('skill_id', skillList.map(s => s.id));
     if (compErr) throw new Error(compErr.message);
@@ -858,15 +858,33 @@ const SupabaseDB = {
     (completions ?? []).forEach(c => { compMap[c.skill_id] = c; });
 
     return skillList.map(s => ({
-      id:            s.id,
-      name:          s.skill_name,
-      description:   s.skill_description || '',
-      type:          s.skill_type        || '',
-      category:      s.skill_category    || '',
-      order:         s.skill_order,
-      completionId:  compMap[s.id]?.id            || null,
-      latestScore:   compMap[s.id]?.latest_score  ?? null,
+      id:               s.id,
+      name:             s.skill_name,
+      description:      s.skill_description || '',
+      type:             s.skill_type        || '',
+      category:         s.skill_category    || '',
+      order:            s.skill_order,
+      completionId:     compMap[s.id]?.id                || null,
+      latestScore:      compMap[s.id]?.latest_score      ?? null,
+      latestTestDate:   compMap[s.id]?.latest_test_date  ?? null,
+      testedAndPassed:  compMap[s.id]?.tested_and_passed ?? false,
     }));
+  },
+
+  // All level_completions rows the current user is allowed to see (RLS
+  // scopes this: coaches see every diver's, a diver sees only their own,
+  // a parent sees only their linked diver's) — used by the Reports page.
+  async getAllLevelCompletionsWithDiverInfo() {
+    const { data, error } = await this.db
+      .from('level_completions')
+      .select(`
+        *,
+        diver: profiles!level_completions_diver_id_fkey (id, full_name, first_name, last_name, avatar_url),
+        coach: profiles!level_completions_coach_id_fkey (id, full_name)
+      `)
+      .order('completed_at', { ascending: false });
+    if (error) { console.error('[SupabaseDB] getAllLevelCompletionsWithDiverInfo:', error.message); return []; }
+    return data ?? [];
   },
 
   // Save all scored skills for one diver in a testing session.

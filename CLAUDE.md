@@ -11,6 +11,7 @@ bumped across ALL HTML files before pushing to GitHub.
 - `js/supabase.js?v=X` — bump when supabase.js changes
 - `js/auth.js?v=X` — bump when auth.js changes
 - `js/skills.js?v=X` — bump when skills.js changes
+- `js/reports.js?v=X` — bump when reports.js changes (only on progress.html/stats.html)
 - `css/styles.css?v=X` — bump when styles.css changes
 
 ### HTML files to update (ALL of them):
@@ -62,6 +63,7 @@ This has caused repeated bugs throughout development.
 | js/supabase.js | v=20 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
+| js/reports.js | v=1 |
 | css/styles.css | v=6 |
 
 ---
@@ -74,7 +76,21 @@ Pure HTML/CSS/JS — no bundler, no build step. Supabase (auth + DB). Netlify (d
 
 **DB tables:** profiles, roster, parent_diver, skill_completions, skill_test_attempts, level_completions, club_settings, skill_ratings
 
-**Script load order matters (no bundler):** config → supabase → auth → [skills] → app → page inline script
+**Script load order matters (no bundler):** config → supabase → auth → [skills] → app → [reports] → page inline script
+
+---
+
+## TEST REPORT PDFs (progress.html, stats.html)
+
+- `js/reports.js` builds a light-theme PDF test report per diver/level, generated fresh from
+  current DB state (no storage — a retest updates the report immediately).
+- Uses jsPDF + html2canvas, loaded via CDN — add both `<script>` tags to any page that loads
+  `js/reports.js`, before it.
+- `netlify/functions/send-report-email.js` emails the PDF to a diver's linked **parent** (never
+  the diver directly — youth-sports safety) via Brevo's REST API. Requires the Netlify env var
+  `BREVO_API_KEY` (Site configuration → Environment variables); optionally `BREVO_SENDER_EMAIL`
+  / `BREVO_SENDER_NAME` to override the default sender identity. The sender email must be a
+  verified sender in the Brevo account or sends will fail.
 
 ---
 

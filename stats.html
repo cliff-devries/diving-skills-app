@@ -6,6 +6,23 @@
   <title>Dive Drills — Statistics & Reports</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <link rel="stylesheet" href="css/styles.css?v=6">
+  <style>
+    .report-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .report-row-info { flex: 1; min-width: 160px; }
+    .report-row-name { font-weight: 600; font-size: 0.92rem; }
+    .report-row-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    .report-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  </style>
 </head>
 <body>
 
@@ -27,12 +44,17 @@
 
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=20"></script>
+<script src="js/supabase.js?v=21"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=6"></script>
+<script src="js/reports.js?v=1"></script>
 
 <script>
+  let allReports = [];
+
   (async function initStats() {
     initSupabase();
 
@@ -45,15 +67,124 @@
     main.innerHTML = `
       <div class="page-header">
         <h1>Statistics & Reports</h1>
-        <p>Club-wide statistics and reports.</p>
+        <p>Download test reports for any level a diver has been scored on.</p>
       </div>
 
-      <div class="empty-state">
-        <div class="empty-state-icon">📊</div>
-        <p>Statistics & Reports are coming soon.</p>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="report-search" class="form-input" placeholder="Search diver name…">
+        </div>
+        <select id="report-level-filter" class="form-select">
+          <option value="">All Levels</option>
+        </select>
       </div>
+
+      <div class="flex items-center justify-between mb-4">
+        <span id="report-count" class="text-sm text-secondary"></span>
+      </div>
+
+      <div id="reports-list"></div>
     `;
+
+    try {
+      allReports = await Reports.getReportsListData();
+    } catch (err) {
+      App.showError('reports-list', `Could not load reports: ${err.message}`);
+      return;
+    }
+
+    populateLevelFilter();
+    renderReportsList(allReports);
+
+    document.getElementById('report-search').addEventListener('input', applyReportFilters);
+    document.getElementById('report-level-filter').addEventListener('change', applyReportFilters);
   })();
+
+  function populateLevelFilter() {
+    const sel = document.getElementById('report-level-filter');
+    const levels = [...new Set(allReports.map(r => r.level))].sort((a, b) => a - b);
+    levels.forEach(lvl => {
+      const opt = document.createElement('option');
+      opt.value = lvl;
+      opt.textContent = App.getLevelLabel(lvl);
+      sel.appendChild(opt);
+    });
+  }
+
+  function applyReportFilters() {
+    const q     = document.getElementById('report-search').value.trim().toLowerCase();
+    const level = document.getElementById('report-level-filter').value;
+
+    const filtered = allReports.filter(r => {
+      if (q && !r.diverName.toLowerCase().includes(q)) return false;
+      if (level !== '' && String(r.level) !== level) return false;
+      return true;
+    });
+    renderReportsList(filtered);
+  }
+
+  function designationBadgeHtml(r) {
+    if (r.passed === false) return '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ Not Passed</span>';
+    if (r.designation === 'gold')   return '<span class="badge" style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)">🥇 Gold</span>';
+    if (r.designation === 'silver') return '<span class="badge" style="background:rgba(156,163,175,.15);color:#9ca3af;border:1px solid rgba(156,163,175,.3)">🥈 Silver</span>';
+    if (r.designation === 'bronze') return '<span class="badge" style="background:rgba(180,120,60,.15);color:#b47c3c;border:1px solid rgba(180,120,60,.3)">🥉 Bronze</span>';
+    return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
+  }
+
+  function renderReportsList(reports) {
+    const listEl  = document.getElementById('reports-list');
+    const countEl = document.getElementById('report-count');
+    countEl.textContent = `${reports.length} report${reports.length !== 1 ? 's' : ''}`;
+
+    if (!reports.length) {
+      listEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📄</div>
+          <p>No test reports available yet. Reports appear once a diver has been scored on a level.</p>
+        </div>`;
+      return;
+    }
+
+    listEl.innerHTML = reports.map((r, i) => `
+      <div class="report-row">
+        <div class="report-row-info">
+          <div class="report-row-name">${App.escHtml(r.diverName)}</div>
+          <div class="report-row-meta">${App.escHtml(App.getLevelLabel(r.level))} &middot; Last tested ${App.formatDate(r.lastTestDate)} &middot; Coach: ${App.escHtml(r.coachName)}</div>
+        </div>
+        ${designationBadgeHtml(r)}
+        <div class="report-row-actions">
+          <button class="btn btn-secondary btn-sm" id="report-dl-${i}" onclick="downloadReportRow(${i})">📄 Download PDF</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function downloadReportRow(idx) {
+    const report = getFilteredReports()[idx];
+    if (!report) return;
+    const btn = document.getElementById(`report-dl-${idx}`);
+    App.setBtnLoading(btn, true);
+    try {
+      await Reports.downloadTestReport(report.diverId, report.level);
+    } catch (err) {
+      App.showToast('Could not generate report: ' + err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  // Re-derive the currently-rendered (filtered) list so row index clicks
+  // line up, without keeping a second piece of state to fall out of sync.
+  function getFilteredReports() {
+    const q     = document.getElementById('report-search').value.trim().toLowerCase();
+    const level = document.getElementById('report-level-filter').value;
+    return allReports.filter(r => {
+      if (q && !r.diverName.toLowerCase().includes(q)) return false;
+      if (level !== '' && String(r.level) !== level) return false;
+      return true;
+    });
+  }
 </script>
 
 </body>
