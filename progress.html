@@ -896,7 +896,11 @@
 
     const stage1Disabled = !canSetStage1() || locked;
     const stage2Disabled = !canSetStage23() || !stage1Filled || locked;
-    const stage3Disabled = !(stage1Filled && stage2Filled);
+    // A skill tested via testing.html bypasses stage1/stage2 entirely, so
+    // stage3Filled must short-circuit this — otherwise an already-certified
+    // skill's checkmark renders dimmed (.disabled → opacity 0.35) and its
+    // attempt-history panel becomes unclickable.
+    const stage3Disabled = !stage3Filled && !(stage1Filled && stage2Filled);
 
     const stage1Click = stage1Disabled ? '' : `onclick="toggleStage1(${skill.id})"`;
     const stage2Click = stage2Disabled ? '' : `onclick="toggleStage2(${skill.id})"`;
