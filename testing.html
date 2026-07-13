@@ -152,15 +152,21 @@
       flex: 1;
       min-width: 0;
     }
+    /* No flex-wrap: the type badge must never drop to its own line — with
+       only one item on a wrapped line, justify-content:space-between pins
+       it to the LEFT instead of the right. Truncate the name instead. */
     .skill-name-row {
       display: flex;
       align-items: flex-start;
-      justify-content: space-between;
       gap: 6px;
-      flex-wrap: wrap;
     }
     .skill-type-tag { font-size: 0.6rem; flex-shrink: 0; margin-top: 1px; }
     .skill-row-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       font-weight: 600;
       font-size: 0.86rem;
       color: var(--text-primary);
@@ -273,23 +279,25 @@
       padding: 2px 3px;
       max-width: 100%;
     }
+    /* Compact rectangular keys, left-aligned and capped at 190px — the same
+       size on every screen size, not just desktop. */
     .calc-grid {
-      flex: 1;
+      flex: 0 0 auto;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      max-width: 190px;
+      grid-template-columns: repeat(3, 54px);
       gap: 4px;
       min-width: 0;
-      justify-items: center;
+      justify-items: stretch;
     }
-    /* Squareness comes from width + aspect-ratio, not height: a grid track
-       is often wider than 40px, and width:100% would win over aspect-ratio
-       once max-height clamps the height, producing a wide rectangle. */
     .calc-btn {
       padding: 0;
-      width: 100%;
-      min-width: 30px;
-      max-width: 40px;
-      aspect-ratio: 1 / 1;
+      width: 54px;
+      min-width: 54px;
+      max-width: 54px;
+      height: 36px;
+      min-height: 36px;
+      max-height: 36px;
       font-size: 0.85rem;
       font-weight: 700;
       border-radius: 7px;
@@ -302,27 +310,6 @@
     }
     .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
     .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
-
-    /* Desktop: compact, left-aligned, rectangular keys — mobile keeps the
-       stretched-square behavior above unchanged. */
-    @media (min-width: 600px) {
-      .calc-grid {
-        flex: 0 0 auto;
-        max-width: 190px;
-        grid-template-columns: repeat(3, 54px);
-        gap: 4px;
-        justify-items: stretch;
-      }
-      .calc-btn {
-        width: 54px;
-        min-width: 54px;
-        max-width: 54px;
-        aspect-ratio: unset;
-        height: 36px;
-        min-height: 36px;
-        max-height: 36px;
-      }
-    }
 
     /* Right column: Prev / Complete Diver / Next, stacked and identically sized */
     .scoring-nav-col {
@@ -375,9 +362,9 @@
       font-size: 1.1rem;
     }
 
-    /* Very narrow screens: shrink calculator buttons only — nav buttons stay >=44px */
+    /* Very narrow screens: nav/score columns can still shrink — calculator
+       keys stay fixed at 54x36 on every screen size per design. */
     @media (max-width: 360px) {
-      .calc-btn { min-width: 26px; max-width: 36px; font-size: 0.78rem; }
       .scoring-nav-col { flex-basis: 76px; }
       .scoring-nav-btn { font-size: 0.68rem; }
       .scoring-score-col { flex-basis: 46px; padding: 5px 3px; }
