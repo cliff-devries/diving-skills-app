@@ -235,65 +235,30 @@
       justify-content: space-between;
       padding: 0 2px;
     }
-    .scoring-nav-row {
+    /* Two-column body: calculator (left) + stacked nav buttons (right) */
+    .scoring-body {
       display: flex;
       gap: 8px;
-      align-items: center;
-    }
-    .scoring-nav-btn {
-      min-height: 46px;
-      height: 46px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      padding: 0 16px;
-      flex-shrink: 0;
-      border-radius: 8px;
-      border: 1.5px solid var(--border);
-      background: var(--surface, #141826);
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: background 0.1s, border-color 0.1s;
-    }
-    .scoring-nav-btn:disabled { opacity: 0.4; cursor: default; }
-    .scoring-nav-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
-    .scoring-complete-btn {
-      flex: 1;
-      min-height: 36px;
-      height: 36px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      border: none;
-      border-radius: 7px;
-      background: var(--accent, #14b8a6);
-      color: #000;
-      cursor: pointer;
-      transition: opacity 0.1s;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding: 0 8px;
-    }
-    .scoring-complete-btn:disabled { opacity: 0.4; cursor: default; }
-    .scoring-number {
-      font-size: 1.6rem;
-      font-weight: 800;
-      color: var(--accent, #14b8a6);
-      line-height: 1;
-    }
-    .scoring-number.unscored {
-      color: var(--text-secondary);
-      font-size: 1.3rem;
+      align-items: stretch;
     }
     .calc-grid {
+      flex: 1;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 3px;
+      gap: 4px;
+      min-width: 0;
+      justify-items: center;
     }
+    /* Squareness comes from width + aspect-ratio, not height: a grid track
+       is often wider than 40px, and width:100% would win over aspect-ratio
+       once max-height clamps the height, producing a wide rectangle. */
     .calc-btn {
       padding: 0;
-      min-height: 34px;
-      height: 34px;
-      font-size: 0.88rem;
+      width: 100%;
+      min-width: 30px;
+      max-width: 40px;
+      aspect-ratio: 1 / 1;
+      font-size: 0.85rem;
       font-weight: 700;
       border-radius: 7px;
       border: 1.5px solid var(--border);
@@ -305,6 +270,63 @@
     }
     .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
     .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
+
+    /* Right column: Prev / Complete Diver / Next, stacked and identically sized */
+    .scoring-nav-col {
+      flex: 0 0 90px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .scoring-nav-btn {
+      flex: 1 1 0;
+      min-height: 44px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      line-height: 1.15;
+      padding: 2px 6px;
+      border-radius: 7px;
+      border: 1.5px solid var(--border);
+      background: var(--surface, #141826);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s, opacity 0.1s;
+      /* Wrap rather than ellipsis-truncate — "Complete (X/Y)" must stay
+         readable at the 90px column width, not get cut mid-count. */
+      white-space: normal;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .scoring-nav-btn:disabled { opacity: 0.4; cursor: default; }
+    .scoring-nav-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+    .scoring-nav-btn.scoring-complete-btn {
+      border: none;
+      background: var(--accent, #00c9a7);
+      color: #000;
+    }
+    .scoring-nav-btn.scoring-complete-btn:disabled { opacity: 0.4; cursor: default; }
+    .scoring-number {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--accent, #14b8a6);
+      line-height: 1;
+    }
+    .scoring-number.unscored {
+      color: var(--text-secondary);
+      font-size: 1.3rem;
+    }
+
+    /* Very narrow screens: shrink calculator buttons only — nav buttons stay >=44px */
+    @media (max-width: 360px) {
+      .calc-btn { min-width: 26px; max-width: 36px; font-size: 0.78rem; }
+      .scoring-nav-col { flex-basis: 76px; }
+      .scoring-nav-btn { font-size: 0.68rem; }
+    }
 
     /* Mobile: flex column, full height minus bottom nav */
     @media (max-width: 768px) {
@@ -1020,31 +1042,33 @@
         </div>
         <button class="scoring-clear-btn" onclick="clearScore()">C</button>
       </div>
-      <div class="calc-grid">
-        <button class="calc-btn" onclick="calcInput(7)">7</button>
-        <button class="calc-btn" onclick="calcInput(8)">8</button>
-        <button class="calc-btn" onclick="calcInput(9)">9</button>
-        <button class="calc-btn" onclick="calcInput(4)">4</button>
-        <button class="calc-btn" onclick="calcInput(5)">5</button>
-        <button class="calc-btn" onclick="calcInput(6)">6</button>
-        <button class="calc-btn" onclick="calcInput(1)">1</button>
-        <button class="calc-btn" onclick="calcInput(2)">2</button>
-        <button class="calc-btn" onclick="calcInput(3)">3</button>
-        <button class="calc-btn" onclick="calcInput(0)">0</button>
-        <button class="calc-btn" onclick="calcInput(10)">10</button>
-        <button class="calc-btn" onclick="calcInput(0.5)">.5</button>
-      </div>
-      <div class="scoring-nav-row">
-        <button class="scoring-nav-btn" id="btn-prev"
-          onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>← Prev</button>
-        <button class="scoring-complete-btn" id="btn-complete-diver"
-          onclick="confirmCompleteDiver()" ${totalScored === 0 ? 'disabled' : ''}>
-          Complete Diver (${totalScored}/${total})
-        </button>
-        <button class="scoring-nav-btn" id="btn-advance"
-          onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
-          ${isLastSkill ? 'Last ✓' : 'Next →'}
-        </button>
+      <div class="scoring-body">
+        <div class="calc-grid">
+          <button class="calc-btn" onclick="calcInput(7)">7</button>
+          <button class="calc-btn" onclick="calcInput(8)">8</button>
+          <button class="calc-btn" onclick="calcInput(9)">9</button>
+          <button class="calc-btn" onclick="calcInput(4)">4</button>
+          <button class="calc-btn" onclick="calcInput(5)">5</button>
+          <button class="calc-btn" onclick="calcInput(6)">6</button>
+          <button class="calc-btn" onclick="calcInput(1)">1</button>
+          <button class="calc-btn" onclick="calcInput(2)">2</button>
+          <button class="calc-btn" onclick="calcInput(3)">3</button>
+          <button class="calc-btn" onclick="calcInput(0)">0</button>
+          <button class="calc-btn" onclick="calcInput(10)">10</button>
+          <button class="calc-btn" onclick="calcInput(0.5)">.5</button>
+        </div>
+        <div class="scoring-nav-col">
+          <button class="scoring-nav-btn" id="btn-prev"
+            onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>← Prev</button>
+          <button class="scoring-nav-btn scoring-complete-btn" id="btn-complete-diver"
+            onclick="confirmCompleteDiver()" ${totalScored === 0 ? 'disabled' : ''}>
+            Complete (${totalScored}/${total})
+          </button>
+          <button class="scoring-nav-btn" id="btn-advance"
+            onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
+            ${isLastSkill ? 'Last ✓' : 'Next →'}
+          </button>
+        </div>
       </div>`;
   }
 
@@ -1162,7 +1186,7 @@
     const btn    = document.getElementById('btn-complete-diver');
     if (btn) {
       btn.disabled    = scored === 0;
-      btn.textContent = `Complete Diver (${scored}/${total})`;
+      btn.textContent = `Complete (${scored}/${total})`;
     }
   }
 
