@@ -60,10 +60,10 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=6 |
-| js/supabase.js | v=20 |
+| js/supabase.js | v=21 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
-| js/reports.js | v=1 |
+| js/reports.js | v=2 |
 | css/styles.css | v=6 |
 
 ---
