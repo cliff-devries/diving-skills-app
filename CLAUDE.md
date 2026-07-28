@@ -93,15 +93,8 @@ The `profiles_status_check` constraint allows these exact values:
 
 Any migration that sets `status` must use one of these values.
 
-**Known gap:** `supabase-migration-v3.sql` originally created this constraint with only
-`('unclaimed', 'pending', 'active')`. No migration file in this repo ever widens it to add
-`'inactive'` or `'rejected'`, even though `reject_coach` (v17) and `remove_diver_from_roster`
-(v29/v33) both set those values. Either the constraint was widened directly in the Supabase
-dashboard outside of a tracked migration, or those code paths are currently failing a CHECK
-constraint violation on top of/instead of the RLS issue those migrations targeted. Verify the
-live constraint definition in Supabase before relying on this list, and consider adding a
-migration that formally drops/recreates `profiles_status_check` with all five values so the
-schema matches what the app actually does.
+The constraint was widened to this full set in `supabase-migration-v34.sql` — the original
+`supabase-migration-v3.sql` only allowed `('unclaimed', 'pending', 'active')`.
 
 ---
 
