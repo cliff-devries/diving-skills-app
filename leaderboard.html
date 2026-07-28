@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dive Drills — Leaderboard</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css?v=6">
+  <style>
+    .lb-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .lb-section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 14px 18px;
+      background: var(--accent-dim);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .lb-section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .lb-section-unit { font-size: 0.78rem; color: var(--text-secondary); }
+    .lb-body { padding: 16px 18px; }
+
+    .lb-age-columns { display: flex; gap: 0; overflow-x: auto; padding-bottom: 4px; }
+    .lb-age-column { flex: 0 0 170px; padding: 0 16px; border-left: 1px solid var(--border); }
+    .lb-age-column:first-child { border-left: none; padding-left: 0; }
+    .lb-age-column-full { flex: 1 1 auto; width: 100%; }
+    .lb-age-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .lb-rank-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.875rem; }
+    .lb-rank-num { width: 20px; flex-shrink: 0; font-weight: 700; color: var(--text-secondary); }
+    .lb-rank-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-rank-score { font-weight: 600; flex-shrink: 0; }
+    .lb-rank-1 .lb-rank-num, .lb-rank-1 .lb-rank-score { color: #f5c518; }
+    .lb-rank-2 .lb-rank-num, .lb-rank-2 .lb-rank-score { color: #c0c0c0; }
+    .lb-rank-3 .lb-rank-num, .lb-rank-3 .lb-rank-score { color: #cd7f32; }
+
+    .lb-milestone-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lb-chip { background: var(--accent); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content fade-in">
+    <div class="page-header">
+      <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <h1>Strength &amp; Conditioning Leaderboard</h1>
+          <p>Top performers at Upstate Diving</p>
+        </div>
+        <button class="btn btn-primary" id="record-score-btn" hidden onclick="openRecordScoreModal()">+ Record Score</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <select id="age-filter" class="form-select" onchange="renderLeaderboard()">
+        <option value="">All Ages</option>
+      </select>
+    </div>
+
+    <div id="leaderboard-content">
+      <div class="loading-overlay">
+        <div class="loading-spinner loading-spinner-lg"></div>
+        <span>Loading leaderboard…</span>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+
+<!-- =============================================
+     RECORD SCORE MODAL (coach only)
+============================================= -->
+<div class="modal-overlay" id="record-score-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title">Record Score</h2>
+      <button class="modal-close" onclick="App.closeModal('record-score-modal')">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Diver <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="record-diver-input" class="form-input" list="record-diver-list" placeholder="Start typing a name…" autocomplete="off">
+      <datalist id="record-diver-list"></datalist>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Exercise <span style="color:var(--danger)">*</span></label>
+      <select id="record-exercise-select" class="form-select" onchange="onRecordExerciseChange()"></select>
+    </div>
+
+    <div class="form-group" id="record-score-numeric-group">
+      <label class="form-label" id="record-score-label">Score</label>
+      <input type="number" id="record-score-input" class="form-input" step="1" placeholder="0">
+      <p class="form-hint" id="record-score-hint"></p>
+    </div>
+
+    <div class="form-group" id="record-score-boolean-group" style="display:none">
+      <label class="form-label">Achieved?</label>
+      <div class="flex items-center gap-2">
+        <label class="toggle-switch">
+          <input type="checkbox" id="record-score-toggle" checked onchange="onRecordToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="text-sm text-secondary" id="record-score-toggle-label">Yes</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Date of Test</label>
+      <input type="date" id="record-date-input" class="form-input">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea id="record-notes-input" class="form-input" rows="2" style="resize:vertical" placeholder="Optional notes…"></textarea>
+    </div>
+
+    <div id="record-score-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('record-score-modal')">Cancel</button>
+      <button class="btn btn-primary" id="record-score-save-btn" onclick="saveLeaderboardScore()">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     NOT-A-PERSONAL-BEST CONFIRM MODAL
+============================================= -->
+<div class="modal-overlay" id="confirm-not-pb-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Not a Personal Best</h2>
+      <button class="modal-close" onclick="cancelNotPbSave()">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="confirm-not-pb-text"></p>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="cancelNotPbSave()">No, Cancel</button>
+      <button class="btn btn-primary" id="confirm-not-pb-btn" onclick="confirmSaveAnyway()">Yes, Save Anyway</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=23"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js?v=7"></script>
+
+<script>
+  const EXERCISES = [
+    { name: 'Tuck Ups',         type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Pike Ups',         type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Hanging Tuck-Ups', type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Hanging Pike-Ups', type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Vertical Jump',    type: 'inches',  icon: '🦘', unit: 'Standing vertical jump' },
+    { name: 'Push-Ups',         type: 'reps',    icon: '💪', unit: '30-second reps' },
+    { name: 'A-Frame Push-Ups',type:  'reps',    icon: '💪', unit: '30-second reps' },
+    { name: 'RSI Jumps',        type: 'rsi',     icon: '⚡', unit: 'Reactive strength index' },
+    { name: 'Grip Strength',    type: 'pounds',  icon: '✊', unit: 'Dynamometer test' },
+    { name: 'Perfect Pike',     type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+    { name: 'Right Split',      type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+    { name: 'Left Split',       type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+    { name: 'All Splits',       type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+  ];
+  const AGE_MIN = 6;
+  const AGE_MAX = 18;
+
+  let currentUser  = null;
+  let allDivers    = [];
+  let diverByLabel = {};
+  let allScores    = [];
+  let pendingSave  = null;
+
+  (async function initLeaderboard() {
+    initSupabase();
+    const user = await Auth.init(true);
+    if (!user) return;
+    currentUser = user;
+    App.renderNav(user);
+
+    populateAgeFilter();
+    populateExerciseSelect();
+
+    if (user.role === 'coach' || user.is_super_user) {
+      document.getElementById('record-score-btn').hidden = false;
+    }
+
+    document.getElementById('record-date-input').value = new Date().toISOString().slice(0, 10);
+
+    await Promise.all([loadScores(), loadDivers()]);
+    renderLeaderboard();
+  })();
+
+  function populateAgeFilter() {
+    const sel = document.getElementById('age-filter');
+    for (let age = AGE_MIN; age <= AGE_MAX; age++) {
+      const opt = document.createElement('option');
+      opt.value = age;
+      opt.textContent = `Age ${age}`;
+      sel.appendChild(opt);
+    }
+  }
+
+  function populateExerciseSelect() {
+    const sel = document.getElementById('record-exercise-select');
+    sel.innerHTML = EXERCISES.map(e => `<option value="${App.escHtml(e.name)}">${App.escHtml(e.name)}</option>`).join('');
+    onRecordExerciseChange();
+  }
+
+  async function loadDivers() {
+    allDivers = await SupabaseDB.getAllDivers();
+    diverByLabel = {};
+    const datalist = document.getElementById('record-diver-list');
+    datalist.innerHTML = allDivers
+      .slice()
+      .sort((a, b) => App.compareNames(a, b))
+      .map(d => {
+        const label = App.formatNameLastFirst(d);
+        diverByLabel[label] = d.id;
+        return `<option value="${App.escHtml(label)}"></option>`;
+      }).join('');
+  }
+
+  async function loadScores() {
+    try {
+      allScores = await SupabaseDB.getLeaderboardScores();
+    } catch (err) {
+      App.showError('leaderboard-content', `Could not load leaderboard: ${err.message}`);
+      allScores = [];
+    }
+  }
+
+  // First name + last initial only — never show a diver's full last name here.
+  function displayName(diver) {
+    if (!diver) return 'Unknown';
+    const first = diver.first_name || (diver.full_name || '').trim().split(/\s+/)[0] || '';
+    const last  = diver.last_name  || (diver.full_name || '').trim().split(/\s+/).slice(1).join(' ');
+    const lastInitial = last ? `${last.trim()[0].toUpperCase()}.` : '';
+    return [first, lastInitial].filter(Boolean).join(' ');
+  }
+
+  function formatScore(score, type) {
+    const n = Number(score);
+    if (type === 'reps')   return `${Math.round(n)} reps`;
+    if (type === 'inches') return `${n.toFixed(1)}"`;
+    if (type === 'rsi')    return n.toFixed(2);
+    if (type === 'pounds') return `${n.toFixed(1)} lbs`;
+    return '';
+  }
+
+  function renderLeaderboard() {
+    const container = document.getElementById('leaderboard-content');
+
+    if (!allScores.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🏆</div>
+          <p>No scores recorded yet.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const ageFilter = document.getElementById('age-filter').value;
+    container.innerHTML = EXERCISES.map(ex => renderExerciseSection(ex, ageFilter)).join('');
+  }
+
+  function renderExerciseSection(ex, ageFilter) {
+    const scoresForExercise = allScores.filter(s => s.exercise === ex.name);
+    return ex.type === 'boolean'
+      ? renderMilestoneSection(ex, scoresForExercise, ageFilter)
+      : renderRankedSection(ex, scoresForExercise, ageFilter);
+  }
+
+  function renderRankedSection(ex, scores, ageFilter) {
+    const byAge = {};
+    scores.forEach(s => {
+      const age = s.diver?.aqua_group;
+      if (age == null) return;
+      if (ageFilter && String(age) !== ageFilter) return;
+      (byAge[age] ??= []).push(s);
+    });
+
+    const ages = Object.keys(byAge).map(Number).sort((a, b) => a - b);
+
+    const bodyHtml = ages.length
+      ? `<div class="lb-age-columns">${ages.map(age => renderAgeColumn(age, byAge[age], ex, ages.length === 1)).join('')}</div>`
+      : `<p class="text-secondary text-sm">No scores recorded yet.</p>`;
+
+    return `
+      <div class="lb-section">
+        <div class="lb-section-header">
+          <span class="lb-section-title">${ex.icon} ${App.escHtml(ex.name.toUpperCase())}</span>
+          <span class="lb-section-unit">${App.escHtml(ex.unit)}</span>
+        </div>
+        <div class="lb-body">${bodyHtml}</div>
+      </div>
+    `;
+  }
+
+  function renderAgeColumn(age, scores, ex, isFullWidth) {
+    const top10 = scores.slice().sort((a, b) => b.score - a.score).slice(0, 10);
+    const rows = top10.map((s, i) => {
+      const rank = i + 1;
+      return `
+        <div class="lb-rank-row lb-rank-${rank}">
+          <span class="lb-rank-num">${rank}.</span>
+          <span class="lb-rank-name">${App.escHtml(displayName(s.diver))}</span>
+          <span class="lb-rank-score">${formatScore(s.score, ex.type)}</span>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="lb-age-column${isFullWidth ? ' lb-age-column-full' : ''}">
+        <div class="lb-age-title">Age ${age}</div>
+        ${rows}
+      </div>
+    `;
+  }
+
+  function renderMilestoneSection(ex, scores, ageFilter) {
+    const achievers = scores.filter(s => {
+      if (Number(s.score) !== 1) return false;
+      if (ageFilter && String(s.diver?.aqua_group) !== ageFilter) return false;
+      return true;
+    });
+    achievers.sort((a, b) => App.compareNames(a.diver, b.diver));
+
+    const bodyHtml = achievers.length
+      ? `<div class="lb-milestone-chips">${achievers.map(s => `<span class="lb-chip">${App.escHtml(displayName(s.diver))}</span>`).join('')}</div>`
+      : `<p class="text-secondary text-sm">No achievers yet.</p>`;
+
+    return `
+      <div class="lb-section">
+        <div class="lb-section-header">
+          <span class="lb-section-title">${ex.icon} ${App.escHtml(ex.name.toUpperCase())}</span>
+          <span class="lb-section-unit">${App.escHtml(ex.unit)}</span>
+        </div>
+        <div class="lb-body">${bodyHtml}</div>
+      </div>
+    `;
+  }
+
+  // ---- Record Score modal ----
+
+  function openRecordScoreModal() {
+    document.getElementById('record-diver-input').value = '';
+    document.getElementById('record-score-input').value = '';
+    document.getElementById('record-score-toggle').checked = true;
+    document.getElementById('record-score-toggle-label').textContent = 'Yes';
+    document.getElementById('record-notes-input').value = '';
+    document.getElementById('record-date-input').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('record-exercise-select').selectedIndex = 0;
+    onRecordExerciseChange();
+    App.hideAlert('record-score-alert');
+    App.openModal('record-score-modal');
+  }
+
+  function currentExerciseConfig() {
+    const name = document.getElementById('record-exercise-select').value;
+    return EXERCISES.find(e => e.name === name);
+  }
+
+  function onRecordExerciseChange() {
+    const ex = currentExerciseConfig();
+    if (!ex) return;
+
+    const numericGroup = document.getElementById('record-score-numeric-group');
+    const boolGroup     = document.getElementById('record-score-boolean-group');
+    const input         = document.getElementById('record-score-input');
+    const label         = document.getElementById('record-score-label');
+    const hint          = document.getElementById('record-score-hint');
+
+    if (ex.type === 'boolean') {
+      numericGroup.style.display = 'none';
+      boolGroup.style.display = '';
+      return;
+    }
+    numericGroup.style.display = '';
+    boolGroup.style.display = 'none';
+    input.value = '';
+
+    if (ex.type === 'reps') {
+      label.textContent = 'Reps (30 seconds)';
+      input.step = '1'; input.min = '0'; input.removeAttribute('max');
+      hint.textContent = 'Whole number of reps completed in 30 seconds.';
+    } else if (ex.type === 'inches') {
+      label.textContent = 'Vertical Jump (inches)';
+      input.step = '0.1'; input.min = '0'; input.removeAttribute('max');
+      hint.textContent = 'Decimal inches, e.g. 18.5.';
+    } else if (ex.type === 'rsi') {
+      label.textContent = 'RSI Score';
+      input.step = '0.01'; input.min = '0.5'; input.max = '3.5';
+      hint.textContent = 'Reactive strength index, 0.5–3.5.';
+    } else if (ex.type === 'pounds') {
+      label.textContent = 'Grip Strength (lbs)';
+      input.step = '0.1'; input.min = '0'; input.removeAttribute('max');
+      hint.textContent = 'Decimal pounds, e.g. 45.5.';
+    }
+  }
+
+  function onRecordToggleChange() {
+    const checked = document.getElementById('record-score-toggle').checked;
+    document.getElementById('record-score-toggle-label').textContent = checked ? 'Yes' : 'No';
+  }
+
+  async function saveLeaderboardScore() {
+    App.hideAlert('record-score-alert');
+
+    const label   = document.getElementById('record-diver-input').value.trim();
+    const diverId = diverByLabel[label];
+    if (!diverId) {
+      App.showAlert('record-score-alert', 'Select a valid diver from the list.');
+      return;
+    }
+
+    const ex = currentExerciseConfig();
+    if (!ex) return;
+
+    let score;
+    if (ex.type === 'boolean') {
+      score = document.getElementById('record-score-toggle').checked ? 1 : 0;
+    } else {
+      const raw = document.getElementById('record-score-input').value;
+      if (raw === '') {
+        App.showAlert('record-score-alert', 'Enter a score.');
+        return;
+      }
+      score = Number(raw);
+      if (Number.isNaN(score)) {
+        App.showAlert('record-score-alert', 'Enter a valid number.');
+        return;
+      }
+      if (ex.type === 'reps') score = Math.round(score);
+    }
+
+    const notes    = document.getElementById('record-notes-input').value.trim();
+    const testDate = document.getElementById('record-date-input').value || null;
+    const diver    = allDivers.find(d => d.id === diverId);
+    const diverName = App.formatNameLastFirst(diver) || diver?.full_name || 'Diver';
+
+    pendingSave = { diverId, exercise: ex.name, score, scoreType: ex.type, notes, testDate, diverName };
+
+    const existingBest = await SupabaseDB.getPersonalBest(diverId, ex.name);
+    if (existingBest !== null && score <= existingBest) {
+      document.getElementById('confirm-not-pb-text').textContent =
+        `This score of ${formatScore(score, ex.type)} is not higher than current personal best of ${formatScore(existingBest, ex.type)}. Save anyway?`;
+      App.closeModal('record-score-modal');
+      App.openModal('confirm-not-pb-modal');
+      return;
+    }
+
+    await commitPendingSave();
+  }
+
+  function cancelNotPbSave() {
+    pendingSave = null;
+    App.closeModal('confirm-not-pb-modal');
+  }
+
+  async function confirmSaveAnyway() {
+    App.closeModal('confirm-not-pb-modal');
+    await commitPendingSave();
+  }
+
+  async function commitPendingSave() {
+    if (!pendingSave) return;
+    const btn = document.getElementById('record-score-save-btn');
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.recordLeaderboardScore(
+        pendingSave.diverId, pendingSave.exercise, pendingSave.score,
+        pendingSave.scoreType, currentUser.id, pendingSave.notes, pendingSave.testDate
+      );
+      App.closeModal('record-score-modal');
+      App.showToast(`Score recorded for ${pendingSave.diverName}`);
+      pendingSave = null;
+      await loadScores();
+      renderLeaderboard();
+    } catch (err) {
+      App.openModal('record-score-modal');
+      App.showAlert('record-score-alert', err.message);
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  // Close modals on overlay click
+  ['record-score-modal', 'confirm-not-pb-modal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) App.closeModal(id);
+    });
+  });
+</script>
+
+</body>
+</html>

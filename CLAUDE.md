@@ -27,6 +27,7 @@ bumped across ALL HTML files before pushing to GitHub.
 - invite.html
 - claim.html
 - coach-signup.html
+- leaderboard.html
 - Any new HTML files added to the project
 
 ### Rule: Before every git push, run this check:
@@ -59,8 +60,8 @@ This has caused repeated bugs throughout development.
 
 | File | Version |
 |------|---------|
-| js/app.js | v=6 |
-| js/supabase.js | v=22 |
+| js/app.js | v=7 |
+| js/supabase.js | v=23 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
 | js/reports.js | v=2 |

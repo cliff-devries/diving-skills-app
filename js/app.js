@@ -27,8 +27,10 @@ const App = {
       { href: 'testing.html',   icon: '📋', label: 'Testing',       roles: ['coach'] },
     ].filter(l => l.roles.includes(role));
 
-    // Reports — visible to every role, always pinned to the end of the nav.
-    const reportsLink = { href: 'stats.html', icon: '📈', label: 'Reports' };
+    // Leaderboard and Reports — visible to every role, always pinned to the
+    // end of the nav (after Testing for coaches, after Skills otherwise).
+    const leaderboardLink = { href: 'leaderboard.html', icon: '🏆', label: 'Leaderboard' };
+    const reportsLink     = { href: 'stats.html',       icon: '📈', label: 'Reports' };
 
     const isActive = href => currentPage === href ? 'active' : '';
 
@@ -53,6 +55,10 @@ const App = {
             </a>
           `).join('')}
           <div class="sidebar-nav-divider"></div>
+          <a href="${leaderboardLink.href}" class="nav-item ${isActive(leaderboardLink.href)}">
+            <span class="nav-icon">${leaderboardLink.icon}</span>
+            <span>${leaderboardLink.label}</span>
+          </a>
           <a href="${reportsLink.href}" class="nav-item ${isActive(reportsLink.href)}">
             <span class="nav-icon">${reportsLink.icon}</span>
             <span>${reportsLink.label}</span>
@@ -81,7 +87,11 @@ const App = {
           <span>${l.label}</span>
         </a>
       `).join('') + `
-        <a href="${reportsLink.href}" class="bottom-nav-item bottom-nav-item-reports ${isActive(reportsLink.href)}">
+        <a href="${leaderboardLink.href}" class="bottom-nav-item bottom-nav-item-reports ${isActive(leaderboardLink.href)}">
+          <span class="nav-icon">${leaderboardLink.icon}</span>
+          <span>${leaderboardLink.label}</span>
+        </a>
+        <a href="${reportsLink.href}" class="bottom-nav-item ${isActive(reportsLink.href)}">
           <span class="nav-icon">${reportsLink.icon}</span>
           <span>${reportsLink.label}</span>
         </a>

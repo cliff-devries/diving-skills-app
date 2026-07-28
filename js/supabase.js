@@ -1194,4 +1194,52 @@ const SupabaseDB = {
       .getPublicUrl(path);
     return publicUrl;
   },
+
+  // =============================================
+  // STRENGTH & CONDITIONING LEADERBOARD
+  // =============================================
+
+  // All personal-best scores, joined with diver name + aqua_group for grouping/display.
+  async getLeaderboardScores() {
+    const { data, error } = await this.db
+      .from('leaderboard_scores')
+      .select(`
+        id, diver_id, exercise, score, score_type, recorded_by, recorded_at, notes,
+        diver:profiles!leaderboard_scores_diver_id_fkey (id, first_name, last_name, full_name, aqua_group)
+      `)
+      .order('score', { ascending: false });
+    if (error) { console.error('[SupabaseDB] getLeaderboardScores:', error.message); return []; }
+    return data ?? [];
+  },
+
+  // Current personal best for one diver/exercise (null if none recorded yet).
+  async getPersonalBest(diverId, exercise) {
+    const { data, error } = await this.db
+      .from('leaderboard_scores')
+      .select('score')
+      .eq('diver_id', diverId)
+      .eq('exercise', exercise)
+      .maybeSingle();
+    if (error) { console.error('[SupabaseDB] getPersonalBest:', error.message); return null; }
+    return data?.score ?? null;
+  },
+
+  // Upserts a diver's personal best for an exercise (one row per diver/exercise).
+  async recordLeaderboardScore(diverId, exercise, score, scoreType, coachId, notes, testDate) {
+    const { data, error } = await this.db
+      .from('leaderboard_scores')
+      .upsert({
+        diver_id:    diverId,
+        exercise,
+        score,
+        score_type:  scoreType,
+        recorded_by: coachId,
+        recorded_at: testDate ? new Date(testDate + 'T00:00:00').toISOString() : new Date().toISOString(),
+        notes:       notes || null,
+      }, { onConflict: 'diver_id,exercise' })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
 };
