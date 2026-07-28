@@ -351,7 +351,11 @@ const SupabaseDB = {
 
   // Sets diver status to inactive and removes all roster rows.
   async removeDiverByCoach(diverId) {
-    const { error } = await this.db.rpc('remove_diver_from_roster', { p_diver_id: diverId });
+    console.log('Removing diver ID:', diverId);
+    console.log('Type of diverId:', typeof diverId);
+    console.log('Current user:', Auth.currentUser);
+    const { data, error } = await this.db.rpc('remove_diver_from_roster', { p_diver_id: diverId });
+    console.log('RPC result - data:', data, 'error:', JSON.stringify(error));
     if (error) throw new Error(error.message);
   },
 
