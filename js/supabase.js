@@ -1205,7 +1205,7 @@ const SupabaseDB = {
       .from('leaderboard_scores')
       .select(`
         id, diver_id, exercise, score, score_type, recorded_by, recorded_at, notes,
-        diver:profiles!leaderboard_scores_diver_id_fkey (id, first_name, last_name, full_name, aqua_group)
+        diver:profiles!leaderboard_scores_diver_id_fkey (id, first_name, last_name, full_name, aqua_group, gender)
       `)
       .order('score', { ascending: false });
     if (error) { console.error('[SupabaseDB] getLeaderboardScores:', error.message); return []; }
