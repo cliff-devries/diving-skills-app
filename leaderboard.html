@@ -57,6 +57,18 @@
     .lb-chip { background: var(--accent); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
 
     .gender-toggle { display: flex; gap: 8px; }
+
+    /* Record Score modal footer — buttons must keep their label visible and
+       be full-width, stacked targets on narrow phones. */
+    .record-score-actions .btn {
+      white-space: nowrap;
+      overflow: visible;
+      flex-shrink: 0;
+    }
+    @media (max-width: 480px) {
+      .record-score-actions { flex-direction: column-reverse; }
+      .record-score-actions .btn { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -146,9 +158,9 @@
     </div>
 
     <div id="record-score-alert" class="alert mb-4"></div>
-    <div class="flex gap-3 justify-end">
+    <div class="flex gap-3 justify-end record-score-actions">
       <button class="btn btn-ghost" onclick="App.closeModal('record-score-modal')">Cancel</button>
-      <button class="btn btn-primary" id="record-score-save-btn" onclick="saveLeaderboardScore()">Save</button>
+      <button class="btn btn-primary" id="record-score-save-btn" onclick="saveLeaderboardScore()">Save Score</button>
     </div>
   </div>
 </div>
