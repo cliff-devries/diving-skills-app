@@ -229,9 +229,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=24"></script>
+<script src="js/supabase.js?v=25"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 
 <script>
   let currentUser     = null;
@@ -389,7 +389,7 @@
         <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
         <div class="list-item-content">
           <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            ${App.escHtml(App.formatNameLastFirst(diver))}
+            ${App.escHtml(App.formatNameWithNickname(diver))}
             ${levelHtml}
             ${statusBadge}
           </div>

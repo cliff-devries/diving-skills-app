@@ -189,6 +189,10 @@
         <input type="text" id="ep-last-name" class="form-input" placeholder="Smith">
       </div>
     </div>
+    <div class="form-group">
+      <label class="form-label">Nickname</label>
+      <input type="text" id="ep-nickname" class="form-input" placeholder="e.g. Abby">
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Date of Birth</label>
@@ -332,10 +336,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=24"></script>
+<script src="js/supabase.js?v=25"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 <script src="js/reports.js?v=2"></script>
 
 <script>
@@ -449,7 +453,7 @@
       ? String(new Date().getFullYear() - new Date(diver.date_of_birth + 'T00:00:00').getFullYear())
       : (diver.aqua_group || 'TBD');
     const startDate   = diver.start_date  ? formatDOB(diver.start_date) : 'Not set';
-    const displayName = App.formatNameLastFirst(diver) || diver.full_name || '';
+    const displayName = App.formatNameWithNickname(diver) || diver.full_name || '';
 
     let parentEmailStr = '—';
     let parentPhoneStr = '—';
@@ -569,6 +573,7 @@
     // Pre-fill all fields
     document.getElementById('ep-first-name').value  = d.first_name    || '';
     document.getElementById('ep-last-name').value   = d.last_name     || '';
+    document.getElementById('ep-nickname').value    = d.nickname      || '';
     document.getElementById('ep-dob').value         = d.date_of_birth || '';
     lvlSel.value = d.current_level != null ? String(d.current_level) : '';
     document.getElementById('ep-diver-group').value  = d.diver_group          || '';
@@ -595,6 +600,7 @@
       await SupabaseDB.updateDiverProfileByCoach(targetDiverId, {
         firstName:         document.getElementById('ep-first-name').value.trim()   || null,
         lastName:          document.getElementById('ep-last-name').value.trim()    || null,
+        nickname:          document.getElementById('ep-nickname').value.trim()     || null,
         dateOfBirth:       dob,
         currentLevel:      level !== '' ? parseInt(level, 10) : null,
         diverGroup:        document.getElementById('ep-diver-group').value         || null,

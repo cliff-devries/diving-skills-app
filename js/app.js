@@ -310,6 +310,13 @@ const App = {
     return person.full_name || '';
   },
 
+  // "Last, First (Nickname)" — formatNameLastFirst plus a parenthesized
+  // nickname wherever one is on file.
+  formatNameWithNickname(person) {
+    const base = this.formatNameLastFirst(person);
+    return person?.nickname ? `${base} (${person.nickname})` : base;
+  },
+
   // Sort comparator: by skill_order (curriculum order).
   compareSkillOrder(a, b) {
     const aOrder = a?.order ?? Infinity;

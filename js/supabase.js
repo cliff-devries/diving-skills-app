@@ -94,11 +94,12 @@ const SupabaseDB = {
   },
 
   // Any active coach can update all editable fields on a diver's profile.
-  async updateDiverProfileByCoach(diverId, { firstName, lastName, dateOfBirth, currentLevel, diverGroup, assignedCoachName, startDate, parentEmail, parentPhone, aquaGroup }) {
+  async updateDiverProfileByCoach(diverId, { firstName, lastName, nickname, dateOfBirth, currentLevel, diverGroup, assignedCoachName, startDate, parentEmail, parentPhone, aquaGroup }) {
     const { error } = await this.db.rpc('update_diver_profile_by_coach', {
       p_diver_id:            diverId,
       p_first_name:          firstName          !== undefined ? firstName          : null,
       p_last_name:           lastName           !== undefined ? lastName           : null,
+      p_nickname:            nickname           !== undefined ? nickname           : null,
       p_date_of_birth:       dateOfBirth        !== undefined ? dateOfBirth        : null,
       p_current_level:       currentLevel       !== undefined ? currentLevel       : null,
       p_diver_group:         diverGroup         !== undefined ? diverGroup         : null,
@@ -1024,7 +1025,7 @@ const SupabaseDB = {
     const { data, error } = await this.db
       .from('profiles')
       .select(`
-        id, full_name, first_name, last_name, gender, email, avatar_url, status, current_level, created_at,
+        id, full_name, first_name, last_name, nickname, gender, email, avatar_url, status, current_level, created_at,
         date_of_birth, diver_group, start_date, assigned_coach_name, aqua_group, parent_email, parent_phone,
         invite_token, invite_token_expires_at, invite_type
       `)

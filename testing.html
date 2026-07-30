@@ -693,9 +693,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=24"></script>
+<script src="js/supabase.js?v=25"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 
 <script>
   // =============================================
@@ -788,10 +788,11 @@
     if (!q) { hideSearchResults(); return; }
 
     const matches = rosterDivers.filter(d => {
-      const first = (d.first_name || '').toLowerCase();
-      const last  = (d.last_name  || '').toLowerCase();
-      const full  = (d.full_name  || '').toLowerCase();
-      return first.includes(q) || last.includes(q) || full.includes(q);
+      const first    = (d.first_name || '').toLowerCase();
+      const last     = (d.last_name  || '').toLowerCase();
+      const full     = (d.full_name  || '').toLowerCase();
+      const nickname = (d.nickname   || '').toLowerCase();
+      return first.includes(q) || last.includes(q) || full.includes(q) || nickname.includes(q);
     }).slice(0, 5);
 
     renderSearchResults(matches);
@@ -807,7 +808,7 @@
     }
     dropdown.innerHTML = divers.map(d => {
       const initials  = Auth.getInitials(d.full_name);
-      const name      = App.escHtml(App.formatNameLastFirst(d));
+      const name      = App.escHtml(App.formatNameWithNickname(d));
       const lvl       = d.current_level === 0 ? 'Beginner' : `L${d.current_level ?? 1}`;
       const lvlCls    = d.current_level === 0 ? 'badge badge-secondary' : 'badge badge-level';
       const genderBadge = d.gender ? `<span class="badge">${App.escHtml(d.gender)}</span>` : '';
@@ -866,7 +867,7 @@
 
     list.innerHTML = entries.map(({ diver, selectedLevel }) => {
       const initials = Auth.getInitials(diver.full_name);
-      const name     = App.escHtml(App.formatNameLastFirst(diver));
+      const name     = App.escHtml(App.formatNameWithNickname(diver));
       const opts     = Array.from({ length: 12 }, (_, i) => i + 1)
         .map(i => `<option value="${i}"${i === selectedLevel ? ' selected' : ''}>Level ${i}</option>`)
         .join('');
@@ -1393,7 +1394,7 @@
             <div class="flex items-center gap-3 mb-3">
               <div class="avatar-sm">${App.escHtml(Auth.getInitials(d.diver.full_name))}</div>
               <div>
-                <div style="font-weight:600">${App.escHtml(App.formatNameLastFirst(d.diver))}</div>
+                <div style="font-weight:600">${App.escHtml(App.formatNameWithNickname(d.diver))}</div>
                 <div class="text-sm text-secondary">Level ${d.level}</div>
               </div>
               ${designationHtml(d.designation, d.passed)}
