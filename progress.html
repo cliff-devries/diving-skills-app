@@ -813,8 +813,9 @@
     }
 
     // A report is only meaningful once at least one skill in this level has a score.
-    const hasTestedSkills = lvlSkills.some(s => completionMap[s.id]?.latest_score != null);
-    const canEmailReport  = currentUser.role === 'coach' && hasTestedSkills && !!linkedParent?.email;
+    const hasTestedSkills   = lvlSkills.some(s => completionMap[s.id]?.latest_score != null);
+    const reportParentEmail = linkedParent?.email || targetDiver?.parent_email || null;
+    const canEmailReport    = currentUser.role === 'coach' && hasTestedSkills && !!reportParentEmail;
 
     container.innerHTML = `
       <div class="card fade-in">
@@ -832,7 +833,7 @@
             <div class="flex items-center gap-2">
               ${canEmailReport ? `
                 <button class="btn btn-ghost btn-sm" id="send-report-btn-${level}" title="Send Report to Parent"
-                  style="padding:4px 8px" onclick="openSendReportModal(${level})">✉️</button>
+                  onclick="openSendReportModal(${level})">✉️ Send to Parent</button>
               ` : ''}
               ${hasTestedSkills ? `
                 <button class="btn btn-ghost btn-sm" id="pdf-report-btn-${level}" title="Download Test Report"
@@ -880,16 +881,18 @@
 
   function openSendReportModal(level) {
     sendReportLevel = level;
-    const parentName = linkedParent?.full_name || 'the parent';
+    const parentEmail = linkedParent?.email || targetDiver?.parent_email;
+    const parentName  = linkedParent?.full_name || 'the parent';
     document.getElementById('send-report-desc').textContent =
-      `Send Level ${level} test report to ${parentName} at ${linkedParent?.email}?`;
+      `Send Level ${level} test report to ${parentName} at ${parentEmail}?`;
     document.getElementById('send-report-message').value = '';
     App.hideAlert('send-report-alert');
     App.openModal('send-report-modal');
   }
 
   async function confirmSendReport() {
-    if (sendReportLevel === null || !linkedParent?.email) return;
+    const parentEmail = linkedParent?.email || targetDiver?.parent_email;
+    if (sendReportLevel === null || !parentEmail) return;
     const btn = document.getElementById('send-report-confirm-btn');
     App.setBtnLoading(btn, true);
     App.hideAlert('send-report-alert');
@@ -897,13 +900,13 @@
       await Reports.emailTestReport({
         diverId:      targetDiverId,
         level:        sendReportLevel,
-        parentEmail:  linkedParent.email,
-        parentName:   linkedParent.full_name || 'Parent',
+        parentEmail,
+        parentName:   linkedParent?.full_name || 'Parent',
         coachName:    currentUser.full_name || 'Your coach',
         coachMessage: document.getElementById('send-report-message').value.trim(),
       });
       App.closeModal('send-report-modal');
-      App.showToast(`Report sent to ${linkedParent.full_name || 'parent'}`);
+      App.showToast('Report sent to parent');
     } catch (err) {
       App.showAlert('send-report-alert', err.message);
     } finally {
