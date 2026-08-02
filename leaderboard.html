@@ -16,12 +16,24 @@
     }
     .lb-section-header {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: 10px;
       padding: 14px 18px;
       background: var(--accent-dim);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
+      transition: var(--transition);
+    }
+    .lb-section-header.lb-editing {
+      background: var(--danger-dim);
+      border-bottom-color: rgba(224, 82, 82, 0.35);
+    }
+    .lb-section-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
     }
     .lb-section-title {
       font-size: 0.9rem;
@@ -32,6 +44,30 @@
     }
     .lb-section-unit { font-size: 0.78rem; color: var(--text-secondary); }
     .lb-body { padding: 16px 18px; }
+
+    .lb-edit-toggle-btn {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid transparent;
+      color: var(--accent);
+      opacity: 0.7;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      line-height: 1;
+      transition: var(--transition);
+    }
+    .lb-edit-toggle-btn:hover { opacity: 1; background: rgba(0, 201, 167, 0.15); }
+    .lb-edit-toggle-btn.lb-done-btn {
+      opacity: 1;
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 5px 12px;
+    }
+    .lb-edit-toggle-btn.lb-done-btn:hover { background: var(--accent-hover); }
 
     .lb-age-columns { display: flex; gap: 0; overflow-x: auto; padding-bottom: 4px; }
     .lb-age-column { flex: 0 0 170px; padding: 0 16px; border-left: 1px solid var(--border); }
@@ -55,18 +91,22 @@
 
     .lb-delete-btn {
       flex-shrink: 0;
-      background: none;
-      border: none;
+      width: 24px;
+      height: 24px;
+      margin-left: 6px;
+      background: var(--bg-surface-2);
+      border: 1px solid var(--border);
       color: var(--text-secondary);
-      opacity: 0.45;
       cursor: pointer;
-      font-size: 0.78rem;
-      padding: 2px 5px;
+      font-size: 0.7rem;
       border-radius: var(--radius-sm);
       transition: var(--transition);
       line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
-    .lb-delete-btn:hover { opacity: 1; color: var(--danger); background: var(--danger-dim); }
+    .lb-delete-btn:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
 
     .lb-milestone-chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .lb-chip {
@@ -276,6 +316,7 @@
   let pendingSave  = null;
   let pendingDelete = null;
   let isCoach      = false;
+  let editingExercise = null; // exercise name whose section is currently in edit mode, or null
   let genderFilter = 'Female'; // 'Female' (Girls) or 'Male' (Boys) — divers with 'Other'/no gender appear under both
 
   (async function initLeaderboard() {
@@ -404,7 +445,25 @@
       : renderRankedSection(ex, scoresForExercise, ageFilter);
   }
 
+  function sectionHeaderHtml(ex, editing) {
+    const editControl = isCoach
+      ? (editing
+          ? `<button type="button" class="lb-edit-toggle-btn lb-done-btn" onclick="toggleSectionEditMode('${App.escHtml(ex.name)}')">Done ✓</button>`
+          : `<button type="button" class="lb-edit-toggle-btn" title="Edit scores" onclick="toggleSectionEditMode('${App.escHtml(ex.name)}')">✏️</button>`)
+      : '';
+    return `
+      <div class="lb-section-header${editing ? ' lb-editing' : ''}">
+        <div class="lb-section-title-group">
+          <span class="lb-section-title">${ex.icon} ${App.escHtml(ex.name.toUpperCase())}</span>
+          <span class="lb-section-unit">${App.escHtml(ex.unit)}</span>
+        </div>
+        ${editControl}
+      </div>
+    `;
+  }
+
   function renderRankedSection(ex, scores, ageFilter) {
+    const editing = isCoach && editingExercise === ex.name;
     const byAge = {};
     scores.forEach(s => {
       const age = s.diver?.aqua_group;
@@ -416,21 +475,18 @@
     const ages = Object.keys(byAge).map(Number).sort((a, b) => a - b);
 
     const bodyHtml = ages.length
-      ? `<div class="lb-age-columns">${ages.map(age => renderAgeColumn(age, byAge[age], ex, ages.length === 1)).join('')}</div>`
+      ? `<div class="lb-age-columns">${ages.map(age => renderAgeColumn(age, byAge[age], ex, ages.length === 1, editing)).join('')}</div>`
       : `<p class="text-secondary text-sm">No scores recorded yet.</p>`;
 
     return `
       <div class="lb-section">
-        <div class="lb-section-header">
-          <span class="lb-section-title">${ex.icon} ${App.escHtml(ex.name.toUpperCase())}</span>
-          <span class="lb-section-unit">${App.escHtml(ex.unit)}</span>
-        </div>
+        ${sectionHeaderHtml(ex, editing)}
         <div class="lb-body">${bodyHtml}</div>
       </div>
     `;
   }
 
-  function renderAgeColumn(age, scores, ex, isFullWidth) {
+  function renderAgeColumn(age, scores, ex, isFullWidth, editing) {
     const top10 = scores.slice().sort((a, b) => b.score - a.score).slice(0, 10);
     const rows = top10.map((s, i) => {
       const rank = i + 1;
@@ -439,7 +495,7 @@
           <span class="lb-rank-num">${rank}.</span>
           <span class="lb-rank-name">${App.escHtml(displayName(s.diver))}</span>
           <span class="lb-rank-score">${formatScore(s.score, ex.type)}</span>
-          ${isCoach ? `<button class="lb-delete-btn" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">🗑️</button>` : ''}
+          ${editing ? `<button class="lb-delete-btn" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">✕</button>` : ''}
         </div>
       `;
     }).join('');
@@ -453,6 +509,7 @@
   }
 
   function renderMilestoneSection(ex, scores, ageFilter) {
+    const editing = isCoach && editingExercise === ex.name;
     const achievers = scores.filter(s => {
       if (Number(s.score) !== 1) return false;
       if (ageFilter && String(s.diver?.aqua_group) !== ageFilter) return false;
@@ -464,20 +521,22 @@
       ? `<div class="lb-milestone-chips">${achievers.map(s => `
           <span class="lb-chip">
             ${App.escHtml(displayName(s.diver))}
-            ${isCoach ? `<button class="lb-chip-delete" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">✕</button>` : ''}
+            ${editing ? `<button class="lb-chip-delete" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">✕</button>` : ''}
           </span>
         `).join('')}</div>`
       : `<p class="text-secondary text-sm">No achievers yet.</p>`;
 
     return `
       <div class="lb-section">
-        <div class="lb-section-header">
-          <span class="lb-section-title">${ex.icon} ${App.escHtml(ex.name.toUpperCase())}</span>
-          <span class="lb-section-unit">${App.escHtml(ex.unit)}</span>
-        </div>
+        ${sectionHeaderHtml(ex, editing)}
         <div class="lb-body">${bodyHtml}</div>
       </div>
     `;
+  }
+
+  function toggleSectionEditMode(exerciseName) {
+    editingExercise = editingExercise === exerciseName ? null : exerciseName;
+    renderLeaderboard();
   }
 
   // ---- Record Score modal ----
@@ -637,7 +696,7 @@
 
     pendingDelete = { scoreId };
     document.getElementById('confirm-delete-score-text').textContent =
-      `Delete this score for ${displayName(s.diver)}? (${s.exercise}: ${scoreLabel})`;
+      `Delete ${displayName(s.diver)}'s ${s.exercise} score of ${scoreLabel}?`;
     App.openModal('confirm-delete-score-modal');
   }
 
