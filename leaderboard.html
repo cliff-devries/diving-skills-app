@@ -70,7 +70,7 @@
     .lb-edit-toggle-btn.lb-done-btn:hover { background: var(--accent-hover); }
 
     .lb-age-columns { display: flex; gap: 0; overflow-x: auto; padding-bottom: 4px; }
-    .lb-age-column { flex: 0 0 170px; padding: 0 16px; border-left: 1px solid var(--border); }
+    .lb-age-column { flex: 0 0 180px; padding: 0 16px; border-left: 1px solid var(--border); }
     .lb-age-column:first-child { border-left: none; padding-left: 0; }
     .lb-age-column-full { flex: 1 1 auto; width: 100%; }
     .lb-age-title {
@@ -81,19 +81,47 @@
       letter-spacing: 0.5px;
       margin-bottom: 10px;
     }
-    .lb-rank-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.875rem; }
-    .lb-rank-num { width: 20px; flex-shrink: 0; font-weight: 700; color: var(--text-secondary); }
-    .lb-rank-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .lb-rank-score { font-weight: 600; flex-shrink: 0; }
-    .lb-rank-1 .lb-rank-num, .lb-rank-1 .lb-rank-score { color: #f5c518; }
-    .lb-rank-2 .lb-rank-num, .lb-rank-2 .lb-rank-score { color: #c0c0c0; }
-    .lb-rank-3 .lb-rank-num, .lb-rank-3 .lb-rank-score { color: #cd7f32; }
+
+    /* Two-line score row: rank/medal + name on line 1, score + date on line 2 */
+    .lb-rank-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .lb-rank-row:last-child { border-bottom: none; }
+    .lb-rank-line1 { display: flex; align-items: center; gap: 8px; }
+    .lb-rank-num {
+      width: 24px;
+      flex-shrink: 0;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    .lb-rank-name {
+      flex: 1;
+      min-width: 0;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+    .lb-rank-line2 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+      padding-left: 32px;
+    }
+    .lb-rank-score { color: var(--accent); font-weight: 600; font-size: 0.875rem; }
+    .lb-rank-dot,
+    .lb-rank-date { color: var(--text-secondary); font-size: 0.75rem; }
+    .lb-rank-1 .lb-rank-num { color: #f5c518; }
+    .lb-rank-2 .lb-rank-num { color: #c0c0c0; }
+    .lb-rank-3 .lb-rank-num { color: #cd7f32; }
 
     .lb-delete-btn {
       flex-shrink: 0;
       width: 24px;
       height: 24px;
-      margin-left: 6px;
+      margin-left: auto;
       background: var(--bg-surface-2);
       border: 1px solid var(--border);
       color: var(--text-secondary);
@@ -414,7 +442,7 @@
     const n = Number(score);
     if (type === 'reps')   return `${Math.round(n)} reps`;
     if (type === 'inches') return `${n.toFixed(1)}"`;
-    if (type === 'rsi')    return n.toFixed(2);
+    if (type === 'rsi')    return `${n.toFixed(2)} RSI`;
     if (type === 'pounds') return `${n.toFixed(1)} lbs`;
     return '';
   }
@@ -486,16 +514,25 @@
     `;
   }
 
+  const RANK_MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
   function renderAgeColumn(age, scores, ex, isFullWidth, editing) {
     const top10 = scores.slice().sort((a, b) => b.score - a.score).slice(0, 10);
     const rows = top10.map((s, i) => {
-      const rank = i + 1;
+      const rank      = i + 1;
+      const rankLabel = RANK_MEDALS[rank] || String(rank);
+      const dateStr   = s.recorded_at ? App.formatDate(s.recorded_at) : '';
       return `
         <div class="lb-rank-row lb-rank-${rank}">
-          <span class="lb-rank-num">${rank}.</span>
-          <span class="lb-rank-name">${App.escHtml(displayName(s.diver))}</span>
-          <span class="lb-rank-score">${formatScore(s.score, ex.type)}</span>
-          ${editing ? `<button class="lb-delete-btn" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">✕</button>` : ''}
+          <div class="lb-rank-line1">
+            <span class="lb-rank-num">${rankLabel}</span>
+            <span class="lb-rank-name">${App.escHtml(displayName(s.diver))}</span>
+            ${editing ? `<button class="lb-delete-btn" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">✕</button>` : ''}
+          </div>
+          <div class="lb-rank-line2">
+            <span class="lb-rank-score">${formatScore(s.score, ex.type)}</span>
+            ${dateStr ? `<span class="lb-rank-dot">·</span><span class="lb-rank-date">${App.escHtml(dateStr)}</span>` : ''}
+          </div>
         </div>
       `;
     }).join('');
