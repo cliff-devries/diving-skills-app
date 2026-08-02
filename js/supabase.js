@@ -1243,4 +1243,12 @@ const SupabaseDB = {
     if (error) throw new Error(error.message);
     return data;
   },
+
+  async deleteLeaderboardScore(scoreId) {
+    const { error } = await this.db
+      .from('leaderboard_scores')
+      .delete()
+      .eq('id', scoreId);
+    if (error) throw new Error(error.message);
+  },
 };

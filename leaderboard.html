@@ -53,8 +53,50 @@
     .lb-rank-2 .lb-rank-num, .lb-rank-2 .lb-rank-score { color: #c0c0c0; }
     .lb-rank-3 .lb-rank-num, .lb-rank-3 .lb-rank-score { color: #cd7f32; }
 
+    .lb-delete-btn {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      opacity: 0.45;
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+      line-height: 1;
+    }
+    .lb-delete-btn:hover { opacity: 1; color: var(--danger); background: var(--danger-dim); }
+
     .lb-milestone-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-    .lb-chip { background: var(--accent); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+    .lb-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: #fff;
+      padding: 6px 10px 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .lb-chip-delete {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 0.6rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .lb-chip-delete:hover { background: var(--danger); }
 
     .gender-toggle { display: flex; gap: 8px; }
 
@@ -184,9 +226,27 @@
 </div>
 
 
+<!-- =============================================
+     DELETE SCORE CONFIRM MODAL (coach only)
+============================================= -->
+<div class="modal-overlay" id="confirm-delete-score-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Delete Score</h2>
+      <button class="modal-close" onclick="cancelDeleteScore()">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="confirm-delete-score-text"></p>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-secondary" onclick="cancelDeleteScore()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-score-btn" onclick="confirmDeleteScore()">Delete</button>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=25"></script>
+<script src="js/supabase.js?v=26"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=8"></script>
 
@@ -214,6 +274,8 @@
   let diverByLabel = {};
   let allScores    = [];
   let pendingSave  = null;
+  let pendingDelete = null;
+  let isCoach      = false;
   let genderFilter = 'Female'; // 'Female' (Girls) or 'Male' (Boys) — divers with 'Other'/no gender appear under both
 
   (async function initLeaderboard() {
@@ -227,6 +289,7 @@
     populateExerciseSelect();
 
     if (user.role === 'coach' || user.is_super_user) {
+      isCoach = true;
       document.getElementById('record-score-btn').hidden = false;
     }
 
@@ -376,6 +439,7 @@
           <span class="lb-rank-num">${rank}.</span>
           <span class="lb-rank-name">${App.escHtml(displayName(s.diver))}</span>
           <span class="lb-rank-score">${formatScore(s.score, ex.type)}</span>
+          ${isCoach ? `<button class="lb-delete-btn" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">🗑️</button>` : ''}
         </div>
       `;
     }).join('');
@@ -397,7 +461,12 @@
     achievers.sort((a, b) => App.compareNames(a.diver, b.diver));
 
     const bodyHtml = achievers.length
-      ? `<div class="lb-milestone-chips">${achievers.map(s => `<span class="lb-chip">${App.escHtml(displayName(s.diver))}</span>`).join('')}</div>`
+      ? `<div class="lb-milestone-chips">${achievers.map(s => `
+          <span class="lb-chip">
+            ${App.escHtml(displayName(s.diver))}
+            ${isCoach ? `<button class="lb-chip-delete" title="Delete score" onclick="openDeleteScoreConfirm('${s.id}')">✕</button>` : ''}
+          </span>
+        `).join('')}</div>`
       : `<p class="text-secondary text-sm">No achievers yet.</p>`;
 
     return `
@@ -555,8 +624,48 @@
     }
   }
 
+  // ---- Delete score ----
+
+  function openDeleteScoreConfirm(scoreId) {
+    const s = allScores.find(sc => sc.id === scoreId);
+    if (!s) return;
+    const ex        = EXERCISES.find(e => e.name === s.exercise);
+    const scoreType = ex ? ex.type : s.score_type;
+    const scoreLabel = scoreType === 'boolean'
+      ? (Number(s.score) === 1 ? 'Yes' : 'No')
+      : formatScore(s.score, scoreType);
+
+    pendingDelete = { scoreId };
+    document.getElementById('confirm-delete-score-text').textContent =
+      `Delete this score for ${displayName(s.diver)}? (${s.exercise}: ${scoreLabel})`;
+    App.openModal('confirm-delete-score-modal');
+  }
+
+  function cancelDeleteScore() {
+    pendingDelete = null;
+    App.closeModal('confirm-delete-score-modal');
+  }
+
+  async function confirmDeleteScore() {
+    if (!pendingDelete) return;
+    const btn = document.getElementById('confirm-delete-score-btn');
+    App.setBtnLoading(btn, true);
+    try {
+      await SupabaseDB.deleteLeaderboardScore(pendingDelete.scoreId);
+      allScores = allScores.filter(s => s.id !== pendingDelete.scoreId);
+      App.closeModal('confirm-delete-score-modal');
+      App.showToast('Score deleted');
+      pendingDelete = null;
+      renderLeaderboard();
+    } catch (err) {
+      App.showToast(err.message, 'error');
+    } finally {
+      App.setBtnLoading(btn, false);
+    }
+  }
+
   // Close modals on overlay click
-  ['record-score-modal', 'confirm-not-pb-modal'].forEach(id => {
+  ['record-score-modal', 'confirm-not-pb-modal', 'confirm-delete-score-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });
