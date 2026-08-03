@@ -267,7 +267,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .plan-grid{display:grid;grid-template-columns:1fr 1fr 320px;gap:20px;align-items:start;}
 @media(max-width:1200px){.plan-grid{grid-template-columns:1fr 1fr;}.plan-grid>.chartcard{grid-column:1/-1;}}
 @media(max-width:760px){.plan-grid{grid-template-columns:1fr;}}
-.drilltable input,.drilltable select{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.82rem;width:100%;background:var(--bg-surface-2);color:var(--text-primary);}
+.skilltable input,.skilltable select{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.82rem;width:100%;background:var(--bg-surface-2);color:var(--text-primary);}
 .drag-handle{cursor:grab;color:var(--text-secondary);}
 .tabbar{display:flex;gap:22px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto;}
 .tabbar button{background:none;border:none;padding:10px 2px;font-size:.9rem;color:var(--text-secondary);border-bottom:2px solid transparent;font-weight:600;white-space:nowrap;}
@@ -286,11 +286,22 @@ tbody tr:hover{background:var(--bg-surface-2);}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:var(--bg-primary);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-.helpbtn{position:fixed;bottom:calc(var(--nav-bottom-height) + 14px);right:16px;background:var(--accent);color:#000;border:none;border-radius:24px;padding:11px 16px;display:flex;align-items:center;gap:7px;font-weight:700;font-size:.85rem;box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:50;}
-@media(min-width:768px){.helpbtn{bottom:20px;right:20px;}}
 .mutedtext{color:var(--text-secondary);font-size:.82rem;}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary);}
 .empty-state-icon{font-size:2.2rem;margin-bottom:10px;opacity:.5;}
+
+/* DIVE DRILLS SKILLS LIBRARY (read-only, from Supabase) */
+.pp-divider{border-top:1px solid var(--border);margin:36px 0 24px;}
+.dd-skills-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.dd-skills-header img{width:26px;height:26px;flex-shrink:0;}
+.dd-skills-header h2{font-size:1.15rem;}
+.dd-skills-header p{margin-top:2px;}
+.skill-type-section{margin-bottom:22px;}
+.skill-type-section h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin:0 0 10px;font-weight:700;}
+.dd-skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.dd-skill-card .name{font-weight:700;color:var(--text-primary);}
+.dd-skill-card .desc{color:var(--text-secondary);font-size:.82rem;margin-top:4px;}
+.dd-skill-card .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
 </style>
 </head>
 <body>
@@ -304,20 +315,20 @@ tbody tr:hover{background:var(--bg-surface-2);}
   <nav id="bottomNav" class="bottom-nav"></nav>
 </div>
 <div id="modalRoot"></div>
-<button class="helpbtn" onclick="toast('Your own local copy of Practice Planner — styled to match Dive Drills.')">❓ Help</button>
 
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=27"></script>
 <script src="js/auth.js?v=2"></script>
+<script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=8"></script>
 
 <script>
 /* ============================= ICONS (emoji, matching Dive Drills style) ============================= */
 const DIVER_ICON_IMG = '<img src="assets/icons/diver-icon.svg" alt="" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block;">';
 const ICONS = {
-  home:'🏠', planner:'📋', drill:DIVER_ICON_IMG, groups:'👥', calendar:'📅', settings:'⚙️',
+  home:'🏠', planner:'📋', skill:'🎯', groups:'👥', calendar:'📅', settings:'⚙️',
   plus:'➕', chevDown:'▾', chevRight:'▸', menuL:'‹', menuR:'›', edit:'✏️', trash:'🗑️',
   search:'🔍', upload:'⬆️', download:'⬇️', image:'🖼️', note:'📝', printer:'🖨️',
   refresh:'🔄', x:'✕', location:'📍', megaphone:'📣', quote:'💬', flag:'🚩',
@@ -333,7 +344,7 @@ function uid(p){seq++;return (p||'id')+'_'+seq+'_'+Math.random().toString(36).sl
 function todayISO(){const d=new Date();return d.toISOString().slice(0,10);}
 function nowStamp(){return new Date().toISOString();}
 
-// Builds the full data set for ONE team (drills, plans, players, etc.)
+// Builds the full data set for ONE team (skills, plans, players, etc.)
 function seedTeamData(){
   const cats = [
     {id:uid('cat'),name:'1m Springboard',status:'Enabled'},
@@ -344,15 +355,15 @@ function seedTeamData(){
     {id:uid('cat'),name:'Trampoline',status:'Enabled'},
   ];
   const catByName = n => cats.find(c=>c.name===n).id;
-  const drills = [
-    {id:uid('drill'),name:'Front Jump Tuck',categoryId:catByName('1m Platform'),minutes:5,notes:'fast tuck',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Front Jump Tuck',categoryId:catByName('1m Platform'),minutes:5,notes:'fast tuck',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Front Jump Tuck',categoryId:catByName('1m Platform'),minutes:5,notes:'fast tuck',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Forward Approach & Hurdle',categoryId:catByName('1m Springboard'),minutes:10,notes:'focus on hurdle height',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Reverse Takeoff Balance',categoryId:catByName('3m Springboard'),minutes:8,notes:'chest up, arms locked',stations:true,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Dry Board Bouncing',categoryId:catByName('Dryland'),minutes:15,notes:'3 sets of 10',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Trampoline Twist Progressions',categoryId:catByName('Trampoline'),minutes:12,notes:'spotter required',stations:true,status:'Enabled',dateCreated:nowStamp(),image:null},
-    {id:uid('drill'),name:'Back Takeoff Balance Drill',categoryId:catByName('1m Platform'),minutes:6,notes:'',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
+  const skills = [
+    {id:uid('skill'),name:'Front Jump Tuck',categoryId:catByName('1m Platform'),minutes:5,notes:'fast tuck',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Front Jump Tuck',categoryId:catByName('1m Platform'),minutes:5,notes:'fast tuck',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Front Jump Tuck',categoryId:catByName('1m Platform'),minutes:5,notes:'fast tuck',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Forward Approach & Hurdle',categoryId:catByName('1m Springboard'),minutes:10,notes:'focus on hurdle height',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Reverse Takeoff Balance',categoryId:catByName('3m Springboard'),minutes:8,notes:'chest up, arms locked',stations:true,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Dry Board Bouncing',categoryId:catByName('Dryland'),minutes:15,notes:'3 sets of 10',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Trampoline Twist Progressions',categoryId:catByName('Trampoline'),minutes:12,notes:'spotter required',stations:true,status:'Enabled',dateCreated:nowStamp(),image:null},
+    {id:uid('skill'),name:'Back Takeoff Balance Skill',categoryId:catByName('1m Platform'),minutes:6,notes:'',stations:false,status:'Enabled',dateCreated:nowStamp(),image:null},
   ];
   const locations=[{id:uid('loc'),name:'RIT Aquatics Center - Main Pool',dateCreated:nowStamp()}];
   const announcements=[{id:uid('ann'),text:'Bring your own towel this week — laundry machine is down.',dateCreated:nowStamp()}];
@@ -374,7 +385,7 @@ function seedTeamData(){
     rows:[{id:uid('row'),activity:'Front  Jump Tuck',min:5,category:'1m Platform',notes:'fast tuck',groupIds:[],image:null,noteCardId:'',stations:false}]
   }];
   return {
-    categories:cats,drills,drillBlocks:[],locations,announcements,quotes,practiceEmphasis,competitionEmphasis,notes,noteCards,
+    categories:cats,skills,skillBlocks:[],locations,announcements,quotes,practiceEmphasis,competitionEmphasis,notes,noteCards,
     playerGroups,rosters,players,plans,seasonEndDate:''
   };
 }
@@ -388,7 +399,7 @@ function seedData(){
     activeTeamId:t.id,
     teams:[t],
     dataByTeam:{[t.id]:seedTeamData()},
-    prefs:{defaultDuration:'',defaultStartTime:'',timeFormat:'12',drillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true},
+    prefs:{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true},
     lastBackupAt:null,
   };
 }
@@ -418,7 +429,7 @@ function wrapLegacyAsTeam(old){
   t.primaryColor=(old.team&&old.team.primaryColor)||'#00c9a7';
   t.secondaryColor=(old.team&&old.team.secondaryColor)||'#0086E6';
   const data={
-    categories:old.categories||[],drills:old.drills||[],drillBlocks:old.drillBlocks||[],locations:old.locations||[],
+    categories:old.categories||[],skills:old.drills||[],skillBlocks:old.drillBlocks||[],locations:old.locations||[],
     announcements:old.announcements||[],quotes:old.quotes||[],practiceEmphasis:old.practiceEmphasis||old.defensiveEmphasis||[],
     competitionEmphasis:old.competitionEmphasis||old.offensiveEmphasis||[],notes:old.notes||[],noteCards:old.noteCards||[],
     playerGroups:old.playerGroups||[],rosters:old.rosters||[],players:old.players||[],plans:old.plans||[],
@@ -427,7 +438,7 @@ function wrapLegacyAsTeam(old){
   return {
     coach:old.coach||{firstName:'',lastName:'',username:'',email:'',timezone:''},
     activeTeamId:t.id,teams:[t],dataByTeam:{[t.id]:data},
-    prefs:old.prefs||{defaultDuration:'',defaultStartTime:'',timeFormat:'12',drillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true},
+    prefs:old.prefs||{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true},
     lastBackupAt:null,
   };
 }
@@ -440,7 +451,7 @@ function migrateIfNeeded(){
   if(!DB.activeTeamId || !DB.teams.find(t=>t.id===DB.activeTeamId)){
     DB.activeTeamId = DB.teams[0] ? DB.teams[0].id : newTeam('Upstate Diving RIT').id;
   }
-  if(!DB.prefs)DB.prefs={defaultDuration:'',defaultStartTime:'',timeFormat:'12',drillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true};
+  if(!DB.prefs)DB.prefs={defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true};
   if(DB.lastBackupAt===undefined)DB.lastBackupAt=null;
   // Rename legacy Defensive/Offensive Emphasis fields to Practice/Competition Emphasis, per-team and per-plan.
   Object.values(DB.dataByTeam).forEach(d=>{
@@ -452,11 +463,15 @@ function migrateIfNeeded(){
       if(p.competitionEmphasis===undefined) p.competitionEmphasis = p.offEmphasis || '';
       delete p.defEmphasis; delete p.offEmphasis;
     });
+    // Rename legacy Drill fields (drills/drillBlocks) to Skill fields, per-team.
+    if(!d.skills && d.drills) d.skills = d.drills;
+    if(!d.skillBlocks && d.drillBlocks) d.skillBlocks = d.drillBlocks;
+    delete d.drills; delete d.drillBlocks;
   });
 }
 function saveDB(){localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}
 
-// T() = the active team's full data set (drills, plans, players, etc.)
+// T() = the active team's full data set (skills, plans, players, etc.)
 function T(){return DB.dataByTeam[DB.activeTeamId];}
 // activeTeam() = the active team's branding record (name, colors, logo)
 function activeTeam(){return DB.teams.find(t=>t.id===DB.activeTeamId)||DB.teams[0];}
@@ -525,10 +540,10 @@ const NAV = [
     {route:'notes',label:'Note List'},
     {route:'note-cards',label:'Note Card List'},
   ]},
-  {type:'group',label:'Drill Directory',icon:'drill',key:'drills',children:[
-    {route:'drills',label:'Drill List'},
-    {route:'drill-blocks',label:'Drill Block List'},
-    {route:'stations',label:'Stations Drill List'},
+  {type:'group',label:'Skill Directory',icon:'skill',key:'skills',children:[
+    {route:'skills',label:'Skill List'},
+    {route:'skill-blocks',label:'Skill Block List'},
+    {route:'stations',label:'Stations Skill List'},
     {route:'categories',label:'Category List'},
   ]},
   {type:'group',label:'Player Groups',icon:'groups',key:'groups',children:[
@@ -542,7 +557,7 @@ const NAV = [
 const BOTTOM_NAV = [
   {route:'dashboard',label:'Home',icon:'home'},
   {route:'plans',label:'Plans',icon:'planner'},
-  {route:'drills',label:'Drills',icon:'drill'},
+  {route:'skills',label:'Skills',icon:'skill'},
   {route:'player-groups',label:'Groups',icon:'groups'},
   {route:'calendar',label:'Cal',icon:'calendar'},
   {route:'settings',label:'Settings',icon:'settings'},
@@ -632,7 +647,7 @@ function createTeamPrompt(){
   openModal({
     title:'New Team',
     bodyHtml:`<div class="field"><label>Team Name</label><input class="input" id="newteam_name" placeholder="e.g. Upstate Diving Club"></div>
-      <p class="mutedtext">This team gets its own drills, plans, roster, and settings — completely separate from your other teams.</p>`,
+      <p class="mutedtext">This team gets its own skills, plans, roster, and settings — completely separate from your other teams.</p>`,
     footHtml:`<button class="btn" onclick="openTeamSwitcher()">Cancel</button><button class="btn btn-primary" onclick="createTeam()">Create Team</button>`
   });
 }
@@ -640,7 +655,7 @@ function createTeam(){
   const name=document.getElementById('newteam_name').value.trim()||'New Team';
   const t=newTeam(name);
   DB.teams.push(t);
-  DB.dataByTeam[t.id]={categories:[],drills:[],drillBlocks:[],locations:[],announcements:[],quotes:[],practiceEmphasis:[],competitionEmphasis:[],notes:[],noteCards:[],playerGroups:[],rosters:[],players:[],plans:[],seasonEndDate:''};
+  DB.dataByTeam[t.id]={categories:[],skills:[],skillBlocks:[],locations:[],announcements:[],quotes:[],practiceEmphasis:[],competitionEmphasis:[],notes:[],noteCards:[],playerGroups:[],rosters:[],players:[],plans:[],seasonEndDate:''};
   DB.activeTeamId=t.id;
   saveDB();closeModal();navigate('dashboard');router();
   toast(name+' created');
@@ -655,7 +670,7 @@ function renameTeam(id){
 }
 function deleteTeam(id){
   if(DB.teams.length<=1){toast('You need at least one team.');return;}
-  confirmDelete('This will permanently delete this team and everything in it (drills, plans, roster). Continue?',()=>{
+  confirmDelete('This will permanently delete this team and everything in it (skills, plans, roster). Continue?',()=>{
     DB.teams=DB.teams.filter(t=>t.id!==id);
     delete DB.dataByTeam[id];
     if(DB.activeTeamId===id)DB.activeTeamId=DB.teams[0].id;
@@ -681,8 +696,8 @@ function router(){
     'competition-emphasis':()=>renderSimpleList(CFG.competitionEmphasis),
     notes:()=>renderSimpleList(CFG.notes),
     'note-cards':()=>renderSimpleList(CFG.noteCards),
-    drills:renderDrillList,
-    'drill-blocks':renderDrillBlockList,
+    skills:renderSkillList,
+    'skill-blocks':renderSkillBlockList,
     stations:renderStationsList,
     categories:()=>renderSimpleList(CFG.categories),
     'player-groups':renderPlayerGroups,
@@ -737,9 +752,9 @@ function openQuickAdd(){
       {icon:'note',label:'Note',fn:()=>openSimpleForm(CFG.notes)},
       {icon:'note',label:'Note Card',fn:()=>openSimpleForm(CFG.noteCards)},
     ]},
-    {title:'Drill Directory',items:[
-      {icon:'drill',label:'Drill',fn:()=>openDrillForm()},
-      {icon:'block',label:'Drill Block',fn:()=>openDrillBlockForm()},
+    {title:'Skill Directory',items:[
+      {icon:'skill',label:'Skill',fn:()=>openSkillForm()},
+      {icon:'block',label:'Skill Block',fn:()=>openSkillBlockForm()},
       {icon:'folder',label:'Category',fn:()=>openSimpleForm(CFG.categories)},
     ]},
     {title:'Player Groups',items:[
@@ -871,7 +886,7 @@ function saveSimpleForm(key,id){
 function renderDashboard(container){
   const stats=[
     {num:T().plans.length,lbl:'Practice Plans'},
-    {num:T().drills.length,lbl:'Drills'},
+    {num:T().skills.length,lbl:'Skills'},
     {num:T().players.length,lbl:'Players'},
     {num:T().categories.length,lbl:'Categories'},
   ];
@@ -1064,7 +1079,7 @@ function openAIPlanModal(){
   openModal({
     title:'Generate AI Plan',
     bodyHtml:`
-      <p class="mutedtext" style="margin-top:0;">Automatically builds a plan by pulling drills from your library until the time budget is filled.</p>
+      <p class="mutedtext" style="margin-top:0;">Automatically builds a plan by pulling skills from your library until the time budget is filled.</p>
       <div class="field"><label>Plan Name</label><input class="input" id="ai_name" value="Day ${T().plans.length+1}"></div>
       <div class="field-row">
         <div class="field"><label>Date</label><input class="input" type="date" id="ai_date" value="${todayISO()}"></div>
@@ -1081,8 +1096,8 @@ function generateAIPlan(){
   const date=document.getElementById('ai_date').value||todayISO();
   let minutes=parseInt(document.getElementById('ai_minutes').value)||60;
   const cat=document.getElementById('ai_cat').value;
-  let pool=T().drills.filter(d=>d.status!=='Disabled' && (!cat || categoryName(d.categoryId)===cat));
-  if(pool.length===0)pool=T().drills.filter(d=>d.status!=='Disabled');
+  let pool=T().skills.filter(d=>d.status!=='Disabled' && (!cat || categoryName(d.categoryId)===cat));
+  if(pool.length===0)pool=T().skills.filter(d=>d.status!=='Disabled');
   const rows=[];
   let remaining=minutes,i=0,guard=0;
   while(remaining>0 && pool.length && guard<200){
@@ -1110,6 +1125,7 @@ function computeRowTimes(plan){
 function renderPlanEdit(id,container){
   const plan=T().plans.find(p=>p.id===id);
   if(!plan){container.innerHTML='<p>Plan not found.</p>';return;}
+  currentOpenPlanId=id;
   const cats=getEnabledCategories();
   function totalMinutesUsed(){return plan.rows.reduce((s,r)=>s+(parseInt(r.min)||0),0);}
   function draw(){
@@ -1178,7 +1194,7 @@ function renderPlanEdit(id,container){
           </div>
           <table class="legend-table">
             <tr><td style="font-weight:700;">Category</td><td style="font-weight:700;">Mins</td><td style="font-weight:700;">%</td></tr>
-            ${catNames.length===0?'<tr><td colspan="3" class="mutedtext">You haven&#39;t added any drills yet</td></tr>':
+            ${catNames.length===0?'<tr><td colspan="3" class="mutedtext">You haven&#39;t added any skills yet</td></tr>':
               catNames.map(c=>`<tr><td><span class="legend-dot" style="background:${colorForCategoryName(c)}"></span>${esc(c)}</td><td>${agg[c]}</td><td>${(agg[c]/total*100).toFixed(1)}%</td></tr>`).join('')}
           </table>
           ${plan.duration?`<p class="mutedtext" style="margin-top:10px;">${remaining>=0?remaining+' min remaining of '+plan.duration:Math.abs(remaining)+' min over '+plan.duration+' min budget'}</p>`:''}
@@ -1186,31 +1202,35 @@ function renderPlanEdit(id,container){
       </div>
 
       <div style="margin-top:24px;display:flex;align-items:center;justify-content:space-between;">
-        <h3 style="font-size:1.05rem;">Drills</h3>
+        <h3 style="font-size:1.05rem;">Skills</h3>
         <div class="btn-group">
-          <button class="btn btn-sm" onclick="addPlanRowFromLibrary('${plan.id}')">${ic('plus')} Add from Drill Library</button>
+          <button class="btn btn-sm" onclick="addPlanRowFromLibrary('${plan.id}')">${ic('plus')} Add from Skill Library</button>
           <button class="btn btn-sm btn-primary" onclick="addPlanRow('${plan.id}')">${ic('plus')} Add Blank Row</button>
         </div>
       </div>
-      <div class="tablewrap drilltable" style="margin-top:12px;">
+      <div class="tablewrap skilltable" style="margin-top:12px;">
         <table><thead><tr>
           <th></th><th style="width:34px">#</th><th style="min-width:180px">Activity</th><th style="width:70px">Min</th><th>Time Slot</th><th>Category</th><th style="min-width:160px">Notes</th>
           <th>Groups</th><th>Uploads</th><th>Note Card</th><th>Stations</th><th style="text-align:right">Action</th>
         </tr></thead>
         <tbody id="planRowsBody">
-        ${plan.rows.length===0?`<tr class="empty-row"><td colspan="12">No drills added yet. Use "Add from Drill Library" or "Add Blank Row".</td></tr>`:
+        ${plan.rows.length===0?`<tr class="empty-row"><td colspan="12">No skills added yet. Use "Add from Skill Library" or "Add Blank Row".</td></tr>`:
           plan.rows.map((r,idx)=>{
             const t=times[idx];
             return `<tr draggable="true" data-idx="${idx}" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event,'${plan.id}')">
               <td class="drag-handle">${ic('drag')}</td>
               <td>${idx+1}</td>
-              <td><input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)"></td>
+              <td>${r.ddSkillId
+                ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from Dive Drills">🔒 Dive Drills</span>`
+                : `<input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)">`}</td>
               <td><input type="number" value="${esc(r.min)}" onchange="updatePlanRow('${plan.id}','${r.id}','min',this.value)"></td>
               <td class="mutedtext" style="white-space:nowrap;">${fromMinutes(t.start)} - ${fromMinutes(t.end)}</td>
-              <td><select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)">
+              <td>${r.ddSkillId
+                ? `<span class="mutedtext">${esc(r.category||'')}${r.ddSkillLevel!=null?' · L'+esc(String(r.ddSkillLevel)):''}</span>`
+                : `<select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)">
                 <option value="">--</option>
                 ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
-              </select></td>
+              </select>`}</td>
               <td><input value="${escAttr(r.notes)}" onchange="updatePlanRow('${plan.id}','${r.id}','notes',this.value)"></td>
               <td>${renderRowGroups(plan.id,r)}</td>
               <td>${renderRowUpload(plan.id,r)}</td>
@@ -1297,21 +1317,21 @@ function rowDrop(e,planId){
 }
 function addPlanRowFromLibrary(planId){
   const plan=T().plans.find(p=>p.id===planId);
-  const pool=T().drills.filter(d=>d.status!=='Disabled' && (!plan.filterCategory || categoryName(d.categoryId)===plan.filterCategory));
+  const pool=T().skills.filter(d=>d.status!=='Disabled' && (!plan.filterCategory || categoryName(d.categoryId)===plan.filterCategory));
   openModal({
-    title:'Add from Drill Library',
+    title:'Add from Skill Library',
     wide:true,
     bodyHtml:`<div class="tablewrap"><table><thead><tr><th>Category</th><th>Name</th><th>Min</th><th>Notes</th><th></th></tr></thead><tbody>
-      ${pool.length===0?`<tr class="empty-row"><td colspan="5">No drills in your library yet.</td></tr>`:
+      ${pool.length===0?`<tr class="empty-row"><td colspan="5">No skills in your library yet.</td></tr>`:
       pool.map(d=>`<tr><td>${esc(categoryName(d.categoryId))}</td><td>${esc(d.name)}</td><td>${d.minutes}</td><td class="mutedtext">${esc(d.notes||'')}</td>
-      <td><button class="btn btn-sm btn-primary" onclick="addDrillToPlan('${planId}','${d.id}')">Add</button></td></tr>`).join('')}
+      <td><button class="btn btn-sm btn-primary" onclick="addSkillToPlan('${planId}','${d.id}')">Add</button></td></tr>`).join('')}
     </tbody></table></div>`,
     footHtml:`<button class="btn" onclick="closeModal()">Done</button>`
   });
 }
-function addDrillToPlan(planId,drillId){
+function addSkillToPlan(planId,skillId){
   const plan=T().plans.find(p=>p.id===planId);
-  const d=T().drills.find(d=>d.id===drillId);
+  const d=T().skills.find(d=>d.id===skillId);
   plan.rows.push({id:uid('row'),activity:d.name,min:d.minutes,category:categoryName(d.categoryId),notes:d.notes||'',groupIds:[],image:d.image||null,noteCardId:'',stations:d.stations});
   saveDB();
   window.__currentPlanDraw();
@@ -1421,7 +1441,7 @@ function printPlan(id){
       ${plan.competitionEmphasis?`<div><b>Competition Emphasis:</b> ${esc(plan.competitionEmphasis)}</div>`:''}
     </div>
     <table><thead><tr><th>#</th><th>Activity</th><th>Min</th><th>Time Slot</th><th>Category</th><th>Notes</th></tr></thead>
-    <tbody>${rowsHtml||'<tr><td colspan="6">No drills added</td></tr>'}</tbody></table>
+    <tbody>${rowsHtml||'<tr><td colspan="6">No skills added</td></tr>'}</tbody></table>
     <script>window.onload=()=>window.print();<\/script>
     </body></html>`);
   w.document.close();
@@ -1440,60 +1460,91 @@ function printAllocation(id){
   w.document.close();
 }
 
-/* ============================= DRILL DIRECTORY ============================= */
-function renderDrillList(container, stationsOnly){
+/* ============================= SKILL DIRECTORY ============================= */
+function renderSkillList(container, stationsOnly){
   let search='';
   function draw(){
-    let list=[...T().drills];
+    let list=[...T().skills];
     if(stationsOnly)list=list.filter(d=>d.stations);
     if(search)list=list.filter(d=>d.name.toLowerCase().includes(search.toLowerCase())||(d.notes||'').toLowerCase().includes(search.toLowerCase()));
     list.sort((a,b)=>(b.dateCreated||'').localeCompare(a.dateCreated||''));
-    container.innerHTML = pageHeader(stationsOnly?'Stations Drill List':'Drill List', `
-      <button class="btn" onclick="toast('Drill History coming soon.')">${ic('history')} Drill History</button>
-      <button class="btn" onclick="toast('Import from CSV coming soon — add drills manually for now.')">${ic('upload')} Import Drills</button>
-      <button class="btn btn-primary" onclick="openDrillForm()">${ic('plus')} New Drill</button>
+    container.innerHTML = pageHeader(stationsOnly?'Stations Skill List':'Skill List', `
+      <button class="btn" onclick="toast('Skill History coming soon.')">${ic('history')} Skill History</button>
+      <button class="btn" onclick="toast('Import from CSV coming soon — add skills manually for now.')">${ic('upload')} Import Skills</button>
+      <button class="btn btn-primary" onclick="openSkillForm()">${ic('plus')} New Skill</button>
     `) +
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name, category, or notes"></div></div>
     <div class="tablewrap"><table><thead><tr>
       <th style="width:34px"><input type="checkbox" disabled></th>
       <th>Category</th><th>Name</th><th>Minutes</th><th>Notes</th><th>Uploads</th><th>Stations</th><th>Status</th><th>Date Created</th><th style="text-align:right">Action</th>
     </tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="10">No drills found.</td></tr>`:
+    ${list.length===0?`<tr class="empty-row"><td colspan="10">No skills found.</td></tr>`:
       list.map(d=>`<tr>
         <td><input type="checkbox"></td>
         <td>${esc(categoryName(d.categoryId))}</td>
-        <td><a onclick="openDrillForm('${d.id}')">${esc(d.name)}</a></td>
+        <td><a onclick="openSkillForm('${d.id}')">${esc(d.name)}</a></td>
         <td>${d.minutes}</td>
         <td>${esc(d.notes||'')}</td>
-        <td>${d.image?`<img class="thumb" src="${d.image}" onclick="viewImage('${d.image.replace(/'/g,"\\'")}')">`:`<label class="icon-btn" style="cursor:pointer;">${ic('image')}<input type="file" accept="image/*" style="display:none" onchange="uploadDrillImage(event,'${d.id}')"></label>`}</td>
+        <td>${d.image?`<img class="thumb" src="${d.image}" onclick="viewImage('${d.image.replace(/'/g,"\\'")}')">`:`<label class="icon-btn" style="cursor:pointer;">${ic('image')}<input type="file" accept="image/*" style="display:none" onchange="uploadSkillImage(event,'${d.id}')"></label>`}</td>
         <td>${d.stations?`<span class="badge badge-accent">Yes</span>`:'<span class="mutedtext">—</span>'}</td>
-        <td><span class="badge ${d.status==='Disabled'?'badge-secondary':'badge-accent'}" style="cursor:pointer" onclick="toggleDrillStatus('${d.id}')">${d.status}</span></td>
+        <td><span class="badge ${d.status==='Disabled'?'badge-secondary':'badge-accent'}" style="cursor:pointer" onclick="toggleSkillStatus('${d.id}')">${d.status}</span></td>
         <td>${fmtDate(d.dateCreated)}</td>
         <td><div class="row-actions">
-          <button class="icon-btn" onclick="openDrillForm('${d.id}')">${ic('edit')}</button>
-          <button class="icon-btn" onclick="deleteDrill('${d.id}')">${ic('trash')}</button>
+          <button class="icon-btn" onclick="openSkillForm('${d.id}')">${ic('edit')}</button>
+          <button class="icon-btn" onclick="deleteSkill('${d.id}')">${ic('trash')}</button>
         </div></td>
       </tr>`).join('')}
-    </tbody></table></div>`;
+    </tbody></table></div>` +
+    (stationsOnly?'':`
+      <div class="pp-divider"></div>
+      <div class="dd-skills-header">
+        <img src="assets/icons/diver-icon.svg" alt="">
+        <div>
+          <h2>Dive Drills Skills Library</h2>
+          <p class="mutedtext">Read-only skills from your Dive Drills curriculum</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dd-skill-search" placeholder="Search skills"></div>
+        <select class="input" id="dd-skill-level">
+          <option value="">All Levels</option>
+          ${Array.from({length:12},(_,i)=>i+1).map(l=>`<option value="${l}">Level ${l}</option>`).join('')}
+        </select>
+        <div class="toggle-row" style="border:none;padding:0;gap:8px;">
+          <span class="mutedtext">Include Supplemental Skills</span>
+          <label class="toggle"><input type="checkbox" id="dd-skill-showall"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div id="ddSkillsBody"></div>
+    `);
     document.getElementById('dr-search').value=search;
     document.getElementById('dr-search').oninput=e=>{search=e.target.value;draw();};
+    if(!stationsOnly){
+      document.getElementById('dd-skill-search').value=ddSkillSearch;
+      document.getElementById('dd-skill-search').oninput=e=>{ddSkillSearch=e.target.value;drawDDSkills();};
+      document.getElementById('dd-skill-level').value=ddSkillLevelFilter;
+      document.getElementById('dd-skill-level').onchange=e=>{ddSkillLevelFilter=e.target.value;drawDDSkills();};
+      document.getElementById('dd-skill-showall').checked=ddShowAllSkills;
+      document.getElementById('dd-skill-showall').onchange=e=>{ddShowAllSkills=e.target.checked;drawDDSkills();};
+      drawDDSkills();
+    }
   }
   draw();
 }
-function renderStationsList(container){renderDrillList(container,true);}
-function toggleDrillStatus(id){const d=T().drills.find(d=>d.id===id);d.status=d.status==='Disabled'?'Enabled':'Disabled';saveDB();router();}
-function deleteDrill(id){confirmDelete('This will permanently delete this drill. Continue?',()=>{T().drills=T().drills.filter(d=>d.id!==id);saveDB();router();});}
-function uploadDrillImage(e,id){
+function renderStationsList(container){renderSkillList(container,true);}
+function toggleSkillStatus(id){const d=T().skills.find(d=>d.id===id);d.status=d.status==='Disabled'?'Enabled':'Disabled';saveDB();router();}
+function deleteSkill(id){confirmDelete('This will permanently delete this skill. Continue?',()=>{T().skills=T().skills.filter(d=>d.id!==id);saveDB();router();});}
+function uploadSkillImage(e,id){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=()=>{T().drills.find(d=>d.id===id).image=reader.result;saveDB();router();};
+  reader.onload=()=>{T().skills.find(d=>d.id===id).image=reader.result;saveDB();router();};
   reader.readAsDataURL(file);
 }
-function openDrillForm(id){
-  const d=id?T().drills.find(d=>d.id===id):{};
+function openSkillForm(id){
+  const d=id?T().skills.find(d=>d.id===id):{};
   const cats=getEnabledCategories();
   openModal({
-    title:id?'Edit Drill':'New Drill',
+    title:id?'Edit Skill':'New Skill',
     bodyHtml:`
       <div class="field"><label>Name</label><input class="input" id="d_name" value="${escAttr(d.name||'')}"></div>
       <div class="field-row">
@@ -1504,61 +1555,144 @@ function openDrillForm(id){
       <div class="toggle-row"><span>Has Stations</span><label class="toggle"><input type="checkbox" id="d_stations" ${d.stations?'checked':''}><span class="slider"></span></label></div>
       <div class="toggle-row"><span>Enabled</span><label class="toggle"><input type="checkbox" id="d_status" ${d.status!=='Disabled'?'checked':''}><span class="slider"></span></label></div>
     `,
-    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveDrillForm('${id||''}')">Save</button>`
+    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSkillForm('${id||''}')">Save</button>`
   });
 }
-function saveDrillForm(id){
+function saveSkillForm(id){
   const data={
-    name:document.getElementById('d_name').value.trim()||'Untitled Drill',
+    name:document.getElementById('d_name').value.trim()||'Untitled Skill',
     categoryId:document.getElementById('d_cat').value,
     minutes:parseInt(document.getElementById('d_min').value)||0,
     notes:document.getElementById('d_notes').value,
     stations:document.getElementById('d_stations').checked,
     status:document.getElementById('d_status').checked?'Enabled':'Disabled',
   };
-  if(id){Object.assign(T().drills.find(d=>d.id===id),data);}
-  else{data.id=uid('drill');data.dateCreated=nowStamp();data.image=null;T().drills.push(data);}
-  saveDB();closeModal();router();toast('Drill saved');
+  if(id){Object.assign(T().skills.find(d=>d.id===id),data);}
+  else{data.id=uid('skill');data.dateCreated=nowStamp();data.image=null;T().skills.push(data);}
+  saveDB();closeModal();router();toast('Skill saved');
 }
 
-function renderDrillBlockList(container){
+/* ============================= DIVE DRILLS SKILLS LIBRARY (read-only, Supabase) ============================= */
+// Display order for skill-type sections — matches the Dive Drills Skills Library page.
+const SKILL_SECTION_ORDER = [
+  'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
+  'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
+  '1m Springboard', '3m Springboard', 'Platform', 'Pool', 'Games', 'Bonus',
+];
+let DD_SKILLS=[];          // cached Dive Drills skills, fetched once from Supabase
+let ddSkillsLoading=false;
+let ddSkillsError=null;
+let ddShowAllSkills=false; // false = Testing Skills only (default), true = include supplemental
+let ddSkillSearch='';
+let ddSkillLevelFilter='';
+let currentOpenPlanId=null; // the plan currently being edited — target for "+ Add to Plan"
+
+function loadDiveDrillsSkills(){
+  if(ddSkillsLoading)return;
+  ddSkillsLoading=true;ddSkillsError=null;
+  Skills.getAll().then(data=>{
+    DD_SKILLS=data;ddSkillsLoading=false;
+    if(currentRoute().split('/')[0]==='skills')drawDDSkills();
+  }).catch(err=>{
+    ddSkillsError=err.message||'Failed to load skills.';ddSkillsLoading=false;
+    if(currentRoute().split('/')[0]==='skills')drawDDSkills();
+  });
+}
+
+function drawDDSkills(){
+  const host=document.getElementById('ddSkillsBody');
+  if(!host)return;
+  if(ddSkillsLoading){
+    host.innerHTML=`<div style="display:flex;justify-content:center;padding:30px;"><span class="loading-spinner-dd"></span></div>
+      <style>.loading-spinner-dd{display:inline-block;width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:dd-spin .8s linear infinite;}@keyframes dd-spin{to{transform:rotate(360deg);}}</style>`;
+    return;
+  }
+  if(ddSkillsError){
+    host.innerHTML=`<div class="empty-state"><p style="color:var(--danger)">Could not load Dive Drills skills — ${esc(ddSkillsError)}</p><button class="btn btn-sm" onclick="loadDiveDrillsSkills();drawDDSkills();">Retry</button></div>`;
+    return;
+  }
+  let list=DD_SKILLS.filter(s=>ddShowAllSkills||s.isTestable);
+  if(ddSkillLevelFilter!=='')list=list.filter(s=>String(s.level)===String(ddSkillLevelFilter));
+  if(ddSkillSearch)list=list.filter(s=>s.name.toLowerCase().includes(ddSkillSearch.toLowerCase()));
+  if(!list.length){host.innerHTML='<p class="mutedtext">No matching skills found.</p>';return;}
+  const byType={};
+  list.forEach(s=>{const t=s.type||'Other';(byType[t]=byType[t]||[]).push(s);});
+  const typesPresent=Object.keys(byType);
+  const orderedTypes=[...SKILL_SECTION_ORDER.filter(t=>typesPresent.includes(t)),...typesPresent.filter(t=>!SKILL_SECTION_ORDER.includes(t)).sort()];
+  host.innerHTML=orderedTypes.map(type=>{
+    const skillsInType=byType[type].slice().sort((a,b)=>App.compareSkillOrder(a,b));
+    return `<div class="skill-type-section">
+      <h4>${esc(type)} <span class="mutedtext">(${skillsInType.length})</span></h4>
+      ${skillsInType.map(buildDDSkillCard).join('')}
+    </div>`;
+  }).join('');
+}
+
+function buildDDSkillCard(skill){
+  return `
+    <div class="dd-skill-card">
+      <div style="flex:1;min-width:200px;">
+        <div class="name">${esc(skill.name)}</div>
+        ${skill.description?`<div class="desc">${esc(skill.description)}</div>`:''}
+        <div class="badges">
+          <span class="badge badge-level">L${skill.level ?? '?'}</span>
+          <span class="badge badge-secondary">${esc(skill.type)}</span>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="addDDSkillToPlan('${skill.id}')">${ic('plus')} Add to Plan</button>
+    </div>
+  `;
+}
+
+function addDDSkillToPlan(skillId){
+  const plan=currentOpenPlanId?T().plans.find(p=>p.id===currentOpenPlanId):null;
+  if(!plan){toast('Open or create a practice plan first');return;}
+  const skill=DD_SKILLS.find(s=>s.id===skillId);
+  if(!skill)return;
+  plan.rows.push({id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:skill.description||'',groupIds:[],image:null,noteCardId:'',stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level});
+  saveDB();
+  toast(skill.name+' added to '+plan.name);
+  if(window.__currentPlanDraw)window.__currentPlanDraw();
+}
+
+function renderSkillBlockList(container){
   let search='';
   function draw(){
-    let list=[...T().drillBlocks];
+    let list=[...T().skillBlocks];
     if(search)list=list.filter(b=>b.name.toLowerCase().includes(search.toLowerCase()));
-    container.innerHTML=pageHeader('Drill Block List',`<button class="btn btn-primary" onclick="openDrillBlockForm()">${ic('plus')} New Drill Block</button>`)+
+    container.innerHTML=pageHeader('Skill Block List',`<button class="btn btn-primary" onclick="openSkillBlockForm()">${ic('plus')} New Skill Block</button>`)+
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="db-search" placeholder="Search"></div></div>
-    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Drill Block Name</th><th>Total Drills</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="5">No drill blocks found.</td></tr>`:
-      list.map(b=>`<tr><td><input type="checkbox"></td><td><a onclick="openDrillBlockForm('${b.id}')">${esc(b.name)}</a></td><td>${b.drillIds.length}</td><td>${fmtDate(b.dateCreated)}</td>
-      <td><div class="row-actions"><button class="icon-btn" onclick="openDrillBlockForm('${b.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteDrillBlock('${b.id}')">${ic('trash')}</button></div></td></tr>`).join('')}
+    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Skill Block Name</th><th>Total Skills</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
+    ${list.length===0?`<tr class="empty-row"><td colspan="5">No skill blocks found.</td></tr>`:
+      list.map(b=>`<tr><td><input type="checkbox"></td><td><a onclick="openSkillBlockForm('${b.id}')">${esc(b.name)}</a></td><td>${b.skillIds.length}</td><td>${fmtDate(b.dateCreated)}</td>
+      <td><div class="row-actions"><button class="icon-btn" onclick="openSkillBlockForm('${b.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkillBlock('${b.id}')">${ic('trash')}</button></div></td></tr>`).join('')}
     </tbody></table></div>`;
     document.getElementById('db-search').value=search;
     document.getElementById('db-search').oninput=e=>{search=e.target.value;draw();};
   }
   draw();
 }
-function deleteDrillBlock(id){confirmDelete('Delete this drill block?',()=>{T().drillBlocks=T().drillBlocks.filter(b=>b.id!==id);saveDB();router();});}
-function openDrillBlockForm(id){
-  const b=id?T().drillBlocks.find(b=>b.id===id):{name:'',drillIds:[]};
+function deleteSkillBlock(id){confirmDelete('Delete this skill block?',()=>{T().skillBlocks=T().skillBlocks.filter(b=>b.id!==id);saveDB();router();});}
+function openSkillBlockForm(id){
+  const b=id?T().skillBlocks.find(b=>b.id===id):{name:'',skillIds:[]};
   openModal({
-    title:id?'Edit Drill Block':'New Drill Block',
+    title:id?'Edit Skill Block':'New Skill Block',
     bodyHtml:`<div class="field"><label>Name</label><input class="input" id="db_name" value="${escAttr(b.name||'')}"></div>
-      <div class="field"><label>Drills in this block</label>
+      <div class="field"><label>Skills in this block</label>
       <div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;">
-      ${T().drills.map(d=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13.5px;">
-        <input type="checkbox" value="${d.id}" class="db_drill_chk" ${b.drillIds&&b.drillIds.includes(d.id)?'checked':''}> ${esc(d.name)} <span class="mutedtext">(${esc(categoryName(d.categoryId))})</span>
-      </label>`).join('') || '<p class="mutedtext">No drills yet — add some in Drill List first.</p>'}
+      ${T().skills.map(d=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13.5px;">
+        <input type="checkbox" value="${d.id}" class="db_skill_chk" ${b.skillIds&&b.skillIds.includes(d.id)?'checked':''}> ${esc(d.name)} <span class="mutedtext">(${esc(categoryName(d.categoryId))})</span>
+      </label>`).join('') || '<p class="mutedtext">No skills yet — add some in Skill List first.</p>'}
       </div></div>`,
-    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveDrillBlockForm('${id||''}')">Save</button>`
+    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSkillBlockForm('${id||''}')">Save</button>`
   });
 }
-function saveDrillBlockForm(id){
-  const drillIds=[...document.querySelectorAll('.db_drill_chk:checked')].map(c=>c.value);
+function saveSkillBlockForm(id){
+  const skillIds=[...document.querySelectorAll('.db_skill_chk:checked')].map(c=>c.value);
   const name=document.getElementById('db_name').value.trim()||'Untitled Block';
-  if(id){Object.assign(T().drillBlocks.find(b=>b.id===id),{name,drillIds});}
-  else{T().drillBlocks.push({id:uid('block'),name,drillIds,dateCreated:nowStamp()});}
-  saveDB();closeModal();router();toast('Drill block saved');
+  if(id){Object.assign(T().skillBlocks.find(b=>b.id===id),{name,skillIds});}
+  else{T().skillBlocks.push({id:uid('block'),name,skillIds,dateCreated:nowStamp()});}
+  saveDB();closeModal();router();toast('Skill block saved');
 }
 
 /* ============================= PLAYER GROUPS / ROSTER / PLAYERS ============================= */
@@ -1738,7 +1872,7 @@ function renderSettings(container,activeTab){
     document.getElementById('s_secondary').oninput=e=>document.getElementById('s_secondary_hex').value=e.target.value;
   } else if(t==='teams'){
     body.innerHTML=`<div class="card" style="max-width:640px;">
-      <p class="mutedtext" style="margin-top:0;">Each team has its own drills, plans, roster, and branding — nothing is shared between them.</p>
+      <p class="mutedtext" style="margin-top:0;">Each team has its own skills, plans, roster, and branding — nothing is shared between them.</p>
       <div class="tablewrap"><table><thead><tr><th>Team</th><th>Plans</th><th>Players</th><th style="text-align:right">Action</th></tr></thead><tbody>
       ${DB.teams.map(tm=>{
         const d=DB.dataByTeam[tm.id]||{plans:[],players:[]};
@@ -1760,7 +1894,7 @@ function renderSettings(container,activeTab){
     body.innerHTML=`<div class="settings-section">
       <h4>General</h4>
       <div class="inner">
-        <div class="toggle-row"><span>Drill Edit / Save Prompt Pop Up</span><label class="toggle"><input type="checkbox" id="pref_prompt" ${p.drillEditPrompt?'checked':''}><span class="slider"></span></label></div>
+        <div class="toggle-row"><span>Skill Edit / Save Prompt Pop Up</span><label class="toggle"><input type="checkbox" id="pref_prompt" ${p.skillEditPrompt?'checked':''}><span class="slider"></span></label></div>
       </div>
     </div>
     <div class="settings-section">
@@ -1792,7 +1926,7 @@ function renderSettings(container,activeTab){
       <div class="toggle-row"><span>Use team colors on printed plans</span><label class="toggle"><input type="checkbox" id="pref_printcolor" ${DB.prefs.includeColorsPrint?'checked':''}><span class="slider"></span></label></div>
       <div style="margin-top:16px;padding:16px;border:1px solid var(--border);border-radius:8px;">
         <div style="background:${team.primaryColor};color:#fff;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;">${esc(team.name)||'TEAM NAME'}</div>
-        <div style="padding:10px 12px;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;font-size:13px;color:var(--text-secondary);">Practice plan preview — date, drills and notes print below this header when "Print" is used from a plan.</div>
+        <div style="padding:10px 12px;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;font-size:13px;color:var(--text-secondary);">Practice plan preview — date, skills and notes print below this header when "Print" is used from a plan.</div>
       </div>
       <button class="btn btn-primary" style="margin-top:16px;" onclick="savePrintoutPrefs()">Save changes</button>
     </div>`;
@@ -1830,7 +1964,7 @@ function uploadTeamLogo(e){
   reader.readAsDataURL(file);
 }
 function savePlannerPrefs(){
-  DB.prefs.drillEditPrompt=document.getElementById('pref_prompt').checked;
+  DB.prefs.skillEditPrompt=document.getElementById('pref_prompt').checked;
   DB.prefs.defaultDuration=document.getElementById('pref_duration').value;
   DB.prefs.defaultStartTime=document.getElementById('pref_starttime').value;
   DB.prefs.timeFormat=document.getElementById('pref_timeformat').value;
@@ -1888,6 +2022,8 @@ function resetAllData(){
   DB.coach.email     = user.email || DB.coach.email;
   DB.coach.username  = user.email || DB.coach.username;
   saveDB();
+
+  loadDiveDrillsSkills();
 
   if(!location.hash)location.hash='#/dashboard';
   router();
