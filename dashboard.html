@@ -42,6 +42,23 @@
   </div>
 </div>
 
+<!-- =============================================
+     MY DIVERS MODAL
+============================================= -->
+<div class="modal-overlay" id="my-divers-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="my-divers-modal-title">My Divers</h2>
+      <button class="modal-close" onclick="App.closeModal('my-divers-modal')" aria-label="Close">✕</button>
+    </div>
+    <div id="my-divers-modal-body">
+      <div style="display:flex;justify-content:center;padding:24px">
+        <span class="loading-spinner"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
@@ -118,9 +135,9 @@
           <div class="stat-value">${totalDivers}</div>
           <div class="stat-label">Divers on Roster</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card-clickable" role="button" tabindex="0" title="View my divers" onclick="openMyDiversModal()">
           <div class="stat-value">${roster.length}</div>
-          <div class="stat-label">My Divers</div>
+          <div class="stat-label">My Divers ↗</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" style="color:#3b82f6">${skillsAttainedThisMonth}</div>
@@ -303,6 +320,64 @@
       return [c.last_name, c.first_name].filter(Boolean).join(', ');
     }
     return c.full_name || 'Unknown';
+  }
+
+  // =============================================
+  // MY DIVERS MODAL
+  // =============================================
+  async function openMyDiversModal() {
+    App.openModal('my-divers-modal');
+    const body = document.getElementById('my-divers-modal-body');
+    body.innerHTML = `<div style="display:flex;justify-content:center;padding:24px"><span class="loading-spinner"></span></div>`;
+
+    const roster = await SupabaseDB.getRoster(coachUserId);
+    const divers = roster.map(r => r.diver).filter(Boolean);
+    divers.sort(App.compareNames);
+
+    document.getElementById('my-divers-modal-title').textContent = `My Divers (${divers.length})`;
+
+    if (!divers.length) {
+      body.innerHTML = '<p class="text-secondary">No divers on your roster yet.</p>';
+      return;
+    }
+
+    body.innerHTML = divers.map(renderMyDiverRow).join('');
+  }
+
+  function renderMyDiverRow(diver) {
+    const name = App.escHtml(App.formatNameWithNickname(diver));
+
+    const levelBadge = diver.current_level != null
+      ? diver.current_level === 0
+        ? `<span class="badge badge-secondary">Beginner</span>`
+        : `<span class="badge badge-level">L${diver.current_level}</span>`
+      : '';
+
+    const genderBadge = diver.gender
+      ? `<span class="badge badge-secondary">${App.escHtml(diver.gender)}</span>`
+      : '';
+
+    const statusBadge = diver.status === 'active'
+      ? `<span class="badge badge-accent">Active</span>`
+      : `<span class="badge badge-pending">Unclaimed</span>`;
+
+    const aquaAge   = App.escHtml(String(diver.aqua_group || 'TBD'));
+    const groupLine = diver.diver_group ? ` · ${App.escHtml(diver.diver_group)}` : '';
+
+    return `
+      <a class="diver-row" href="progress.html?diver=${diver.id}">
+        <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
+        <div class="list-item-content">
+          <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${name}
+            ${levelBadge}
+            ${genderBadge}
+            ${statusBadge}
+          </div>
+          <div class="list-item-subtitle">AQUA ${aquaAge}${groupLine}</div>
+        </div>
+      </a>
+    `;
   }
 
   // =============================================
