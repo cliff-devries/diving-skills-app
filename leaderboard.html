@@ -82,7 +82,7 @@
       margin-bottom: 10px;
     }
 
-    /* Two-line score row: rank/medal + name on line 1, score + date on line 2 */
+    /* Three-line score row: rank/medal + name on line 1, score on line 2, date on line 3 */
     .lb-rank-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
     .lb-rank-row:last-child { border-bottom: none; }
     .lb-rank-line1 { display: flex; align-items: center; gap: 8px; }
@@ -103,15 +103,9 @@
       white-space: normal;
       overflow-wrap: break-word;
     }
-    .lb-rank-line2 {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 2px;
-      padding-left: 32px;
-    }
-    .lb-rank-score { color: var(--accent); font-weight: 600; font-size: 0.875rem; }
-    .lb-rank-dot,
+    .lb-rank-line2 { margin-top: 4px; padding-left: 32px; }
+    .lb-rank-line3 { margin-top: 4px; padding-left: 32px; }
+    .lb-rank-score { color: var(--accent); font-weight: 700; font-size: 0.9rem; }
     .lb-rank-date { color: var(--text-secondary); font-size: 0.75rem; }
     .lb-rank-1 .lb-rank-num { color: #f5c518; }
     .lb-rank-2 .lb-rank-num { color: #c0c0c0; }
@@ -531,8 +525,8 @@
           </div>
           <div class="lb-rank-line2">
             <span class="lb-rank-score">${formatScore(s.score, ex.type)}</span>
-            ${dateStr ? `<span class="lb-rank-dot">·</span><span class="lb-rank-date">${App.escHtml(dateStr)}</span>` : ''}
           </div>
+          ${dateStr ? `<div class="lb-rank-line3"><span class="lb-rank-date">${App.escHtml(dateStr)}</span></div>` : ''}
         </div>
       `;
     }).join('');
