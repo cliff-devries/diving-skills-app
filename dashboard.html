@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Drills — Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=7">
+  <link rel="stylesheet" href="css/styles.css?v=8">
 </head>
 <body>
 
@@ -173,6 +173,18 @@
         </div>
         ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking, isSuperUser)}
       </div>
+
+      <!-- Practice Planner feature card -->
+      <a href="practice.html" class="feature-card mb-6">
+        <div class="feature-card-info">
+          <span class="feature-card-icon">📋</span>
+          <div>
+            <div class="feature-card-title">Practice Planner</div>
+            <div class="feature-card-subtitle">Build and manage practice sessions</div>
+          </div>
+        </div>
+        <span class="btn btn-primary">Open Practice Planner →</span>
+      </a>
 
       <!-- Pending coach requests -->
       ${pendingCoaches.length ? `

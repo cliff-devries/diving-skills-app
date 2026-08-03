@@ -28,6 +28,7 @@ bumped across ALL HTML files before pushing to GitHub.
 - claim.html
 - coach-signup.html
 - leaderboard.html
+- practice.html (no `css/styles.css` link — it's self-contained; only bump its JS versions)
 - Any new HTML files added to the project
 
 ### Rule: Before every git push, run this check:
@@ -65,7 +66,7 @@ This has caused repeated bugs throughout development.
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
 | js/reports.js | v=2 |
-| css/styles.css | v=7 |
+| css/styles.css | v=8 |
 
 ---
 
