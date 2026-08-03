@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Drills — Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=6">
+  <link rel="stylesheet" href="css/styles.css?v=7">
 </head>
 <body>
 
@@ -25,10 +25,27 @@
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
+<!-- =============================================
+     COACHES MODAL
+============================================= -->
+<div class="modal-overlay" id="coaches-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title">Coaches</h2>
+      <button class="modal-close" onclick="App.closeModal('coaches-modal')" aria-label="Close">✕</button>
+    </div>
+    <div id="coaches-modal-body">
+      <div style="display:flex;justify-content:center;padding:24px">
+        <span class="loading-spinner"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=26"></script>
+<script src="js/supabase.js?v=27"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=8"></script>
 
@@ -133,9 +150,9 @@
 
       <!-- Row 3 -->
       <div class="card-grid-2 mb-6">
-        <div class="stat-card">
+        <div class="stat-card stat-card-clickable" role="button" tabindex="0" title="View active coaches" onclick="openCoachesModal()">
           <div class="stat-value">${totalCoaches}</div>
-          <div class="stat-label">Coaches</div>
+          <div class="stat-label">Coaches ↗</div>
         </div>
         ${rankingCardHtml('aau_diving_ranking', 'AAU Diving Ranking', clubSettings.aau_diving_ranking, isSuperUser)}
       </div>
@@ -242,6 +259,50 @@
         </div>
       </div>
     `;
+  }
+
+  // =============================================
+  // COACHES MODAL
+  // =============================================
+  async function openCoachesModal() {
+    App.openModal('coaches-modal');
+    const body = document.getElementById('coaches-modal-body');
+    body.innerHTML = `<div style="display:flex;justify-content:center;padding:24px"><span class="loading-spinner"></span></div>`;
+
+    const coaches = await SupabaseDB.getActiveCoaches();
+
+    if (!coaches.length) {
+      body.innerHTML = '<p class="text-secondary">No active coaches found.</p>';
+      return;
+    }
+
+    body.innerHTML = `
+      <div class="card card-sm">
+        ${coaches.map(c => `
+          <div class="list-item">
+            <div class="avatar-sm">${Auth.getInitials(c.full_name ?? '')}</div>
+            <div class="list-item-content">
+              <div class="list-item-title">
+                ${App.escHtml(coachDisplayName(c))}${c.is_super_user ? ' ⭐' : ''}
+              </div>
+              <div class="list-item-subtitle">
+                ${App.escHtml(c.email ?? '—')} · Joined ${App.formatDate(c.created_at)}
+              </div>
+            </div>
+            <span class="badge ${c.status === 'active' ? 'badge-accent' : 'badge-pending'}">
+              ${c.status === 'active' ? 'Active' : 'Pending'}
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function coachDisplayName(c) {
+    if (c.last_name || c.first_name) {
+      return [c.last_name, c.first_name].filter(Boolean).join(', ');
+    }
+    return c.full_name || 'Unknown';
   }
 
   // =============================================

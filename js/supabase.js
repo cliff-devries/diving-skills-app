@@ -1020,6 +1020,19 @@ const SupabaseDB = {
     return count ?? 0;
   },
 
+  // Active coach profiles for the Coaches list — sorted last then first name.
+  async getActiveCoaches() {
+    const { data, error } = await this.db
+      .from('profiles')
+      .select('id, full_name, first_name, last_name, email, status, is_super_user, created_at')
+      .eq('role', 'coach')
+      .eq('status', 'active')
+      .order('last_name', { ascending: true })
+      .order('first_name', { ascending: true });
+    if (error) { console.error('[SupabaseDB] getActiveCoaches:', error.message); return []; }
+    return data ?? [];
+  },
+
   // All diver profiles in the club (excludes rejected), sorted last then first name.
   async getAllDivers() {
     const { data, error } = await this.db

@@ -61,11 +61,11 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=8 |
-| js/supabase.js | v=26 |
+| js/supabase.js | v=27 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
 | js/reports.js | v=2 |
-| css/styles.css | v=6 |
+| css/styles.css | v=7 |
 
 ---
 

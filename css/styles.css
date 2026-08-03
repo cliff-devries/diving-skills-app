@@ -416,6 +416,14 @@ h4 { font-size: 0.95rem; font-weight: 600; }
   letter-spacing: 0.5px;
 }
 
+.stat-card-clickable {
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  transition: var(--transition);
+}
+.stat-card-clickable:hover { border-color: rgba(0,201,167,0.4); background: var(--bg-surface-2); text-decoration: none; }
+
 /* Editable ranking cards */
 .icon-btn-edit {
   background: none;
