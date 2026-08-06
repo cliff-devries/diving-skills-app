@@ -84,8 +84,9 @@
       <div class="invite-welcome">
         <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px">
           Welcome to Dive Drills! <img src="assets/icons/diver-icon.svg" alt="" class="inline-icon"></h2>
-        <p class="text-secondary text-sm" id="form-intro">
-          Your coach has created a profile for you.
+        <p class="text-secondary text-sm">
+          This account gives you and your diver access to track progress, view skills, and stay connected
+          with the coaching staff.
         </p>
       </div>
 
@@ -101,23 +102,20 @@
 
       <form id="signup-form" novalidate>
 
-        <!-- Parent-only fields -->
-        <div id="parent-fields" class="hidden">
-          <div class="form-group">
-            <label class="form-label" for="parent-name">Your Full Name</label>
-            <input type="text" id="parent-name" class="form-input" placeholder="Jane Smith" autocomplete="name">
-            <div class="form-error" id="parent-name-error">Please enter your full name.</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="relationship">Relationship to Diver</label>
-            <select id="relationship" class="form-select">
-              <option value="">Select…</option>
-              <option value="Mom">Mom</option>
-              <option value="Dad">Dad</option>
-              <option value="Guardian">Guardian</option>
-            </select>
-            <div class="form-error" id="relationship-error">Please select a relationship.</div>
-          </div>
+        <div class="form-group">
+          <label class="form-label" for="parent-name">Your Full Name</label>
+          <input type="text" id="parent-name" class="form-input" placeholder="Jane Smith" autocomplete="name">
+          <div class="form-error" id="parent-name-error">Please enter your full name.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="relationship">Relationship to Diver</label>
+          <select id="relationship" class="form-select">
+            <option value="">Select…</option>
+            <option value="Mom">Mom</option>
+            <option value="Dad">Dad</option>
+            <option value="Guardian">Guardian</option>
+          </select>
+          <div class="form-error" id="relationship-error">Please select a relationship.</div>
         </div>
 
         <div class="form-group">
@@ -164,7 +162,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=27"></script>
+<script src="js/supabase.js?v=28"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=8"></script>
 
@@ -190,6 +188,15 @@
 
     if (!inviteInfo) {
       console.log('[Invite] No invite found for this token.');
+      showStep('invalid');
+      return;
+    }
+
+    // Family account model — divers never get their own account. A legacy
+    // diver-type invite (generated before this rollout) is treated the
+    // same as an invalid/expired link.
+    if (inviteInfo.invite_type !== 'parent') {
+      console.log('[Invite] Legacy diver invite type — no longer supported.');
       showStep('invalid');
       return;
     }
@@ -239,17 +246,6 @@
   function showForm() {
     document.getElementById('diver-avatar').textContent = Auth.getInitials(inviteInfo.diver_name);
     document.getElementById('diver-name').textContent   = inviteInfo.diver_name;
-
-    if (inviteInfo.invite_type === 'parent') {
-      document.getElementById('form-intro').textContent =
-        `Your coach has invited you to follow ${inviteInfo.diver_name}'s progress on Dive Drills.`;
-      document.getElementById('parent-fields').classList.remove('hidden');
-    } else {
-      document.getElementById('form-intro').textContent =
-        'Your coach has created a profile for you. Set up your account to get started.';
-      document.getElementById('parent-fields').classList.add('hidden');
-    }
-
     showStep('form');
   }
 
@@ -263,8 +259,6 @@
 
     const alertEl = document.getElementById('form-alert');
     alertEl.className = 'alert mb-4';
-
-    const isParent = inviteInfo.invite_type === 'parent';
 
     const email           = document.getElementById('email').value.trim();
     const password        = document.getElementById('password').value;
@@ -295,19 +289,17 @@
       document.getElementById('confirm-password-error').classList.remove('visible');
     }
 
-    if (isParent) {
-      if (!parentName) {
-        document.getElementById('parent-name-error').classList.add('visible');
-        valid = false;
-      } else {
-        document.getElementById('parent-name-error').classList.remove('visible');
-      }
-      if (!relationship) {
-        document.getElementById('relationship-error').classList.add('visible');
-        valid = false;
-      } else {
-        document.getElementById('relationship-error').classList.remove('visible');
-      }
+    if (!parentName) {
+      document.getElementById('parent-name-error').classList.add('visible');
+      valid = false;
+    } else {
+      document.getElementById('parent-name-error').classList.remove('visible');
+    }
+    if (!relationship) {
+      document.getElementById('relationship-error').classList.add('visible');
+      valid = false;
+    } else {
+      document.getElementById('relationship-error').classList.remove('visible');
     }
 
     if (!valid) return;
@@ -316,9 +308,7 @@
     App.setBtnLoading(btn, true);
 
     try {
-      const metadata = isParent
-        ? { full_name: parentName, role: 'parent' }
-        : { claiming: 'true' };
+      const metadata = { full_name: parentName, role: 'parent' };
 
       const { data, error } = await window.supabaseClient.auth.signUp({
         email,
@@ -341,7 +331,7 @@
       }
 
       if (!session) {
-        if (isParent) localStorage.setItem('pending_invite_relationship', relationship);
+        localStorage.setItem('pending_invite_relationship', relationship);
         localStorage.setItem('pending_invite_token', inviteToken);
         showStep('check-email');
         return;
@@ -357,14 +347,10 @@
   });
 
   async function completeInvite(relationshipOverride) {
-    if (inviteInfo.invite_type === 'parent') {
-      const relationship = relationshipOverride
-        || localStorage.getItem('pending_invite_relationship')
-        || '';
-      await SupabaseDB.completeParentInvite(inviteToken, relationship);
-    } else {
-      await SupabaseDB.completeDiverInvite(inviteToken);
-    }
+    const relationship = relationshipOverride
+      || localStorage.getItem('pending_invite_relationship')
+      || '';
+    await SupabaseDB.completeParentInvite(inviteToken, relationship);
     localStorage.removeItem('pending_invite_token');
     localStorage.removeItem('pending_invite_relationship');
     window.location.href = '/welcome.html';

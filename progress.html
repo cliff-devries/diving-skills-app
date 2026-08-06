@@ -261,31 +261,6 @@
 
 
 <!-- =============================================
-     INVITE LINK MODAL
-============================================= -->
-<div class="modal-overlay" id="invite-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title" id="invite-modal-title">Invite Link</h2>
-      <button class="modal-close" onclick="App.closeModal('invite-modal')">✕</button>
-    </div>
-    <p class="text-secondary text-sm mb-4" id="invite-modal-desc"></p>
-    <div class="form-group">
-      <label class="form-label">Shareable Link</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="invite-link-input" class="form-input" readonly style="flex:1;font-family:monospace;font-size:.8rem">
-        <button class="btn btn-secondary" onclick="copyInviteLink()">Copy</button>
-      </div>
-    </div>
-    <p class="text-xs text-secondary" id="invite-expiry-text"></p>
-    <div class="flex gap-3 justify-end mt-4">
-      <button class="btn btn-ghost" onclick="App.closeModal('invite-modal')">Close</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- =============================================
      REMOVE FROM ROSTER MODAL
 ============================================= -->
 <div class="modal-overlay" id="remove-from-roster-modal">
@@ -336,7 +311,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=27"></script>
+<script src="js/supabase.js?v=28"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=8"></script>
@@ -428,12 +403,6 @@
     return `${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y}`;
   }
 
-  function diverInviteBadge(status) {
-    if (status === 'active')  return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✓ Claimed</span>';
-    if (status === 'pending') return '<span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">⏳ Invited</span>';
-    return '<span class="badge">Not Invited</span>';
-  }
-
   function parentInviteBadge(diver, parent) {
     if (parent) return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✓ Claimed</span>';
     if (diver.invite_token && diver.invite_type === 'parent') return '<span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">⏳ Invited</span>';
@@ -501,12 +470,8 @@
         <div class="profile-header-actions">
           ${hasBackLink ? '<a href="roster.html" class="btn btn-ghost btn-sm">← Roster</a>' : ''}
           ${isCoach ? `
-            ${diver.status !== 'active'
-              ? `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'diver')">✉ Invite Diver</button>`
-              : `<span style="font-size:.75rem;color:#10b981;white-space:nowrap">Account Active ✅</span>`
-            }
             ${!linkedParent
-              ? `<button class="btn btn-ghost btn-sm" onclick="generateAndShowInvite('${diver.id}', 'parent')">✉ Invite Parent</button>`
+              ? `<button class="btn btn-ghost btn-sm" id="invite-parent-btn" onclick="inviteParent('${diver.id}')">✉ Invite Parent</button>`
               : `<span style="font-size:.75rem;color:#10b981;white-space:nowrap">Parent Linked ✅</span>`
             }
             <button class="btn btn-secondary btn-sm" onclick="openEditProfileModal()">Edit</button>
@@ -527,12 +492,12 @@
           <div class="stat-label">Certified</div>
         </div>
       </div>
+      ${isCoach ? `
       <div class="profile-invite-row">
-        <span class="profile-invite-label">Diver:</span>
-        ${diverInviteBadge(diver.status)}
-        <span class="profile-invite-label" style="margin-left:10px">Parent:</span>
+        <span class="profile-invite-label">Parent:</span>
         ${parentInviteBadge(diver, linkedParent)}
       </div>
+      ` : ''}
     `;
     headerEl.classList.remove('hidden');
   }
@@ -625,39 +590,35 @@
   }
 
   // =============================================
-  // INVITE
+  // INVITE PARENT — family account model, no separate diver invite
   // =============================================
-  async function generateAndShowInvite(diverId, inviteType) {
+  async function inviteParent(diverId) {
+    const parentEmail = targetDiver?.parent_email;
+    if (!parentEmail) {
+      App.showToast('No parent email on file. Please edit the diver profile to add a parent email first.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('invite-parent-btn');
+    App.setBtnLoading(btn, true);
     try {
-      const result = await SupabaseDB.generateInvite(diverId, inviteType);
-      const link = `${window.location.origin}/invite.html?token=${result.token}`;
-      document.getElementById('invite-modal-title').textContent =
-        inviteType === 'parent' ? 'Invite Parent' : 'Invite Diver';
-      document.getElementById('invite-modal-desc').textContent =
-        inviteType === 'parent'
-          ? "Share this link with the diver's parent or guardian. They'll be linked to this diver's account."
-          : 'Share this link with the diver so they can create their own account and start tracking progress.';
-      document.getElementById('invite-link-input').value = link;
-      document.getElementById('invite-expiry-text').textContent =
-        `This link expires on ${App.formatDate(result.expires_at)} (7 days from now). It can only be used once.`;
-      App.openModal('invite-modal');
+      const result     = await SupabaseDB.generateInvite(diverId, 'parent');
+      const inviteLink = `${window.location.origin}/invite.html?token=${result.token}`;
+      const diverName  = App.formatNameWithNickname(targetDiver) || targetDiver.full_name || 'your diver';
+
+      await SupabaseDB.emailParentInvite({
+        parentEmail,
+        diverName,
+        inviteLink,
+        coachName: currentUser.full_name || 'Your coach',
+      });
+
       targetDiver = await SupabaseDB.getProfileById(targetDiverId);
+      App.showToast(`Invite sent to ${parentEmail}`);
       renderProfileHeader();
     } catch (err) {
       App.showToast(err.message, 'error');
-    }
-  }
-
-  function copyInviteLink() {
-    const input = document.getElementById('invite-link-input');
-    input.select();
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(input.value)
-        .then(() => App.showToast('Invite link copied!'))
-        .catch(() => App.showToast('Could not copy link.', 'error'));
-    } else {
-      document.execCommand('copy');
-      App.showToast('Invite link copied!');
+      App.setBtnLoading(btn, false);
     }
   }
 
@@ -696,7 +657,7 @@
     updateAquaDisplay(this.value);
   });
 
-  ['edit-profile-modal', 'invite-modal', 'remove-from-roster-modal', 'send-report-modal'].forEach(id => {
+  ['edit-profile-modal', 'remove-from-roster-modal', 'send-report-modal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) App.closeModal(id);
     });
@@ -707,10 +668,11 @@
   // =============================================
   function canSetStage1() {
     if (currentUser.role === 'coach') return true;
+    if (currentUser.role === 'parent') return true; // RLS scopes writes to their linked diver
     return currentUser.role === 'diver' && targetDiverId === currentUser.id;
   }
   function canSetStage23() {
-    return currentUser.role === 'coach';
+    return currentUser.role === 'coach' || currentUser.role === 'parent';
   }
 
   // =============================================

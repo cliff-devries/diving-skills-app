@@ -240,11 +240,11 @@ const SupabaseDB = {
   },
 
   // =============================================
-  // INVITE LINKS (coach-generated diver/parent self-signup)
+  // INVITE LINKS (coach-generated parent/family account self-signup)
   // =============================================
 
-  // Coach generates (or regenerates) an invite for a diver on their roster.
-  // Returns { token, expires_at }.
+  // Coach generates (or regenerates) a parent invite for a diver on their
+  // roster. Returns { token, expires_at }.
   async generateInvite(diverId, inviteType) {
     const { data, error } = await this.db.rpc('generate_profile_invite', {
       p_diver_id:    diverId,
@@ -261,13 +261,6 @@ const SupabaseDB = {
     return data?.[0] ?? null;
   },
 
-  // Diver completes signup: links their new auth account to the unclaimed
-  // profile that owns this token, and consumes the token.
-  async completeDiverInvite(token) {
-    const { error } = await this.db.rpc('complete_diver_invite', { p_token: token });
-    if (error) throw new Error(error.message);
-  },
-
   // Parent completes signup: links their (newly-created) parent profile to
   // the diver named in this token via parent_diver, and consumes the token.
   async completeParentInvite(token, relationship) {
@@ -276,6 +269,20 @@ const SupabaseDB = {
       p_relationship: relationship,
     });
     if (error) throw new Error(error.message);
+  },
+
+  // Emails a parent invite link via the send-invite-email Netlify function
+  // (Brevo REST API) — used so coaches don't have to manually copy/paste
+  // the link to the parent themselves.
+  async emailParentInvite({ parentEmail, diverName, inviteLink, coachName }) {
+    const res = await fetch('/.netlify/functions/send-invite-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentEmail, diverName, inviteLink, coachName }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.success) throw new Error(body.error || 'Failed to send invite email.');
+    return body;
   },
 
   // =============================================
@@ -599,7 +606,8 @@ const SupabaseDB = {
     return data;
   },
 
-  // Stage 1 — Skill Attained. Settable by the diver (own row) or their coach.
+  // Stage 1 — Skill Attained. Settable by the diver's coach or linked parent
+  // (family account); a legacy diver-owned row also remains self-settable.
   async setSkillAttained(diverId, skillId, userId, attained) {
     const updates = attained
       ? {
@@ -619,7 +627,8 @@ const SupabaseDB = {
     return this._upsertCompletion(diverId, skillId, updates);
   },
 
-  // Stage 2 — Ready for Test. Coach only. Requires Stage 1 complete.
+  // Stage 2 — Ready for Test. Settable by the diver's coach or linked parent
+  // (family account). Requires Stage 1 complete.
   async setReadyForTest(diverId, skillId, coachId, ready) {
     const updates = ready
       ? {
