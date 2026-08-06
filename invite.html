@@ -145,18 +145,6 @@
       </form>
     </div>
 
-    <!-- STEP: Check email -->
-    <div id="step-check-email" class="invite-step">
-      <div class="invite-status-icon">📬</div>
-      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;text-align:center">
-        Check Your Email
-      </h2>
-      <p class="text-secondary text-sm mb-4" style="text-align:center">
-        We've sent a confirmation link to your email address. Click it, then come back to
-        <strong>this same invite link</strong> to finish setting up your account.
-      </p>
-    </div>
-
   </div>
 </div>
 
@@ -217,20 +205,11 @@
       return;
     }
 
-    // Check for a session (e.g. returning after email confirmation)
+    // Email confirmation is off, so signup completes in one step — the only
+    // reason someone would already have a session here is being logged in
+    // to a different Dive Drills account.
     const { data: { session } } = await window.supabaseClient.auth.getSession();
-    const pendingToken = localStorage.getItem('pending_invite_token');
-
-    if (session && pendingToken === inviteToken) {
-      try {
-        await completeInvite();
-        return;
-      } catch (err) {
-        // Fall through to show the form with the error
-        document.getElementById('form-alert').className   = 'alert alert-error visible mb-4';
-        document.getElementById('form-alert').textContent = err.message;
-      }
-    } else if (session) {
+    if (session) {
       showStep('signed-in');
       return;
     }
@@ -331,10 +310,7 @@
       }
 
       if (!session) {
-        localStorage.setItem('pending_invite_relationship', relationship);
-        localStorage.setItem('pending_invite_token', inviteToken);
-        showStep('check-email');
-        return;
+        throw new Error('Could not create your account. Please try again.');
       }
 
       await completeInvite(relationship);
@@ -346,13 +322,8 @@
     }
   });
 
-  async function completeInvite(relationshipOverride) {
-    const relationship = relationshipOverride
-      || localStorage.getItem('pending_invite_relationship')
-      || '';
+  async function completeInvite(relationship) {
     await SupabaseDB.completeParentInvite(inviteToken, relationship);
-    localStorage.removeItem('pending_invite_token');
-    localStorage.removeItem('pending_invite_relationship');
     window.location.href = '/welcome.html';
   }
 
