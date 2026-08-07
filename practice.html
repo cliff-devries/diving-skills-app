@@ -515,9 +515,13 @@ const SYNC_SNAPSHOT_KEY = STORAGE_KEY+'_synced';
 // One entry per T()-scoped array. `extraCols` is used to split the two
 // emphasis lists (practice/competition) into one shared table via a
 // `kind` discriminator column instead of two near-identical tables.
+// `intCols` lists snake_case columns that are INTEGER in Postgres — the
+// app sometimes stores these as '' (e.g. a blank plan-duration input),
+// which Postgres rejects outright ("invalid input syntax for type
+// integer"), so toSnakeRow() coerces every column named here.
 const SYNC_CFG = [
   {key:'categories',         table:'dive_practice_categories'},
-  {key:'skills',              table:'dive_practice_skills'},
+  {key:'skills',              table:'dive_practice_skills', intCols:['minutes']},
   {key:'skillBlocks',         table:'dive_practice_skill_blocks'},
   {key:'locations',           table:'dive_practice_locations'},
   {key:'announcements',       table:'dive_practice_announcements'},
@@ -526,10 +530,10 @@ const SYNC_CFG = [
   {key:'competitionEmphasis', table:'dive_practice_emphasis', extraCols:{kind:'competition'}},
   {key:'notes',               table:'dive_practice_notes'},
   {key:'noteCards',           table:'dive_practice_note_cards'},
-  {key:'playerGroups',        table:'dive_practice_player_groups'},
+  {key:'playerGroups',        table:'dive_practice_player_groups', intCols:['num_groups','players_per_group','subs_per_group']},
   {key:'rosters',             table:'dive_practice_rosters'},
   {key:'players',             table:'dive_practice_players'},
-  {key:'plans',                table:'dive_practice_plans'},
+  {key:'plans',                table:'dive_practice_plans', intCols:['duration']},
 ];
 
 let SYNC_COACH_ID     = null;
@@ -564,6 +568,15 @@ function setSyncStatus(status){
 function camelToSnake(s){return s.replace(/([A-Z])/g,'_$1').toLowerCase();}
 function snakeToCamel(s){return s.replace(/_([a-z0-9])/g,(_,c)=>c.toUpperCase());}
 
+// '' / undefined / null / non-numeric -> null; otherwise a real integer.
+// Postgres rejects '' outright for an INTEGER column ("invalid input
+// syntax for type integer") — it does NOT treat it like NULL.
+function toIntOrNull(v){
+  if(v===''||v===undefined||v===null) return null;
+  const n = parseInt(v,10);
+  return Number.isNaN(n) ? null : n;
+}
+
 function toSnakeRow(record, cfg, coachId, teamId){
   const row = {coach_id:coachId, team_id:teamId};
   Object.keys(record).forEach(k=>{
@@ -571,6 +584,7 @@ function toSnakeRow(record, cfg, coachId, teamId){
     if(k==='dateCreated'){ row.created_at = record[k]; return; }
     row[camelToSnake(k)] = record[k];
   });
+  if(cfg.intCols) cfg.intCols.forEach(col=>{ row[col] = toIntOrNull(row[col]); });
   if(cfg.extraCols) Object.assign(row, cfg.extraCols);
   return row;
 }
