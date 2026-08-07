@@ -1091,10 +1091,16 @@ function openModal({title,bodyHtml,footHtml,wide,onMount}){
   if(onMount)onMount();
 }
 function confirmDelete(msg,cb){
+  // Keep the real function reference (like window.__qaActions elsewhere
+  // in this file) rather than cb.toString()-ing it into the onclick
+  // attribute: re-parsing stringified source loses the closure over
+  // whatever local variables (key, id, planId, ...) the caller closed
+  // over, throwing "X is not defined" the moment the button is clicked.
+  window.__confirmDeleteCb = cb;
   openModal({
     title:'Confirm delete',
     bodyHtml:`<p style="margin:0;">${esc(msg)}</p>`,
-    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="(${cb.toString()})();closeModal();">Delete</button>`
+    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="window.__confirmDeleteCb();closeModal();">Delete</button>`
   });
 }
 
