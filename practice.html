@@ -133,16 +133,30 @@ button{font-family:inherit;cursor:pointer;}
 .crumb a{color:var(--text-secondary);}
 .crumb a:hover{color:var(--accent);}
 
-/* BACKUP BANNER */
-#backupBanner{padding:0 20px;}
-@media(min-width:768px){#backupBanner{padding:0 40px;}}
-.backup-alert{
+/* STATUS BANNER (offline indicator) */
+#statusBanner{padding:0 20px;}
+@media(min-width:768px){#statusBanner{padding:0 40px;}}
+.status-alert{
   margin-top:20px;padding:12px 16px;border-radius:var(--radius-sm);font-size:.85rem;
   display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   background:var(--pending-dim);border:1px solid rgba(245,166,35,.3);color:var(--pending);
 }
-.backup-alert .msg{flex:1;min-width:200px;}
-.backup-alert strong{color:var(--pending);}
+.status-alert .msg{flex:1;min-width:200px;}
+.status-alert strong{color:var(--pending);}
+
+/* SYNC DOT */
+.sync-dot-wrap{display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:.72rem;color:var(--text-secondary);}
+.sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#6b7280;transition:background .2s ease;}
+.sync-dot.idle{background:var(--accent);}
+.sync-dot.saving{background:#f5a623;animation:sync-pulse 1s ease-in-out infinite;}
+.sync-dot.error{background:#eb5757;}
+@keyframes sync-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* INITIAL LOAD SPINNER (duplicated from the shared site stylesheet — this page is self-contained) */
+.pp-loading-spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:pp-spin .65s linear infinite;flex-shrink:0;}
+.pp-loading-spinner-lg{width:38px;height:38px;border-width:3px;}
+@keyframes pp-spin{to{transform:rotate(360deg);}}
+.pp-loading-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:14px;color:var(--text-secondary);font-size:.85rem;}
 
 /* BUTTONS */
 .btn{
@@ -309,8 +323,8 @@ tbody tr:hover{background:var(--bg-surface-2);}
   <nav id="sidebar"></nav>
   <div id="mainWrap">
     <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a></div>
-    <div id="backupBanner"></div>
-    <main><div id="content"></div></main>
+    <div id="statusBanner"></div>
+    <main><div id="content"><div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Loading your practice data…</span></div></div></main>
   </div>
   <nav id="bottomNav" class="bottom-nav"></nav>
 </div>
@@ -404,7 +418,11 @@ function seedData(){
   };
 }
 let DB;
-function loadDB(){
+
+// Cloud sync — see loadDB()/saveDB()/runSync() below for the full data
+// layer. This block just loads local data as a last resort; the real
+// entry point is the async loadDB(coachId) further down.
+function loadLocalOnly(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
     if(raw){
@@ -419,7 +437,6 @@ function loadDB(){
       } else {
         DB=seedData();
       }
-      saveDB();
     }
   }catch(e){DB=seedData();}
 }
@@ -469,7 +486,392 @@ function migrateIfNeeded(){
     delete d.drills; delete d.drillBlocks;
   });
 }
-function saveDB(){localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}
+function saveDB(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+  scheduleSync();
+}
+
+/* =============================================
+   CLOUD SYNC — Supabase-backed storage with localStorage as the
+   offline/durable layer underneath it. Design:
+     - saveDB() (called at every existing mutation call site, unchanged)
+       still writes to localStorage synchronously, then debounces a
+       call to runSync().
+     - runSync() diffs the in-memory DB against the last SUCCESSFULLY
+       synced snapshot (persisted in its own localStorage key so it
+       survives reloads) and pushes only what actually changed, per
+       entity type, per SYNC_CFG. This is what "intelligent partial
+       saves" means here — one generic diff engine driven by a
+       declarative config, not 15 hand-written save functions wired
+       into every mutation call site individually.
+     - Because the diff is always against the last confirmed-synced
+       snapshot regardless of how long ago that was, reconnecting after
+       being offline and re-running runSync() IS the queue replay — no
+       separate offline queue data structure is needed.
+   ============================================= */
+
+const SYNC_SNAPSHOT_KEY = STORAGE_KEY+'_synced';
+
+// One entry per T()-scoped array. `extraCols` is used to split the two
+// emphasis lists (practice/competition) into one shared table via a
+// `kind` discriminator column instead of two near-identical tables.
+const SYNC_CFG = [
+  {key:'categories',         table:'dive_practice_categories'},
+  {key:'skills',              table:'dive_practice_skills'},
+  {key:'skillBlocks',         table:'dive_practice_skill_blocks'},
+  {key:'locations',           table:'dive_practice_locations'},
+  {key:'announcements',       table:'dive_practice_announcements'},
+  {key:'quotes',              table:'dive_practice_quotes'},
+  {key:'practiceEmphasis',    table:'dive_practice_emphasis', extraCols:{kind:'practice'}},
+  {key:'competitionEmphasis', table:'dive_practice_emphasis', extraCols:{kind:'competition'}},
+  {key:'notes',               table:'dive_practice_notes'},
+  {key:'noteCards',           table:'dive_practice_note_cards'},
+  {key:'playerGroups',        table:'dive_practice_player_groups'},
+  {key:'rosters',             table:'dive_practice_rosters'},
+  {key:'players',             table:'dive_practice_players'},
+  {key:'plans',                table:'dive_practice_plans'},
+];
+
+let SYNC_COACH_ID     = null;
+let lastSyncedSnapshot = null;
+let syncTimer = null, syncInFlight = false, syncQueued = false;
+let isOffline = false;
+let currentSyncStatus = 'idle';
+let pendingMigrationLocalDB = null;
+
+function scheduleSync(){
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(runSync, 500);
+}
+// Best-effort: don't lose up to 500ms of pending cloud sync if the coach
+// navigates away right after an edit. localStorage is already safe
+// synchronously either way — this only affects how fast it reaches Supabase.
+['visibilitychange','beforeunload'].forEach(evt=>{
+  window.addEventListener(evt, ()=>{ if(document.visibilityState==='hidden'||evt==='beforeunload') runSync(); });
+});
+
+function syncStatusLabel(status){
+  return status==='saving' ? 'Saving…' : status==='error' ? 'Sync error' : 'Synced';
+}
+function setSyncStatus(status){
+  currentSyncStatus = status;
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  if(dot) dot.className = 'sync-dot '+status;
+  if(label) label.textContent = syncStatusLabel(status);
+}
+
+function camelToSnake(s){return s.replace(/([A-Z])/g,'_$1').toLowerCase();}
+function snakeToCamel(s){return s.replace(/_([a-z0-9])/g,(_,c)=>c.toUpperCase());}
+
+function toSnakeRow(record, cfg, coachId, teamId){
+  const row = {coach_id:coachId, team_id:teamId};
+  Object.keys(record).forEach(k=>{
+    if(k==='team' && cfg.key==='players') return; // vestigial field, unused by the app
+    if(k==='dateCreated'){ row.created_at = record[k]; return; }
+    row[camelToSnake(k)] = record[k];
+  });
+  if(cfg.extraCols) Object.assign(row, cfg.extraCols);
+  return row;
+}
+function fromSnakeRow(row, cfg){
+  const rec = {};
+  Object.keys(row).forEach(k=>{
+    if(k==='coach_id'||k==='team_id'||k==='kind') return;
+    if(k==='created_at'){ rec.dateCreated = row[k]; return; }
+    rec[snakeToCamel(k)] = row[k];
+  });
+  return rec;
+}
+function prefsToSnake(p){
+  return {
+    default_duration:p.defaultDuration||null, default_start_time:p.defaultStartTime||null,
+    time_format:p.timeFormat||'12', skill_edit_prompt:!!p.skillEditPrompt,
+    include_images:p.includeImages!==false, include_videos:!!p.includeVideos,
+    notecards_in_printout:p.noteCardsInPrintout!==false, include_colors_print:p.includeColorsPrint!==false,
+  };
+}
+function prefsFromSnake(row){
+  if(!row) return {defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true};
+  return {
+    defaultDuration:row.default_duration||'', defaultStartTime:row.default_start_time||'',
+    timeFormat:row.time_format||'12', skillEditPrompt:!!row.skill_edit_prompt,
+    includeImages:row.include_images!==false, includeVideos:!!row.include_videos,
+    noteCardsInPrintout:row.notecards_in_printout!==false, includeColorsPrint:row.include_colors_print!==false,
+  };
+}
+
+// Fetches everything for this coach and reconstructs it into the same
+// shape the app already expects (DB.teams / DB.dataByTeam / DB.prefs).
+async function fetchAllFromSupabase(coachId){
+  const sb = window.supabaseClient;
+  const uniqueTables = [...new Set(SYNC_CFG.map(c=>c.table))];
+
+  const [prefsRes, teamsRes, ...tableResList] = await Promise.all([
+    sb.from('dive_practice_prefs').select('*').eq('coach_id', coachId).maybeSingle(),
+    sb.from('dive_practice_teams').select('*').eq('coach_id', coachId),
+    ...uniqueTables.map(table => sb.from(table).select('*').eq('coach_id', coachId)),
+  ]);
+  if(prefsRes.error) throw prefsRes.error;
+  if(teamsRes.error) throw teamsRes.error;
+  tableResList.forEach(r=>{ if(r.error) throw r.error; });
+
+  const rowsByTable = {};
+  uniqueTables.forEach((table,i)=>{ rowsByTable[table] = tableResList[i].data || []; });
+
+  const teamRows = teamsRes.data || [];
+  const teams = teamRows.map(t=>({id:t.id,name:t.name,logo:t.logo,primaryColor:t.primary_color,secondaryColor:t.secondary_color}));
+
+  const dataByTeam = {};
+  teamRows.forEach(t=>{
+    dataByTeam[t.id] = {
+      categories:[],skills:[],skillBlocks:[],locations:[],announcements:[],quotes:[],
+      practiceEmphasis:[],competitionEmphasis:[],notes:[],noteCards:[],
+      playerGroups:[],rosters:[],players:[],plans:[], seasonEndDate:t.season_end_date||'',
+    };
+  });
+
+  SYNC_CFG.forEach(cfg=>{
+    (rowsByTable[cfg.table]||[]).forEach(row=>{
+      const teamData = dataByTeam[row.team_id];
+      if(!teamData) return; // orphaned row safety guard
+      if(cfg.extraCols && row.kind !== cfg.extraCols.kind) return; // emphasis: route by kind
+      teamData[cfg.key].push(fromSnakeRow(row, cfg));
+    });
+  });
+
+  const prefsRow = prefsRes.data;
+  const activeTeamId = (prefsRow && prefsRow.active_team_id && dataByTeam[prefsRow.active_team_id])
+    ? prefsRow.active_team_id
+    : (teams[0] ? teams[0].id : null);
+
+  return {
+    coach:{firstName:'',lastName:'',username:'',email:'',timezone:''}, // overwritten from Auth right after load, never synced
+    activeTeamId, teams, dataByTeam,
+    prefs: prefsFromSnake(prefsRow),
+    lastBackupAt: null,
+  };
+}
+
+async function diffAndPush(cfg, current, prev, coachId, teamId){
+  const sb = window.supabaseClient;
+  const prevById = new Map(prev.map(r=>[r.id,r]));
+  const curIds = new Set(current.map(r=>r.id));
+
+  const toUpsert = current.filter(r=>{
+    const p = prevById.get(r.id);
+    return !p || JSON.stringify(r)!==JSON.stringify(p);
+  });
+  const toDelete = prev.filter(r=>!curIds.has(r.id)).map(r=>r.id);
+
+  if(toUpsert.length){
+    const rows = toUpsert.map(r=>toSnakeRow(r, cfg, coachId, teamId));
+    const {error} = await sb.from(cfg.table).upsert(rows);
+    if(error) throw error;
+  }
+  if(toDelete.length){
+    const {error} = await sb.from(cfg.table).delete().in('id', toDelete);
+    if(error) throw error;
+  }
+}
+
+async function runSync(opts){
+  const silent = !!(opts && opts.silent);
+  clearTimeout(syncTimer);
+  if(!lastSyncedSnapshot || !SYNC_COACH_ID) return false; // not initialized yet
+  if(syncInFlight){ syncQueued = true; return false; }
+  syncInFlight = true;
+  setSyncStatus('saving');
+  const sb = window.supabaseClient;
+  const coachId = SYNC_COACH_ID;
+  try{
+    // Teams (branding + season_end_date, which actually lives on the
+    // per-team DATA object, not the branding record).
+    const prevTeams = lastSyncedSnapshot.teams || [];
+    const curTeams  = DB.teams || [];
+    const prevTeamsById = new Map(prevTeams.map(t=>[t.id,t]));
+    const curTeamIds = new Set(curTeams.map(t=>t.id));
+    const teamRowOf = t => ({
+      id:t.id, coach_id:coachId, name:t.name, logo:t.logo,
+      primary_color:t.primaryColor, secondary_color:t.secondaryColor,
+      season_end_date:(DB.dataByTeam[t.id]||{}).seasonEndDate||'',
+    });
+    const teamsToUpsert = curTeams.filter(t=>{
+      const prev = prevTeamsById.get(t.id);
+      if(!prev) return true;
+      const prevSeasonEndDate = (lastSyncedSnapshot.dataByTeam[t.id]||{}).seasonEndDate||'';
+      const curSeasonEndDate  = (DB.dataByTeam[t.id]||{}).seasonEndDate||'';
+      return JSON.stringify(t)!==JSON.stringify(prev) || prevSeasonEndDate!==curSeasonEndDate;
+    });
+    if(teamsToUpsert.length){
+      const {error} = await sb.from('dive_practice_teams').upsert(teamsToUpsert.map(teamRowOf));
+      if(error) throw error;
+    }
+    const removedTeamIds = prevTeams.filter(t=>!curTeamIds.has(t.id)).map(t=>t.id);
+    if(removedTeamIds.length){
+      const {error} = await sb.from('dive_practice_teams').delete().in('id', removedTeamIds);
+      if(error) throw error; // ON DELETE CASCADE wipes this team's children server-side
+    }
+
+    // Per-team entities. Skip teams that were just deleted — their
+    // children are already gone via the cascade above.
+    for(const teamId of Object.keys(DB.dataByTeam)){
+      const cur  = DB.dataByTeam[teamId];
+      const prev = (lastSyncedSnapshot.dataByTeam||{})[teamId] || {};
+      for(const cfg of SYNC_CFG){
+        await diffAndPush(cfg, cur[cfg.key]||[], prev[cfg.key]||[], coachId, teamId);
+      }
+    }
+
+    // Prefs — single row per coach, only written if it actually changed.
+    const prefsPayload     = {coach_id:coachId, active_team_id:DB.activeTeamId||null, ...prefsToSnake(DB.prefs)};
+    const prevPrefsPayload = lastSyncedSnapshot.prefs
+      ? {coach_id:coachId, active_team_id:lastSyncedSnapshot.activeTeamId||null, ...prefsToSnake(lastSyncedSnapshot.prefs)}
+      : null;
+    if(!prevPrefsPayload || JSON.stringify(prefsPayload)!==JSON.stringify(prevPrefsPayload)){
+      const {error} = await sb.from('dive_practice_prefs').upsert(prefsPayload);
+      if(error) throw error;
+    }
+
+    lastSyncedSnapshot = structuredClone(DB);
+    localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(DB));
+    isOffline = false;
+    setSyncStatus('idle');
+    renderOfflineBanner();
+    return true;
+  }catch(e){
+    console.error('[practice] sync failed', e);
+    isOffline = true;
+    setSyncStatus('error');
+    renderOfflineBanner();
+    if(!silent) toast('Sync failed — changes are saved on this device and will retry.');
+    return false;
+  }finally{
+    syncInFlight = false;
+    if(syncQueued){ syncQueued = false; runSync(); }
+  }
+}
+
+function persistLocalOnly(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+
+// Real entry point (called from the init IIFE). Reconciles Supabase,
+// localStorage, and the last-synced snapshot — see the plan this was
+// built from for the full decision table. Sets DB (and returns) in
+// every case except "local data exists but the cloud is empty for this
+// coach," which instead sets pendingMigrationLocalDB for the one-time
+// import prompt to handle.
+async function loadDB(coachId){
+  SYNC_COACH_ID = coachId;
+  const localRaw       = localStorage.getItem(STORAGE_KEY);
+  const localSyncedRaw = localStorage.getItem(SYNC_SNAPSHOT_KEY);
+
+  let remoteDB = null;
+  try{
+    remoteDB = await fetchAllFromSupabase(coachId);
+    isOffline = false;
+  }catch(e){
+    console.error('[practice] Supabase fetch failed, falling back to local', e);
+    isOffline = true;
+  }
+
+  if(!remoteDB){
+    loadLocalOnly();
+    lastSyncedSnapshot = localSyncedRaw ? JSON.parse(localSyncedRaw) : {dataByTeam:{}};
+    persistLocalOnly(); // in case loadLocalOnly() just seeded/migrated fresh data
+    return;
+  }
+
+  const remoteEmpty = !remoteDB.teams.length;
+
+  if(localRaw && remoteEmpty){
+    pendingMigrationLocalDB = JSON.parse(localRaw);
+    return;
+  }
+
+  if(remoteEmpty){
+    // Brand-new coach, nothing local either — seed sample data and push
+    // it up right away so it's there on their other devices too.
+    DB = seedData();
+    lastSyncedSnapshot = {dataByTeam:{}};
+    persistLocalOnly();
+    scheduleSync();
+    return;
+  }
+
+  const syncedSnapshot   = localSyncedRaw ? JSON.parse(localSyncedRaw) : null;
+  const localMatchesSynced = localRaw && syncedSnapshot && localRaw === JSON.stringify(syncedSnapshot);
+
+  if(!localRaw || localMatchesSynced){
+    // Nothing pending locally — trust the server. This is also how
+    // edits made on another device become visible here.
+    DB = remoteDB;
+    lastSyncedSnapshot = structuredClone(DB);
+    persistLocalOnly();
+    localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(DB));
+  } else {
+    // Local edits exist that never made it to Supabase (e.g. the tab
+    // was closed while offline). Keep them, push them on the next sync.
+    DB = JSON.parse(localRaw); migrateIfNeeded();
+    lastSyncedSnapshot = syncedSnapshot || {dataByTeam:{}};
+    scheduleSync();
+  }
+}
+
+/* ============================= ONE-TIME LOCAL -> CLOUD MIGRATION ============================= */
+function offerLocalMigration(user){
+  window.__migrationUser = user;
+  openModal({
+    title:'We found existing practice data on this device',
+    bodyHtml:`<p>Would you like to import it to the cloud so you can access it from any device?</p>`,
+    footHtml:`<button class="btn" onclick="startFreshFromMigrationPrompt()">Start Fresh</button>
+              <button class="btn btn-primary" onclick="runLocalMigration()">Import to Cloud</button>`,
+  });
+}
+function startFreshFromMigrationPrompt(){
+  closeModal();
+  DB = seedData();
+  lastSyncedSnapshot = {dataByTeam:{}};
+  pendingMigrationLocalDB = null;
+  persistLocalOnly();
+  scheduleSync();
+  finishInit(window.__migrationUser);
+}
+async function runLocalMigration(){
+  closeModal();
+  document.getElementById('content').innerHTML =
+    '<div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Importing your data…</span></div>';
+  DB = pendingMigrationLocalDB;
+  migrateIfNeeded();
+  lastSyncedSnapshot = {dataByTeam:{}}; // empty baseline — every record reads as new
+  const ok = await runSync({silent:true}); // runSync() catches its own errors, so check its return value, not a try/catch
+  if(ok){
+    localStorage.removeItem(STORAGE_KEY);
+    toast('Practice data imported to the cloud');
+  } else {
+    toast('Import failed — your data is safe on this device, please try again.');
+  }
+  pendingMigrationLocalDB = null;
+  finishInit(window.__migrationUser);
+}
+
+/* ============================= OFFLINE BANNER ============================= */
+function renderOfflineBanner(){
+  const host=document.getElementById('statusBanner');
+  if(!host)return;
+  if(!isOffline){ host.innerHTML=''; return; }
+  host.innerHTML=`<div class="status-alert">
+    <span class="msg">📡 <strong>You're offline.</strong> Changes are being saved on this device and will sync automatically once you're back online.</span>
+  </div>`;
+}
+function handleConnectivityChange(){
+  if(navigator.onLine) scheduleSync();
+  else { isOffline = true; renderOfflineBanner(); }
+}
+window.addEventListener('online', handleConnectivityChange);
+window.addEventListener('offline', handleConnectivityChange);
+// Light periodic retry — navigator.onLine can't always be trusted to
+// reflect whether Supabase itself is actually reachable.
+setInterval(()=>{ if(isOffline) scheduleSync(); }, 20000);
 
 // T() = the active team's full data set (skills, plans, players, etc.)
 function T(){return DB.dataByTeam[DB.activeTeamId];}
@@ -506,25 +908,6 @@ function escAttr(s){return esc(s).replace(/"/g,'&quot;');}
 function getEnabledCategories(){return T().categories.filter(c=>c.status!=='Disabled');}
 function categoryName(id){const c=T().categories.find(c=>c.id===id);return c?c.name:'';}
 
-/* ============================= BACKUP REMINDER ============================= */
-function daysSince(iso){if(!iso)return Infinity;return (Date.now()-new Date(iso).getTime())/86400000;}
-function renderBackupBanner(){
-  const host=document.getElementById('backupBanner');
-  if(!host)return;
-  const snoozeUntil = localStorage.getItem('ppl_backup_snooze');
-  if(snoozeUntil && Date.now() < parseInt(snoozeUntil,10)){host.innerHTML='';return;}
-  if(daysSince(DB.lastBackupAt) < 7){host.innerHTML='';return;}
-  const never = !DB.lastBackupAt;
-  host.innerHTML=`<div class="backup-alert">
-    <span class="msg">💾 <strong>${never?"You haven't backed up your data yet.":"It's been a week since your last backup."}</strong> Everything is saved only in this browser — export a copy so you never lose a season.</span>
-    <button class="btn btn-sm btn-primary" onclick="exportData()">Back Up Now</button>
-    <button class="btn btn-sm btn-ghost" onclick="snoozeBackup()">Remind me in 3 days</button>
-  </div>`;
-}
-function snoozeBackup(){
-  localStorage.setItem('ppl_backup_snooze', String(Date.now()+3*86400000));
-  document.getElementById('backupBanner').innerHTML='';
-}
 
 /* ============================= ROUTER / NAV ============================= */
 const NAV = [
@@ -580,6 +963,7 @@ function renderSidebar(){
     <div><div class="brand-text">Dive<span>Practice</span></div><div class="brand-tagline">Practice Scheduler</div></div>
   </div>`;
   html+=`<div class="team-switch" onclick="openTeamSwitcher()">${DIVER_ICON_IMG}<span class="tsw-name">${esc(activeTeam().name)}</span><span class="tsw-caret">▾</span></div>`;
+  html+=`<div class="sync-dot-wrap"><span class="sync-dot ${currentSyncStatus}" id="syncDot" title="Cloud sync status"></span><span id="syncLabel">${syncStatusLabel(currentSyncStatus)}</span></div>`;
   html+='<nav class="sidebar-nav">';
   NAV.forEach(item=>{
     if(item.type==='add'){
@@ -680,7 +1064,7 @@ function deleteTeam(id){
 
 function router(){
   renderSidebar();
-  renderBackupBanner();
+  renderOfflineBanner();
   const full=currentRoute();
   const parts=full.split('/');
   const root=parts[0];
@@ -1838,7 +2222,7 @@ function renderSettings(container,activeTab){
       <button class="${t==='teams'?'active':''}" onclick="renderSettings(document.getElementById('content'),'teams')">Teams</button>
       <button class="${t==='planner'?'active':''}" onclick="renderSettings(document.getElementById('content'),'planner')">Planner</button>
       <button class="${t==='printout'?'active':''}" onclick="renderSettings(document.getElementById('content'),'printout')">Printout Format</button>
-      <button class="${t==='data'?'active':''}" onclick="renderSettings(document.getElementById('content'),'data')">Backup &amp; Restore</button>
+      <button class="${t==='data'?'active':''}" onclick="renderSettings(document.getElementById('content'),'data')">Export &amp; Import</button>
     </div>
     <div id="settingsBody"></div>`;
   const body=document.getElementById('settingsBody');
@@ -1932,13 +2316,13 @@ function renderSettings(container,activeTab){
     </div>`;
   } else if(t==='data'){
     body.innerHTML=`<div class="card" style="max-width:640px;">
-      <p class="mutedtext" style="margin-top:0;">Everything (all teams) is stored locally in this browser. Export a backup regularly, or move your data to another computer.</p>
+      <p class="mutedtext" style="margin-top:0;">Your practice data (all teams) automatically syncs to the cloud, so you can access it from any device. Export a copy as a manual backup, or import a file to move data between accounts.</p>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="exportData()">${ic('download')} Export Data (.json)</button>
         <label class="btn" style="cursor:pointer;">${ic('upload')} Import Data<input type="file" accept="application/json" style="display:none" onchange="importData(event)"></label>
         <button class="btn btn-danger" onclick="resetAllData()">${ic('trash')} Reset All Data</button>
       </div>
-      <p class="mutedtext" style="margin-top:14px;">Last backup: ${DB.lastBackupAt?fmtDate(DB.lastBackupAt):'never'}</p>
+      <p class="mutedtext" style="margin-top:14px;">Last exported: ${DB.lastBackupAt?fmtDate(DB.lastBackupAt):'never'}</p>
     </div>`;
   }
 }
@@ -1983,7 +2367,7 @@ function exportData(){
   const a=document.createElement('a');a.href=url;a.download='practice-planner-backup-'+todayISO()+'.json';a.click();
   URL.revokeObjectURL(url);
   DB.lastBackupAt=nowStamp();saveDB();
-  document.getElementById('backupBanner') && (document.getElementById('backupBanner').innerHTML='');
+  toast('Exported');
 }
 function importData(e){
   const file=e.target.files[0];if(!file)return;
@@ -1991,7 +2375,7 @@ function importData(e){
   reader.onload=()=>{
     try{
       const data=JSON.parse(reader.result);
-      DB=data;migrateIfNeeded();saveDB();router();toast('Data imported');
+      DB=data;migrateIfNeeded();saveDB();router();toast('Data imported and syncing to the cloud');
     }catch(err){toast('Could not read that file.');}
   };
   reader.readAsText(file);
@@ -2013,10 +2397,19 @@ function resetAllData(){
     return;
   }
 
-  loadDB();
+  await loadDB(user.id);
 
+  if(pendingMigrationLocalDB){
+    offerLocalMigration(user);
+    return; // offerLocalMigration() -> runLocalMigration()/startFreshFromMigrationPrompt() -> finishInit()
+  }
+
+  finishInit(user);
+})();
+
+function finishInit(user){
   // Coach identity always comes from Dive Drills auth, not the planner's
-  // own (locally-stored) coach settings.
+  // own (locally-stored, and never synced to Supabase) coach settings.
   DB.coach.firstName = App.firstName(user) || DB.coach.firstName;
   DB.coach.lastName  = user.last_name || (user.full_name||'').trim().split(/\s+/).slice(1).join(' ');
   DB.coach.email     = user.email || DB.coach.email;
@@ -2024,10 +2417,11 @@ function resetAllData(){
   saveDB();
 
   loadDiveDrillsSkills();
+  renderOfflineBanner();
 
   if(!location.hash)location.hash='#/dashboard';
   router();
-})();
+}
 </script>
 </body>
 </html>
