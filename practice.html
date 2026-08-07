@@ -829,10 +829,22 @@ async function loadDB(coachId){
   }
 
   if(!remoteDB){
-    loadLocalOnly();
-    lastSyncedSnapshot = localSyncedRaw ? JSON.parse(localSyncedRaw) : {dataByTeam:{}};
-    persistLocalOnly(); // in case loadLocalOnly() just seeded/migrated fresh data
-    debugLoadSource = localRaw ? 'localStorage (fetch failed)' : 'seed (fetch failed)';
+    if(localRaw){
+      // Real fallback data to show — safe, we're not fabricating anything.
+      loadLocalOnly();
+      lastSyncedSnapshot = localSyncedRaw ? JSON.parse(localSyncedRaw) : {dataByTeam:{}};
+      persistLocalOnly();
+      debugLoadSource = 'localStorage (fetch failed)';
+    } else {
+      // Couldn't reach Supabase AND this device has nothing cached. We
+      // genuinely don't know whether this coach already has cloud teams
+      // — seeding a fresh one here is exactly the mechanism that created
+      // the duplicate-team bug (a device with no data guessing "this
+      // must be a new coach" when the cloud was just unreachable).
+      // Refuse to guess: surface a connection error instead of DB.
+      debugLoadSource = 'error (fetch failed, no local fallback)';
+      DB = null;
+    }
     return;
   }
 
@@ -1105,14 +1117,23 @@ function toggleGroup(key){
 /* ============================= TEAM SWITCHER ============================= */
 function openTeamSwitcher(){
   const bodyHtml=`<div>
-    ${DB.teams.map(t=>`
+    ${DB.teams.map(t=>{
+      const planCount = (DB.dataByTeam[t.id]||{plans:[]}).plans.length;
+      const isActive  = t.id===DB.activeTeamId;
+      return `
       <div class="qa-item" style="justify-content:space-between;" >
-        <span onclick="switchTeam('${t.id}')" style="flex:1;display:flex;align-items:center;gap:9px;${t.id===DB.activeTeamId?'color:var(--accent);font-weight:700;':''}">${DIVER_ICON_IMG} ${esc(t.name)} ${t.id===DB.activeTeamId?' (current)':''}</span>
-        <span style="display:flex;gap:4px;">
+        <span style="flex:1;display:flex;align-items:center;gap:9px;${isActive?'color:var(--accent);font-weight:700;':''}">
+          ${DIVER_ICON_IMG} ${esc(t.name)}
+          <span class="mutedtext" style="font-weight:400;font-size:.78rem;">(${planCount} plan${planCount===1?'':'s'})</span>
+          ${isActive?' (current)':''}
+        </span>
+        <span style="display:flex;gap:4px;align-items:center;">
+          ${isActive?'':`<button class="btn btn-sm" onclick="switchTeam('${t.id}')">Set as Active</button>`}
           <button class="icon-btn" title="Rename" onclick="renameTeam('${t.id}')">${ic('edit')}</button>
           ${DB.teams.length>1?`<button class="icon-btn" title="Delete" onclick="deleteTeam('${t.id}')">${ic('trash')}</button>`:''}
         </span>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
   </div>`;
   openModal({
     title:'Switch Team',
@@ -1150,7 +1171,11 @@ function renameTeam(id){
 }
 function deleteTeam(id){
   if(DB.teams.length<=1){toast('You need at least one team.');return;}
-  confirmDelete('This will permanently delete this team and everything in it (skills, plans, roster). Continue?',()=>{
+  const planCount = (DB.dataByTeam[id]||{plans:[]}).plans.length;
+  const warning = planCount>0
+    ? `This team has ${planCount} plan${planCount===1?'':'s'}. Are you sure? This will permanently delete this team and everything in it (skills, plans, roster) — this cannot be undone.`
+    : `This team has no plans. Delete it permanently? This will also remove its skills, roster, and settings — this cannot be undone.`;
+  confirmDelete(warning,()=>{
     DB.teams=DB.teams.filter(t=>t.id!==id);
     delete DB.dataByTeam[id];
     if(DB.activeTeamId===id)DB.activeTeamId=DB.teams[0].id;
@@ -2360,7 +2385,7 @@ function renderSettings(container,activeTab){
           <td>${tm.id===DB.activeTeamId?'<strong style="color:var(--accent)">':''}${esc(tm.name)}${tm.id===DB.activeTeamId?' (current)</strong>':''}</td>
           <td>${d.plans.length}</td><td>${d.players.length}</td>
           <td><div class="row-actions">
-            ${tm.id!==DB.activeTeamId?`<button class="btn btn-sm" onclick="switchTeam('${tm.id}')">Switch</button>`:''}
+            ${tm.id!==DB.activeTeamId?`<button class="btn btn-sm" onclick="switchTeam('${tm.id}')">Set as Active</button>`:''}
             <button class="icon-btn" onclick="renameTeamInline('${tm.id}')">${ic('edit')}</button>
             ${DB.teams.length>1?`<button class="icon-btn" onclick="deleteTeam('${tm.id}')">${ic('trash')}</button>`:''}
           </div></td>
@@ -2496,6 +2521,18 @@ function resetAllData(){
 
   await loadDB(user.id);
   renderDebugBar();
+
+  if(!DB){
+    // loadDB() refused to fabricate a team — couldn't reach Supabase and
+    // this device has no local cache to fall back to.
+    document.getElementById('content').innerHTML = `
+      <div class="pp-loading-overlay">
+        <span style="font-size:1.4rem">📡</span>
+        <span>Couldn't connect to load your practice data. Check your connection and try again.</span>
+        <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+      </div>`;
+    return;
+  }
 
   if(pendingMigrationLocalDB){
     offerLocalMigration(user);
