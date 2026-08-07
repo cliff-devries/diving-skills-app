@@ -1002,7 +1002,11 @@ function activeTeam(){return DB.teams.find(t=>t.id===DB.activeTeamId)||DB.teams[
 
 /* ============================= UTIL ============================= */
 function esc(s){if(s===undefined||s===null)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function fmtDate(iso){if(!iso)return'';const d=new Date(iso);if(isNaN(d))return iso;return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+// Bare YYYY-MM-DD strings parse as UTC midnight in JS, which rolls back
+// a day in negative-UTC-offset zones (e.g. US Eastern) — only apply the
+// local-midnight fix to bare date strings; full ISO timestamps (from
+// nowStamp()) already have a time component and parse correctly as-is.
+function fmtDate(iso){if(!iso)return'';const d=/^\d{4}-\d{2}-\d{2}$/.test(iso)?new Date(iso+'T00:00:00'):new Date(iso);if(isNaN(d))return iso;return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtDateLong(iso){if(!iso)return'';const [y,m,d]=iso.split('-').map(Number);const dt=new Date(y,m-1,d);return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});}
 function toast(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);
@@ -1041,11 +1045,20 @@ function validateMinutesInput(idBase){
   document.getElementById(idBase+'_txt').value=finalV;
   num.dataset.prev=finalV;
 }
-const PALETTE=['#00c9a7','#3b82f6','#f2994a','#eb5757','#9b51e0','#56ccf2','#f5c518','#bb6bd9','#27ae60','#f5a623'];
-function colorForCategoryName(name){
-  if(!name)return'#6b7280';
-  let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
-  return PALETTE[h%PALETTE.length];
+// High-contrast palette for the practice time allocation chart. Colors
+// are assigned by CYCLING through this list in the order categories
+// appear (see chartSliceColor below), not by hashing the category name
+// — a hash can put two different categories in the same slot, which is
+// what made slices hard to tell apart before. Only used by the
+// allocation donut chart's slices/legend (renderPlanEdit's draw()).
+const PALETTE=['#00c9a7','#f5a623','#e05252','#5b8dee','#a855f7','#10b981','#f59e0b','#ec4899'];
+// Cycles through PALETTE by index; if wrapping around would repeat the
+// immediately preceding slice's color, bumps to the next entry so two
+// adjacent slices are never visually identical.
+function chartSliceColor(i, prevColor){
+  let c=PALETTE[i%PALETTE.length];
+  if(c===prevColor) c=PALETTE[(i+1)%PALETTE.length];
+  return c;
 }
 function to24(time,ampm){
   let [h,m]=time.split(':').map(Number);
@@ -1083,10 +1096,10 @@ const NAV = [
     {route:'stations',label:'Stations Skill List'},
     {route:'categories',label:'Category List'},
   ]},
-  {type:'group',label:'Player Groups',icon:'groups',key:'groups',children:[
-    {route:'player-groups',label:'Player Groups'},
+  {type:'group',label:'Diver Groups',icon:'groups',key:'groups',children:[
+    {route:'player-groups',label:'Diver Groups'},
     {route:'rosters',label:'Roster List'},
-    {route:'players',label:'Player List'},
+    {route:'players',label:'Diver List'},
   ]},
   {type:'link',route:'calendar',label:'Calendar',icon:'calendar'},
   {type:'link',route:'settings',label:'Settings',icon:'settings'},
@@ -1306,10 +1319,10 @@ function openQuickAdd(){
       {icon:'block',label:'Skill Block',fn:()=>openSkillBlockForm()},
       {icon:'folder',label:'Category',fn:()=>openSimpleForm(CFG.categories)},
     ]},
-    {title:'Player Groups',items:[
-      {icon:'groups',label:'Player Group',fn:()=>openPlayerGroupForm()},
+    {title:'Diver Groups',items:[
+      {icon:'groups',label:'Diver Group',fn:()=>openPlayerGroupForm()},
       {icon:'roster',label:'Roster',fn:()=>openRosterForm()},
-      {icon:'player',label:'Player',fn:()=>openPlayerForm()},
+      {icon:'player',label:'Diver',fn:()=>openPlayerForm()},
     ]},
   ];
   window.__qaActions={};
@@ -1433,7 +1446,7 @@ function renderDashboard(container){
   const stats=[
     {num:T().plans.length,lbl:'Practice Plans'},
     {num:T().skills.length,lbl:'Skills'},
-    {num:T().players.length,lbl:'Players'},
+    {num:T().players.length,lbl:'Divers'},
     {num:T().categories.length,lbl:'Categories'},
   ];
   container.innerHTML = pageHeader('Dashboard') +
@@ -1589,7 +1602,7 @@ function renderPlanList(container){
 }
 function createPlan(dateOverride){
   const n=T().plans.length+1;
-  const plan={id:uid('plan'),name:'Day '+n,date:dateOverride||todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
+  const plan={id:uid('plan'),name:'Practice '+n,date:dateOverride||todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
     announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',dateCreated:nowStamp(),rows:[]};
   T().plans.push(plan);saveDB();
   navigate('plans/edit/'+plan.id);
@@ -1613,7 +1626,7 @@ function openAIPlanModal(){
     title:'Generate AI Plan',
     bodyHtml:`
       <p class="mutedtext" style="margin-top:0;">Automatically builds a plan by pulling skills from your library until the time budget is filled.</p>
-      <div class="field"><label>Plan Name</label><input class="input" id="ai_name" value="Day ${T().plans.length+1}"></div>
+      <div class="field"><label>Plan Name</label><input class="input" id="ai_name" value="Practice ${T().plans.length+1}"></div>
       <div class="field-row">
         <div class="field"><label>Date</label><input class="input" type="date" id="ai_date" value="${todayISO()}"></div>
         <div class="field"><label>Total Minutes</label><input class="input" type="number" id="ai_minutes" value="60"></div>
@@ -1667,12 +1680,17 @@ function renderPlanEdit(id,container){
     const remaining=(parseInt(plan.duration)||0)-used;
     const agg={};
     plan.rows.forEach(r=>{const c=r.category||'Uncategorized';agg[c]=(agg[c]||0)+(parseInt(r.min)||0);});
-    const catNames=Object.keys(agg);
+    // Categories with 0 total minutes are omitted from the chart and
+    // legend entirely rather than drawn as zero-width slices.
+    const catNames=Object.keys(agg).filter(c=>agg[c]>0);
     const total=catNames.reduce((s,c)=>s+agg[c],0)||1;
+    const catColors={};
+    let prevColor=null;
+    catNames.forEach((c,i)=>{ catColors[c]=chartSliceColor(i,prevColor); prevColor=catColors[c]; });
     let gradParts=[];let acc=0;
     catNames.forEach(c=>{
       const pct=agg[c]/total*100;
-      gradParts.push(`${colorForCategoryName(c)} ${acc}% ${acc+pct}%`);
+      gradParts.push(`${catColors[c]} ${acc}% ${acc+pct}%`);
       acc+=pct;
     });
     const donutBg = catNames.length? `conic-gradient(${gradParts.join(',')})` : 'var(--bg-surface-2)';
@@ -1723,7 +1741,7 @@ function renderPlanEdit(id,container){
           <table class="legend-table">
             <tr><td style="font-weight:700;">Category</td><td style="font-weight:700;">Mins</td><td style="font-weight:700;">%</td></tr>
             ${catNames.length===0?'<tr><td colspan="3" class="mutedtext">You haven&#39;t added any skills yet</td></tr>':
-              catNames.map(c=>`<tr><td><span class="legend-dot" style="background:${colorForCategoryName(c)}"></span>${esc(c)}</td><td>${agg[c]}</td><td>${(agg[c]/total*100).toFixed(1)}%</td></tr>`).join('')}
+              catNames.map(c=>`<tr><td><span class="legend-dot" style="background:${catColors[c]}"></span>${esc(c)}</td><td>${agg[c]}</td><td>${(agg[c]/total*100).toFixed(1)}%</td></tr>`).join('')}
           </table>
           ${plan.duration?`<p class="mutedtext" style="margin-top:10px;">${remaining>=0?remaining+' min remaining of '+plan.duration:Math.abs(remaining)+' min over '+plan.duration+' min budget'}</p>`:''}
         </div>
@@ -1891,8 +1909,8 @@ function renderRowGroups(planId,row){
   return `${chips}<div><span class="link-add" onclick="pickRowGroup('${planId}','${row.id}')">${ic('plus')} Groups</span></div>`;
 }
 function pickRowGroup(planId,rowId){
-  if(T().playerGroups.length===0){toast('Create a Player Group first');return;}
-  openModal({title:'Attach Player Group',bodyHtml:`<div>${T().playerGroups.map(g=>`<div class="qa-item" onclick="addRowGroup('${planId}','${rowId}','${g.id}')">${ic('groups')}<span>${esc(g.name)}</span></div>`).join('')}</div>`});
+  if(T().playerGroups.length===0){toast('Create a Diver Group first');return;}
+  openModal({title:'Attach Diver Group',bodyHtml:`<div>${T().playerGroups.map(g=>`<div class="qa-item" onclick="addRowGroup('${planId}','${rowId}','${g.id}')">${ic('groups')}<span>${esc(g.name)}</span></div>`).join('')}</div>`});
 }
 function addRowGroup(planId,rowId,gid){
   const plan=T().plans.find(p=>p.id===planId);const row=plan.rows.find(r=>r.id===rowId);
@@ -2211,9 +2229,9 @@ function renderPlayerGroups(container){
   let search='';
   function draw(){
     let list=[...T().playerGroups];if(search)list=list.filter(g=>g.name.toLowerCase().includes(search.toLowerCase()));
-    container.innerHTML=pageHeader('Player Groups',`<button class="btn btn-primary" onclick="openPlayerGroupForm()">${ic('plus')} New Player Group</button>`)+
+    container.innerHTML=pageHeader('Diver Groups',`<button class="btn btn-primary" onclick="openPlayerGroupForm()">${ic('plus')} New Diver Group</button>`)+
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="pg-search" placeholder="Search"></div></div>
-    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Name for Player Group</th><th>Number of Groups</th><th>Number of Players Per Group</th><th>Number of Subs Per Group</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
+    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Name for Diver Group</th><th>Number of Groups</th><th>Number of Divers Per Group</th><th>Number of Subs Per Group</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
     ${list.length===0?`<tr class="empty-row"><td colspan="7">No data found.</td></tr>`:
       list.map(g=>`<tr><td><input type="checkbox"></td><td><a onclick="openPlayerGroupForm('${g.id}')">${esc(g.name)}</a></td><td>${g.numGroups}</td><td>${g.playersPerGroup}</td><td>${g.subsPerGroup}</td><td>${fmtDate(g.dateCreated)}</td>
       <td><div class="row-actions"><button class="icon-btn" onclick="openPlayerGroupForm('${g.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deletePlayerGroup('${g.id}')">${ic('trash')}</button></div></td></tr>`).join('')}
@@ -2223,15 +2241,15 @@ function renderPlayerGroups(container){
   }
   draw();
 }
-function deletePlayerGroup(id){confirmDelete('Delete this player group?',()=>{T().playerGroups=T().playerGroups.filter(g=>g.id!==id);saveDB();router();});}
+function deletePlayerGroup(id){confirmDelete('Delete this diver group?',()=>{T().playerGroups=T().playerGroups.filter(g=>g.id!==id);saveDB();router();});}
 function openPlayerGroupForm(id){
   const g=id?T().playerGroups.find(g=>g.id===id):{};
   openModal({
-    title:id?'Edit Player Group':'New Player Group',
-    bodyHtml:`<div class="field"><label>Name for Player Group</label><input class="input" id="pg_name" value="${escAttr(g.name||'')}"></div>
+    title:id?'Edit Diver Group':'New Diver Group',
+    bodyHtml:`<div class="field"><label>Name for Diver Group</label><input class="input" id="pg_name" value="${escAttr(g.name||'')}"></div>
       <div class="field-row">
         <div class="field"><label>Number of Groups</label><input class="input" type="number" id="pg_num" value="${esc(g.numGroups||2)}"></div>
-        <div class="field"><label>Players Per Group</label><input class="input" type="number" id="pg_ppg" value="${esc(g.playersPerGroup||4)}"></div>
+        <div class="field"><label>Divers Per Group</label><input class="input" type="number" id="pg_ppg" value="${esc(g.playersPerGroup||4)}"></div>
       </div>
       <div class="field"><label>Subs Per Group</label><input class="input" type="number" id="pg_subs" value="${esc(g.subsPerGroup||0)}"></div>`,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="savePlayerGroupForm('${id||''}')">Save</button>`
@@ -2241,7 +2259,7 @@ function savePlayerGroupForm(id){
   const data={name:document.getElementById('pg_name').value.trim()||'Untitled Group',numGroups:parseInt(document.getElementById('pg_num').value)||1,
     playersPerGroup:parseInt(document.getElementById('pg_ppg').value)||0,subsPerGroup:parseInt(document.getElementById('pg_subs').value)||0};
   if(id){Object.assign(T().playerGroups.find(g=>g.id===id),data);}else{data.id=uid('pg');data.dateCreated=nowStamp();T().playerGroups.push(data);}
-  saveDB();closeModal();router();toast('Player group saved');
+  saveDB();closeModal();router();toast('Diver group saved');
 }
 
 function renderRosters(container){
@@ -2250,7 +2268,7 @@ function renderRosters(container){
     let list=[...T().rosters];if(search)list=list.filter(r=>r.name.toLowerCase().includes(search.toLowerCase()));
     container.innerHTML=pageHeader('Roster List',`<button class="btn btn-primary" onclick="openRosterForm()">${ic('plus')} New Roster</button>`)+
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="ro-search" placeholder="Search"></div></div>
-    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Name</th><th>Total Players</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
+    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Name</th><th>Total Divers</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
     ${list.length===0?`<tr class="empty-row"><td colspan="5">No data found.</td></tr>`:
       list.map(r=>`<tr><td><input type="checkbox"></td><td><a onclick="openRosterForm('${r.id}')">${esc(r.name)}</a></td><td>${r.playerIds.length}</td><td>${fmtDate(r.dateCreated)}</td>
       <td><div class="row-actions"><button class="icon-btn" onclick="openRosterForm('${r.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteRoster('${r.id}')">${ic('trash')}</button></div></td></tr>`).join('')}
@@ -2266,10 +2284,10 @@ function openRosterForm(id){
   openModal({
     title:id?'Edit Roster':'New Roster',
     bodyHtml:`<div class="field"><label>Roster Name</label><input class="input" id="ro_name" value="${escAttr(r.name||'')}"></div>
-    <div class="field"><label>Players</label><div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;">
+    <div class="field"><label>Divers</label><div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;">
     ${T().players.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13.5px;">
       <input type="checkbox" value="${p.id}" class="ro_p_chk" ${r.playerIds&&r.playerIds.includes(p.id)?'checked':''}> #${esc(p.jersey||'')} ${esc(p.firstName)} ${esc(p.lastName)}
-    </label>`).join('') || '<p class="mutedtext">No players yet — add some in Player List first.</p>'}
+    </label>`).join('') || '<p class="mutedtext">No divers yet — add some in Diver List first.</p>'}
     </div></div>`,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveRosterForm('${id||''}')">Save</button>`
   });
@@ -2285,10 +2303,10 @@ function renderPlayers(container){
   let search='';
   function draw(){
     let list=[...T().players];if(search){const s=search.toLowerCase();list=list.filter(p=>(p.firstName+' '+p.lastName).toLowerCase().includes(s)||(p.email||'').toLowerCase().includes(s));}
-    container.innerHTML=pageHeader('Player List',`
+    container.innerHTML=pageHeader('Diver List',`
       <button class="btn" onclick="openSeasonEndModal()">Set Season End Date</button>
-      <button class="btn" onclick="toast('CSV import coming soon — add players manually for now.')">${ic('upload')} Import Players</button>
-      <button class="btn btn-primary" onclick="openPlayerForm()">${ic('plus')} New Player</button>
+      <button class="btn" onclick="toast('CSV import coming soon — add divers manually for now.')">${ic('upload')} Import Divers</button>
+      <button class="btn btn-primary" onclick="openPlayerForm()">${ic('plus')} New Diver</button>
     `)+
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="py-search" placeholder="Search"></div></div>
     <div class="tablewrap"><table><thead><tr>
@@ -2305,7 +2323,7 @@ function renderPlayers(container){
   draw();
 }
 function togglePlayerStatus(id){const p=T().players.find(p=>p.id===id);p.status=p.status==='Inactive'?'Active':'Inactive';saveDB();router();}
-function deletePlayer(id){confirmDelete('Delete this player?',()=>{T().players=T().players.filter(p=>p.id!==id);saveDB();router();});}
+function deletePlayer(id){confirmDelete('Delete this diver?',()=>{T().players=T().players.filter(p=>p.id!==id);saveDB();router();});}
 function openSeasonEndModal(){
   openModal({title:'Set Season End Date',bodyHtml:`<div class="field"><label>Season End Date</label><input class="input" type="date" id="season_end" value="${T().seasonEndDate||''}"></div>`,
   footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="T().seasonEndDate=document.getElementById('season_end').value;saveDB();closeModal();toast('Season end date saved');">Save</button>`});
@@ -2313,7 +2331,7 @@ function openSeasonEndModal(){
 function openPlayerForm(id){
   const p=id?T().players.find(p=>p.id===id):{};
   openModal({
-    title:id?'Edit Player':'New Player',
+    title:id?'Edit Diver':'New Diver',
     bodyHtml:`
     <div class="field-row">
       <div class="field"><label>Jersey Number</label><input class="input" id="py_jersey" value="${escAttr(p.jersey||'')}"></div>
@@ -2336,7 +2354,7 @@ function savePlayerForm(id){
     email:document.getElementById('py_email').value,grade:document.getElementById('py_grade').value,
     status:document.getElementById('py_status').checked?'Active':'Inactive'};
   if(id){Object.assign(T().players.find(p=>p.id===id),data);}else{data.id=uid('plyr');data.dateCreated=nowStamp();T().players.push(data);}
-  saveDB();closeModal();router();toast('Player saved');
+  saveDB();closeModal();router();toast('Diver saved');
 }
 
 /* ============================= SETTINGS ============================= */
@@ -2384,7 +2402,7 @@ function renderSettings(container,activeTab){
   } else if(t==='teams'){
     body.innerHTML=`<div class="card" style="max-width:640px;">
       <p class="mutedtext" style="margin-top:0;">Each team has its own skills, plans, roster, and branding — nothing is shared between them.</p>
-      <div class="tablewrap"><table><thead><tr><th>Team</th><th>Plans</th><th>Players</th><th style="text-align:right">Action</th></tr></thead><tbody>
+      <div class="tablewrap"><table><thead><tr><th>Team</th><th>Plans</th><th>Divers</th><th style="text-align:right">Action</th></tr></thead><tbody>
       ${DB.teams.map(tm=>{
         const d=DB.dataByTeam[tm.id]||{plans:[],players:[]};
         return `<tr>
