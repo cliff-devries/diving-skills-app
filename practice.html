@@ -1393,7 +1393,7 @@ function renderPlanList(container){
     </div>
     <div class="tablewrap"><table><thead><tr>
       <th style="width:34px"><input type="checkbox" disabled></th>
-      <th>Practice Date</th><th>Practice Time</th><th>Name</th><th>Groups</th><th style="text-align:right">Action</th>
+      <th>Practice Date</th><th>Practice Time</th><th>Name</th><th>Group</th><th style="text-align:right">Action</th>
     </tr></thead><tbody>
     ${list.length===0?`<tr class="empty-row"><td colspan="6">No practice plans found.</td></tr>`:
       list.map(p=>`<tr>
@@ -1401,7 +1401,7 @@ function renderPlanList(container){
         <td>${fmtDate(p.date)}</td>
         <td>${p.startTime?p.startTime+' '+p.ampm:'-'}</td>
         <td><a onclick="navigate('plans/edit/${p.id}')">${esc(p.name)}</a> ${visibilityBadge(p)}</td>
-        <td>${(p.groups||[]).map(g=>`<span class="badge badge-accent">${esc(g)}</span>`).join(' ')}</td>
+        <td>${p.groups&&p.groups[0]?`<span class="badge badge-accent">${esc(p.groups[0])}</span>`:''}</td>
         <td><div class="row-actions">
           <button class="icon-btn" title="Duplicate" onclick="duplicatePlan('${p.id}')">${ic('duplicate')}</button>
           <button class="icon-btn" title="Edit" onclick="navigate('plans/edit/${p.id}')">${ic('edit')}</button>
@@ -1487,7 +1487,10 @@ function computeRowTimes(plan){
 }
 function savePlanGroupsAndVisibility(id){
   const plan=DB.plans.find(p=>p.id===id);if(!plan)return;
-  plan.groups=[...document.querySelectorAll('.plan_group_chk:checked')].map(c=>c.value);
+  // Single-select for now — plan.groups stays an array (schema/sync
+  // unchanged) but only ever holds 0 or 1 entries.
+  const sel=document.getElementById('p_group').value;
+  plan.groups=sel?[sel]:[];
   const vis=document.querySelector('input[name="p_visibility"]:checked');
   plan.visibility=vis?vis.value:'club';
   saveDB();
@@ -1544,13 +1547,11 @@ function renderPlanEdit(id,container){
           <div class="field"><label>Filter Categories</label>
             <select class="input" id="p_filtercat" ${dis}><option value="">All Categories</option>${cats.map(c=>`<option value="${escAttr(c.name)}" ${plan.filterCategory===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
           </div>
-          <div class="field"><label>Practice Groups</label>
-            <div style="max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;">
-            ${DB.groups.length===0?'<p class="mutedtext">No groups yet — add some in Settings → Club Groups.</p>':DB.groups.map(g=>`
-              <label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13.5px;">
-                <input type="checkbox" value="${escAttr(g.name)}" class="plan_group_chk" ${(plan.groups||[]).includes(g.name)?'checked':''} ${dis} onchange="savePlanGroupsAndVisibility('${plan.id}')"> ${esc(g.name)}
-              </label>`).join('')}
-            </div>
+          <div class="field"><label>Practice Group</label>
+            <select class="input" id="p_group" ${dis} onchange="savePlanGroupsAndVisibility('${plan.id}')">
+              <option value="">No group</option>
+              ${DB.groups.map(g=>`<option value="${escAttr(g.name)}" ${(plan.groups&&plan.groups[0])===g.name?'selected':''}>${esc(g.name)}</option>`).join('')}
+            </select>
           </div>
           <div class="field"><label>Visibility</label>
             <div style="display:flex;gap:16px;flex-wrap:wrap;">
