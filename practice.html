@@ -768,13 +768,20 @@ async function runSync(opts){
 
 function persistLocalOnly(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
 
-// Real entry point (called from the init IIFE). Reconciles Supabase,
-// localStorage, and the last-synced snapshot — see the plan this was
-// built from for the full decision table. Sets DB (and returns) in
-// every case except "local data exists but the cloud is empty for this
-// coach," which instead sets pendingMigrationLocalDB for the one-time
-// import prompt to handle.
+// Real entry point (called from the init IIFE). Priority order:
+//   1. Check Supabase FIRST.
+//   2. Cloud has data -> trust it, UNLESS *this device* has synced
+//      successfully before and has genuine unsynced edits sitting on
+//      top of its own last-known-synced state (offline queue replay —
+//      see the hasSyncedBefore branch below). A device that has never
+//      synced has no baseline to safely compare against, so its local
+//      data is treated as stale once real cloud data exists elsewhere;
+//      it does NOT get pushed or merged.
+//   3. Cloud is empty for this coach -> fall back to localStorage.
+//   4. localStorage has data -> one-time migration prompt.
+//   5. Neither -> seed fresh sample data.
 async function loadDB(coachId){
+  console.log('loadDB: starting, will fetch from Supabase');
   SYNC_COACH_ID = coachId;
   const localRaw       = localStorage.getItem(STORAGE_KEY);
   const localSyncedRaw = localStorage.getItem(SYNC_SNAPSHOT_KEY);
@@ -782,6 +789,7 @@ async function loadDB(coachId){
   let remoteDB = null;
   try{
     remoteDB = await fetchAllFromSupabase(coachId);
+    console.log('loadDB: Supabase returned', remoteDB);
     isOffline = false;
   }catch(e){
     console.error('[practice] Supabase fetch failed, falling back to local', e);
@@ -795,40 +803,46 @@ async function loadDB(coachId){
     return;
   }
 
-  const remoteEmpty = !remoteDB.teams.length;
+  const remoteEmpty     = !remoteDB.teams.length;
+  const hasSyncedBefore = !!localSyncedRaw; // this device has completed at least one successful sync before
 
-  if(localRaw && remoteEmpty){
-    pendingMigrationLocalDB = JSON.parse(localRaw);
-    return;
-  }
-
-  if(remoteEmpty){
-    // Brand-new coach, nothing local either — seed sample data and push
-    // it up right away so it's there on their other devices too.
-    DB = seedData();
-    lastSyncedSnapshot = {dataByTeam:{}};
-    persistLocalOnly();
-    scheduleSync();
-    return;
-  }
-
-  const syncedSnapshot   = localSyncedRaw ? JSON.parse(localSyncedRaw) : null;
-  const localMatchesSynced = localRaw && syncedSnapshot && localRaw === JSON.stringify(syncedSnapshot);
-
-  if(!localRaw || localMatchesSynced){
-    // Nothing pending locally — trust the server. This is also how
-    // edits made on another device become visible here.
+  if(!remoteEmpty){
+    if(hasSyncedBefore){
+      const syncedSnapshot   = JSON.parse(localSyncedRaw);
+      const localMatchesSynced = localRaw && localRaw === JSON.stringify(syncedSnapshot);
+      if(localRaw && !localMatchesSynced){
+        // Genuine unsynced edits from THIS device's own prior sync
+        // history (e.g. the tab was closed while offline). Keep them,
+        // push them on the next sync.
+        DB = JSON.parse(localRaw); migrateIfNeeded();
+        lastSyncedSnapshot = syncedSnapshot;
+        scheduleSync();
+        return;
+      }
+    }
+    // Cloud has data and this device has no unresolved edits of its
+    // own — trust the server. This is also how edits made on another
+    // device (or a device that's never synced and has stale local
+    // data of its own) become visible here.
     DB = remoteDB;
     lastSyncedSnapshot = structuredClone(DB);
     persistLocalOnly();
     localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(DB));
-  } else {
-    // Local edits exist that never made it to Supabase (e.g. the tab
-    // was closed while offline). Keep them, push them on the next sync.
-    DB = JSON.parse(localRaw); migrateIfNeeded();
-    lastSyncedSnapshot = syncedSnapshot || {dataByTeam:{}};
-    scheduleSync();
+    return;
   }
+
+  // Cloud is empty for this coach.
+  if(localRaw){
+    pendingMigrationLocalDB = JSON.parse(localRaw);
+    return;
+  }
+
+  // Brand-new coach, nothing local either — seed sample data and push
+  // it up right away so it's there on their other devices too.
+  DB = seedData();
+  lastSyncedSnapshot = {dataByTeam:{}};
+  persistLocalOnly();
+  scheduleSync();
 }
 
 /* ============================= ONE-TIME LOCAL -> CLOUD MIGRATION ============================= */
