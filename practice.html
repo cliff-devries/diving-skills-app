@@ -154,10 +154,11 @@ button{font-family:inherit;cursor:pointer;}
 
 /* DEBUG BAR — only shown when the page URL has ?debug=1 */
 .debug-bar{
-  display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 16px;font-size:.72rem;
+  display:flex;flex-direction:column;gap:4px;padding:8px 16px;font-size:.72rem;
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   background:#1a0f00;border-bottom:2px solid #f5a623;color:#f5a623;
 }
+.debug-bar-row{display:flex;flex-wrap:wrap;gap:6px 16px;}
 .debug-bar strong{color:#fff;}
 
 /* INITIAL LOAD SPINNER (duplicated from the shared site stylesheet — this page is self-contained) */
@@ -555,6 +556,7 @@ let pendingMigrationLocalDB = null;
 // Debug bar state (?debug=1) — see renderDebugBar() below.
 let debugLoadSource      = 'loading…';
 let debugCloudPlansCount = null;
+let debugTeamBreakdown   = []; // [{id, name, planCount, isActive}] from the last Supabase fetch
 
 function scheduleSync(){
   clearTimeout(syncTimer);
@@ -806,6 +808,21 @@ async function loadDB(coachId){
     isOffline = false;
     debugCloudPlansCount = Object.values(remoteDB.dataByTeam)
       .reduce((sum,teamData)=>sum+teamData.plans.length, 0);
+    // Per-team breakdown — this is what actually explains "N plans in
+    // the cloud but only 1 showing": T() only ever reads the ACTIVE
+    // team's plans, and active_team_id is a single value shared across
+    // every device for this coach (dive_practice_prefs is one row per
+    // coach_id, not per device). If a second team ever got created
+    // (e.g. a device that hadn't synced yet pushing its own local team
+    // before this bug was fixed) and active_team_id ended up pointing
+    // at it, every OTHER team's plans still exist in the cloud but
+    // never render, because T() never looks at them.
+    debugTeamBreakdown = remoteDB.teams.map(t=>({
+      id: t.id,
+      name: t.name,
+      planCount: (remoteDB.dataByTeam[t.id]||{plans:[]}).plans.length,
+      isActive: t.id === remoteDB.activeTeamId,
+    }));
   }catch(e){
     console.error('[practice] Supabase fetch failed, falling back to local', e);
     isOffline = true;
@@ -917,11 +934,19 @@ function renderDebugBar(){
   if(!isDebugMode()){ host.innerHTML=''; return; }
   const hasLocal  = !!localStorage.getItem(STORAGE_KEY);
   const hasSynced = !!localStorage.getItem(SYNC_SNAPSHOT_KEY);
+  const teamsLine = debugTeamBreakdown.length
+    ? debugTeamBreakdown.map(t =>
+        `${esc(t.name)} [${esc(t.id)}]${t.isActive ? ' (ACTIVE)' : ''}: ${t.planCount} plan${t.planCount===1?'':'s'}`
+      ).join(' &nbsp;|&nbsp; ')
+    : 'n/a';
   host.innerHTML = `<div class="debug-bar">
-    <span>Load source: <strong>${esc(debugLoadSource)}</strong></span>
-    <span>Plans found in cloud: <strong>${debugCloudPlansCount===null?'n/a (fetch not yet run or failed)':debugCloudPlansCount}</strong></span>
-    <span>Local storage has data: <strong>${hasLocal?'yes':'no'}</strong></span>
-    <span>Sync snapshot exists: <strong>${hasSynced?'yes':'no'}</strong></span>
+    <div class="debug-bar-row">
+      <span>Load source: <strong>${esc(debugLoadSource)}</strong></span>
+      <span>Plans found in cloud: <strong>${debugCloudPlansCount===null?'n/a (fetch not yet run or failed)':debugCloudPlansCount}</strong></span>
+      <span>Local storage has data: <strong>${hasLocal?'yes':'no'}</strong></span>
+      <span>Sync snapshot exists: <strong>${hasSynced?'yes':'no'}</strong></span>
+    </div>
+    <div class="debug-bar-row">Teams in cloud (${debugTeamBreakdown.length}): <strong>${teamsLine}</strong></div>
   </div>`;
 }
 
