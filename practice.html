@@ -557,6 +557,7 @@ let pendingMigrationLocalDB = null;
 let debugLoadSource      = 'loading…';
 let debugCloudPlansCount = null;
 let debugTeamBreakdown   = []; // [{id, name, planCount, isActive}] from the last Supabase fetch
+let debugFetchError      = null; // the real error text when fetchAllFromSupabase() throws
 
 function scheduleSync(){
   clearTimeout(syncTimer);
@@ -826,6 +827,7 @@ async function loadDB(coachId){
   }catch(e){
     console.error('[practice] Supabase fetch failed, falling back to local', e);
     isOffline = true;
+    debugFetchError = e?.message || String(e);
   }
 
   if(!remoteDB){
@@ -900,12 +902,21 @@ function offerLocalMigration(user){
   openModal({
     title:'We found existing practice data on this device',
     bodyHtml:`<p>Would you like to import it to the cloud so you can access it from any device?</p>`,
-    footHtml:`<button class="btn" onclick="startFreshFromMigrationPrompt()">Start Fresh</button>
+    footHtml:`<button class="btn" onclick="startFresh()">Start Fresh</button>
               <button class="btn btn-primary" onclick="runLocalMigration()">Import to Cloud</button>`,
   });
 }
-function startFreshFromMigrationPrompt(){
+// Explicit, deliberate "start fresh" action — used both by the one-time
+// migration prompt's "Start Fresh" button and by the fetch-error screen's
+// "Start Fresh Instead" escape hatch. Never called automatically; a coach
+// always has to choose it, unlike loadDB()'s own seeding, which only ever
+// fires when the cloud fetch itself succeeded and confirmed zero teams.
+function startFresh(){
   closeModal();
+  // Defensive cleanup — don't let a stale sync snapshot or old
+  // single-team export linger and confuse the next load.
+  localStorage.removeItem(SYNC_SNAPSHOT_KEY);
+  localStorage.removeItem('practicePlannerData_v1');
   DB = seedData();
   lastSyncedSnapshot = {dataByTeam:{}};
   pendingMigrationLocalDB = null;
@@ -959,6 +970,7 @@ function renderDebugBar(){
       <span>Sync snapshot exists: <strong>${hasSynced?'yes':'no'}</strong></span>
     </div>
     <div class="debug-bar-row">Teams in cloud (${debugTeamBreakdown.length}): <strong>${teamsLine}</strong></div>
+    ${debugFetchError ? `<div class="debug-bar-row">Last fetch error: <strong>${esc(debugFetchError)}</strong></div>` : ''}
   </div>`;
 }
 
@@ -2524,19 +2536,27 @@ function resetAllData(){
 
   if(!DB){
     // loadDB() refused to fabricate a team — couldn't reach Supabase and
-    // this device has no local cache to fall back to.
+    // this device has no local cache to fall back to. Show the real
+    // error (this is often NOT a connectivity problem — a Postgrest/RLS
+    // error also lands here, since loadDB() can't tell the two apart)
+    // and offer an explicit, deliberate way to seed fresh data instead
+    // of silently guessing.
+    window.__migrationUser = user; // consumed by startFresh()
     document.getElementById('content').innerHTML = `
       <div class="pp-loading-overlay">
         <span style="font-size:1.4rem">📡</span>
-        <span>Couldn't connect to load your practice data. Check your connection and try again.</span>
-        <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+        <span>Couldn't load your practice data from the cloud${debugFetchError ? ': '+esc(debugFetchError) : '.'}</span>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+          <button class="btn" onclick="startFresh()">Start Fresh Instead</button>
+        </div>
       </div>`;
     return;
   }
 
   if(pendingMigrationLocalDB){
     offerLocalMigration(user);
-    return; // offerLocalMigration() -> runLocalMigration()/startFreshFromMigrationPrompt() -> finishInit()
+    return; // offerLocalMigration() -> runLocalMigration()/startFresh() -> finishInit()
   }
 
   finishInit(user);
