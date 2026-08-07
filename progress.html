@@ -311,7 +311,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=28"></script>
+<script src="js/supabase.js?v=29"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=8"></script>
@@ -327,6 +327,7 @@
   let diverCoach      = null;
   let linkedParent    = null;
   let activeLevel     = 0;
+  let editModalCoaches = [];
 
   // Display order for skill-type groups within each level.
   const SECTION_ORDER = [
@@ -520,14 +521,16 @@
       }
     }
 
-    // Populate coach dropdown fresh each open
+    // Populate coach dropdown fresh each open — option value is the
+    // coach's profile id (needed to call reassignDiverCoach on save),
+    // not their name.
     const coachSel = document.getElementById('ep-coach');
     coachSel.innerHTML = '<option value="">— none —</option>';
     try {
-      const coaches = await SupabaseDB.getActiveCoaches();
-      coaches.forEach(c => {
+      editModalCoaches = await SupabaseDB.getActiveCoaches();
+      editModalCoaches.forEach(c => {
         const opt = document.createElement('option');
-        opt.value = c.full_name;
+        opt.value = c.id;
         opt.textContent = App.formatNameLastFirst(c);
         coachSel.appendChild(opt);
       });
@@ -542,7 +545,10 @@
     document.getElementById('ep-dob').value         = d.date_of_birth || '';
     lvlSel.value = d.current_level != null ? String(d.current_level) : '';
     document.getElementById('ep-diver-group').value  = d.diver_group          || '';
-    coachSel.value = d.assigned_coach_name || '';
+    // Pre-select by the roster-linked coach's id, not the free-text
+    // assigned_coach_name — they can drift apart, and the id is what
+    // reassign_diver_coach actually needs.
+    coachSel.value = diverCoach?.id || '';
     document.getElementById('ep-start-date').value   = d.start_date || '';
     updateAquaDisplay(d.date_of_birth);
     document.getElementById('ep-parent-email').value = d.parent_email || '';
@@ -562,6 +568,12 @@
       const level  = document.getElementById('ep-level').value;
       const dob    = document.getElementById('ep-dob').value || null;
       const aquaGroup = dob ? String(new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear()) : 'TBD';
+
+      const previousCoachId = diverCoach?.id || '';
+      const selectedCoachId = document.getElementById('ep-coach').value;
+      const coachChanged    = selectedCoachId !== previousCoachId;
+      const selectedCoach   = selectedCoachId ? editModalCoaches.find(c => c.id === selectedCoachId) : null;
+
       await SupabaseDB.updateDiverProfileByCoach(targetDiverId, {
         firstName:         document.getElementById('ep-first-name').value.trim()   || null,
         lastName:          document.getElementById('ep-last-name').value.trim()    || null,
@@ -569,16 +581,28 @@
         dateOfBirth:       dob,
         currentLevel:      level !== '' ? parseInt(level, 10) : null,
         diverGroup:        document.getElementById('ep-diver-group').value         || null,
-        assignedCoachName: document.getElementById('ep-coach').value               || null,
+        assignedCoachName: selectedCoach?.full_name || null,
         startDate:         document.getElementById('ep-start-date').value          || null,
         parentEmail:       document.getElementById('ep-parent-email').value.trim() || null,
         parentPhone:       document.getElementById('ep-parent-phone').value.trim() || null,
         aquaGroup,
       });
 
+      // Reassigning to a different coach also needs the roster table
+      // updated — that's what actually drives the "My Divers" dashboard
+      // count, and it can't be set through updateDiverProfileByCoach.
+      if (coachChanged && selectedCoach) {
+        await SupabaseDB.reassignDiverCoach(targetDiverId, selectedCoach.id);
+        diverCoach = await SupabaseDB.getDiverCoach(targetDiverId);
+      }
+
       targetDiver = await SupabaseDB.getProfileById(targetDiverId);
       App.closeModal('edit-profile-modal');
-      App.showToast('Profile updated successfully.');
+      App.showToast(
+        coachChanged && selectedCoach
+          ? `Diver reassigned to ${selectedCoach.full_name}`
+          : 'Profile updated successfully.'
+      );
       renderProfileHeader();
       updateStats(allSkills, completionMap);
     } catch (err) {

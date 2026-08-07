@@ -120,17 +120,15 @@ const SupabaseDB = {
     return data;
   },
 
-  // Returns all active coaches sorted by last name then first name.
-  async getActiveCoaches() {
-    const { data, error } = await this.db
-      .from('profiles')
-      .select('id, full_name, first_name, last_name')
-      .eq('role', 'coach')
-      .eq('status', 'active')
-      .order('last_name', { ascending: true })
-      .order('first_name', { ascending: true });
-    if (error) { console.error('[SupabaseDB] getActiveCoaches:', error.message); return []; }
-    return data ?? [];
+  // Updates both roster.coach_id and profiles.assigned_coach_name for a
+  // diver in one atomic call, so the "My Divers" dashboard count and the
+  // displayed coach name never drift apart.
+  async reassignDiverCoach(diverId, newCoachId) {
+    const { error } = await this.db.rpc('reassign_diver_coach', {
+      p_diver_id:     diverId,
+      p_new_coach_id: newCoachId,
+    });
+    if (error) throw new Error(error.message);
   },
 
   // Search unclaimed/pending profiles by diver name (and optionally coach name).
