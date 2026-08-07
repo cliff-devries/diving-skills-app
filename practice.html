@@ -161,6 +161,11 @@ button{font-family:inherit;cursor:pointer;}
 .debug-bar-row{display:flex;flex-wrap:wrap;gap:6px 16px;}
 .debug-bar strong{color:#fff;}
 
+/* MINUTES INPUT PAIR */
+.min-input-pair{display:flex;gap:4px;align-items:center;}
+.min-input-pair .min-num{width:52px;padding:6px 4px;}
+.min-input-pair .min-txt{width:48px;padding:6px 4px;text-align:center;}
+
 /* INITIAL LOAD SPINNER (duplicated from the shared site stylesheet — this page is self-contained) */
 .pp-loading-spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:pp-spin .65s linear infinite;flex-shrink:0;}
 .pp-loading-spinner-lg{width:38px;height:38px;border-width:3px;}
@@ -255,8 +260,6 @@ tbody tr:hover{background:var(--bg-surface-2);}
 @media(max-width:760px){.qa-grid{grid-template-columns:1fr 1fr;}}
 
 /* CALENDAR */
-.cal-shell{display:grid;grid-template-columns:280px 1fr;gap:20px;}
-@media(max-width:900px){.cal-shell{grid-template-columns:1fr;}}
 .mini-cal-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .upcoming-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;}
 .upcoming-item:last-child{border-bottom:none;}
@@ -269,6 +272,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .month-grid{display:grid;grid-template-columns:repeat(7,1fr);}
 .month-grid .dow{background:var(--bg-surface-2);padding:10px;font-size:.7rem;font-weight:700;color:var(--text-secondary);text-align:center;border-bottom:1px solid var(--border);text-transform:uppercase;}
 .month-cell{min-height:96px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;}
+.cal-main .month-cell{cursor:pointer;}
 .month-cell:nth-child(7n){border-right:none;}
 .month-cell .num{font-size:.8rem;color:var(--text-secondary);font-weight:600;}
 .month-cell.other .num{opacity:.3;}
@@ -395,7 +399,6 @@ function seedTeamData(){
   const practiceEmphasis=[{id:uid('pe'),text:'Clean entries — vertical line',dateCreated:nowStamp()}];
   const competitionEmphasis=[{id:uid('ce'),text:'Takeoff power & height',dateCreated:nowStamp()}];
   const notes=[{id:uid('note'),text:'Remember to log dryland reps for strength staff.',status:'Enabled',dateCreated:nowStamp()}];
-  const noteCards=[{id:uid('nc'),title:'Safety Reminder',content:'No diving until lifeguard is on deck.',status:'Enabled',dateCreated:nowStamp()}];
   const players=[
     {id:uid('plyr'),jersey:'1',firstName:'Ava',lastName:'Nguyen',email:'ava@example.com',position:'Springboard',grade:'Sr',team:'',status:'Active',dateCreated:nowStamp()},
     {id:uid('plyr'),jersey:'2',firstName:'Liam',lastName:'Cortez',email:'liam@example.com',position:'Platform',grade:'So',team:'',status:'Active',dateCreated:nowStamp()},
@@ -405,11 +408,11 @@ function seedTeamData(){
   const rosters=[{id:uid('ro'),name:'2026 Full Roster',playerIds:players.map(p=>p.id),dateCreated:nowStamp()}];
   const plans=[{
     id:uid('plan'),name:'Day 1',date:todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:5,color:'#00c9a7',
-    announcements:'Big 1st day',quote:'Work hard, have fun.',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',noteCardIds:[],dateCreated:nowStamp(),
-    rows:[{id:uid('row'),activity:'Front  Jump Tuck',min:5,category:'1m Platform',notes:'fast tuck',groupIds:[],image:null,noteCardId:'',stations:false}]
+    announcements:'Big 1st day',quote:'Work hard, have fun.',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',dateCreated:nowStamp(),
+    rows:[{id:uid('row'),activity:'Front  Jump Tuck',min:5,category:'1m Platform',notes:'fast tuck',groupIds:[],image:null,stations:false}]
   }];
   return {
-    categories:cats,skills,skillBlocks:[],locations,announcements,quotes,practiceEmphasis,competitionEmphasis,notes,noteCards,
+    categories:cats,skills,skillBlocks:[],locations,announcements,quotes,practiceEmphasis,competitionEmphasis,notes,
     playerGroups,rosters,players,plans,seasonEndDate:''
   };
 }
@@ -423,7 +426,7 @@ function seedData(){
     activeTeamId:t.id,
     teams:[t],
     dataByTeam:{[t.id]:seedTeamData()},
-    prefs:{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true},
+    prefs:{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,includeColorsPrint:true},
     lastBackupAt:null,
   };
 }
@@ -458,14 +461,14 @@ function wrapLegacyAsTeam(old){
   const data={
     categories:old.categories||[],skills:old.drills||[],skillBlocks:old.drillBlocks||[],locations:old.locations||[],
     announcements:old.announcements||[],quotes:old.quotes||[],practiceEmphasis:old.practiceEmphasis||old.defensiveEmphasis||[],
-    competitionEmphasis:old.competitionEmphasis||old.offensiveEmphasis||[],notes:old.notes||[],noteCards:old.noteCards||[],
+    competitionEmphasis:old.competitionEmphasis||old.offensiveEmphasis||[],notes:old.notes||[],
     playerGroups:old.playerGroups||[],rosters:old.rosters||[],players:old.players||[],plans:old.plans||[],
     seasonEndDate:old.seasonEndDate||'',
   };
   return {
     coach:old.coach||{firstName:'',lastName:'',username:'',email:'',timezone:''},
     activeTeamId:t.id,teams:[t],dataByTeam:{[t.id]:data},
-    prefs:old.prefs||{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true},
+    prefs:old.prefs||{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,includeColorsPrint:true},
     lastBackupAt:null,
   };
 }
@@ -478,7 +481,7 @@ function migrateIfNeeded(){
   if(!DB.activeTeamId || !DB.teams.find(t=>t.id===DB.activeTeamId)){
     DB.activeTeamId = DB.teams[0] ? DB.teams[0].id : newTeam('Upstate Diving RIT').id;
   }
-  if(!DB.prefs)DB.prefs={defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true};
+  if(!DB.prefs)DB.prefs={defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,includeColorsPrint:true};
   if(DB.lastBackupAt===undefined)DB.lastBackupAt=null;
   // Rename legacy Defensive/Offensive Emphasis fields to Practice/Competition Emphasis, per-team and per-plan.
   Object.values(DB.dataByTeam).forEach(d=>{
@@ -539,7 +542,6 @@ const SYNC_CFG = [
   {key:'practiceEmphasis',    table:'dive_practice_emphasis', extraCols:{kind:'practice'}},
   {key:'competitionEmphasis', table:'dive_practice_emphasis', extraCols:{kind:'competition'}},
   {key:'notes',               table:'dive_practice_notes'},
-  {key:'noteCards',           table:'dive_practice_note_cards'},
   {key:'playerGroups',        table:'dive_practice_player_groups', intCols:['num_groups','players_per_group','subs_per_group']},
   {key:'rosters',             table:'dive_practice_rosters'},
   {key:'players',             table:'dive_practice_players'},
@@ -618,16 +620,16 @@ function prefsToSnake(p){
     default_duration:p.defaultDuration||null, default_start_time:p.defaultStartTime||null,
     time_format:p.timeFormat||'12', skill_edit_prompt:!!p.skillEditPrompt,
     include_images:p.includeImages!==false, include_videos:!!p.includeVideos,
-    notecards_in_printout:p.noteCardsInPrintout!==false, include_colors_print:p.includeColorsPrint!==false,
+    include_colors_print:p.includeColorsPrint!==false,
   };
 }
 function prefsFromSnake(row){
-  if(!row) return {defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,noteCardsInPrintout:true,includeColorsPrint:true};
+  if(!row) return {defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,includeColorsPrint:true};
   return {
     defaultDuration:row.default_duration||'', defaultStartTime:row.default_start_time||'',
     timeFormat:row.time_format||'12', skillEditPrompt:!!row.skill_edit_prompt,
     includeImages:row.include_images!==false, includeVideos:!!row.include_videos,
-    noteCardsInPrintout:row.notecards_in_printout!==false, includeColorsPrint:row.include_colors_print!==false,
+    includeColorsPrint:row.include_colors_print!==false,
   };
 }
 
@@ -656,7 +658,7 @@ async function fetchAllFromSupabase(coachId){
   teamRows.forEach(t=>{
     dataByTeam[t.id] = {
       categories:[],skills:[],skillBlocks:[],locations:[],announcements:[],quotes:[],
-      practiceEmphasis:[],competitionEmphasis:[],notes:[],noteCards:[],
+      practiceEmphasis:[],competitionEmphasis:[],notes:[],
       playerGroups:[],rosters:[],players:[],plans:[], seasonEndDate:t.season_end_date||'',
     };
   });
@@ -1006,6 +1008,39 @@ function toast(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);
   setTimeout(()=>t.remove(),2600);
 }
+
+/* ============================= MINUTES INPUT PAIR ============================= */
+// A native number spinner plus an adjacent synced text input for the
+// same value — coach can type directly into either or use the number
+// input's up/down arrows. Reused wherever a "minutes" field appears.
+function minutesInputPairHtml(idBase, value, onChangeAttr){
+  const v = Math.max(1, Math.min(180, parseInt(value,10)||5));
+  const change = onChangeAttr || '';
+  return `<div class="min-input-pair">
+    <input type="number" id="${idBase}_num" class="min-num input" value="${v}" min="1" max="180" data-prev="${v}"
+      oninput="syncMinutesInputs('${idBase}',this.value)" onblur="validateMinutesInput('${idBase}');${change}">
+    <input type="text" inputmode="numeric" pattern="[0-9]*" id="${idBase}_txt" class="min-txt input" value="${v}"
+      oninput="syncMinutesInputs('${idBase}',this.value)" onblur="validateMinutesInput('${idBase}');${change}">
+  </div>`;
+}
+function syncMinutesInputs(idBase, value){
+  const num=document.getElementById(idBase+'_num'), txt=document.getElementById(idBase+'_txt');
+  if(num) num.value=value;
+  if(txt) txt.value=value;
+}
+// Only accepts a positive integer 1-180; anything else reverts to the
+// last valid value (not clamped) — matches CLAUDE.md-flagged bug class
+// of empty-string-into-numeric-field elsewhere in this app.
+function validateMinutesInput(idBase){
+  const num=document.getElementById(idBase+'_num');
+  const n=Number(num.value);
+  const prev=num.dataset.prev!==undefined?parseInt(num.dataset.prev,10):5;
+  const valid=Number.isInteger(n)&&n>=1&&n<=180;
+  const finalV=valid?n:prev;
+  num.value=finalV;
+  document.getElementById(idBase+'_txt').value=finalV;
+  num.dataset.prev=finalV;
+}
 const PALETTE=['#00c9a7','#3b82f6','#f2994a','#eb5757','#9b51e0','#56ccf2','#f5c518','#bb6bd9','#27ae60','#f5a623'];
 function colorForCategoryName(name){
   if(!name)return'#6b7280';
@@ -1041,7 +1076,6 @@ const NAV = [
     {route:'practice-emphasis',label:'Practice Emphasis List'},
     {route:'competition-emphasis',label:'Competition Emphasis List'},
     {route:'notes',label:'Note List'},
-    {route:'note-cards',label:'Note Card List'},
   ]},
   {type:'group',label:'Skill Directory',icon:'skill',key:'skills',children:[
     {route:'skills',label:'Skill List'},
@@ -1168,7 +1202,7 @@ function createTeam(){
   const name=document.getElementById('newteam_name').value.trim()||'New Team';
   const t=newTeam(name);
   DB.teams.push(t);
-  DB.dataByTeam[t.id]={categories:[],skills:[],skillBlocks:[],locations:[],announcements:[],quotes:[],practiceEmphasis:[],competitionEmphasis:[],notes:[],noteCards:[],playerGroups:[],rosters:[],players:[],plans:[],seasonEndDate:''};
+  DB.dataByTeam[t.id]={categories:[],skills:[],skillBlocks:[],locations:[],announcements:[],quotes:[],practiceEmphasis:[],competitionEmphasis:[],notes:[],playerGroups:[],rosters:[],players:[],plans:[],seasonEndDate:''};
   DB.activeTeamId=t.id;
   saveDB();closeModal();navigate('dashboard');router();
   toast(name+' created');
@@ -1212,7 +1246,6 @@ function router(){
     'practice-emphasis':()=>renderSimpleList(CFG.practiceEmphasis),
     'competition-emphasis':()=>renderSimpleList(CFG.competitionEmphasis),
     notes:()=>renderSimpleList(CFG.notes),
-    'note-cards':()=>renderSimpleList(CFG.noteCards),
     skills:renderSkillList,
     'skill-blocks':renderSkillBlockList,
     stations:renderStationsList,
@@ -1267,7 +1300,6 @@ function openQuickAdd(){
       {icon:'flag',label:'Practice Emphasis',fn:()=>openSimpleForm(CFG.practiceEmphasis)},
       {icon:'flag',label:'Competition Emphasis',fn:()=>openSimpleForm(CFG.competitionEmphasis)},
       {icon:'note',label:'Note',fn:()=>openSimpleForm(CFG.notes)},
-      {icon:'note',label:'Note Card',fn:()=>openSimpleForm(CFG.noteCards)},
     ]},
     {title:'Skill Directory',items:[
       {icon:'skill',label:'Skill',fn:()=>openSkillForm()},
@@ -1309,9 +1341,6 @@ const CFG = {
   notes:{key:'notes',title:'Note List',singular:'Note',newLabel:'New Note',hasStatus:true,
     fields:[{key:'text',label:'Note',type:'textarea'}],
     columns:[{label:'Note',render:i=>esc(i.text)}],emptyText:'No notes found.'},
-  noteCards:{key:'noteCards',title:'Note Card List',singular:'Note Card',newLabel:'New Note',hasStatus:true,
-    fields:[{key:'title',label:'Title',type:'text'},{key:'content',label:'Content',type:'textarea'}],
-    columns:[{label:'Title',render:i=>esc(i.title)}],emptyText:'No note cards found.'},
   categories:{key:'categories',title:'Category List',singular:'Category',newLabel:'New category',hasStatus:true,
     fields:[{key:'name',label:'Category Name',type:'text'}],
     columns:[{label:'Category Name',render:i=>esc(i.name)}],emptyText:'No categories found.'},
@@ -1484,25 +1513,15 @@ function mountMiniMonthCalendar(host){
 /* ============================= CALENDAR PAGE ============================= */
 function renderCalendarPage(container){
   container.innerHTML = pageHeader('Calendar', `<button class="btn" onclick="window.print()">${ic('printer')} Print</button>`) +
-    `<div class="cal-shell">
-      <div>
-        <div id="miniCalHost"></div>
-        <div class="card" style="margin-top:16px;">
-          <h3 style="font-size:.9rem;margin-bottom:8px;">Upcoming Practice Plans</h3>
-          <div id="calUpcoming"></div>
-          <div style="margin-top:8px;"><a onclick="navigate('plans')">View all plans &rarr;</a></div>
-        </div>
+    `<div class="cal-main">
+      <div class="cal-toolbar">
+        <button class="btn btn-sm" id="calToday">Today</button>
+        <button class="icon-btn" id="calPrev">${ic('menuL')}</button>
+        <button class="icon-btn" id="calNext">${ic('menuR')}</button>
+        <h2 id="calTitle"></h2>
       </div>
-      <div class="cal-main">
-        <div class="cal-toolbar">
-          <button class="btn btn-sm" id="calToday">Today</button>
-          <button class="icon-btn" id="calPrev">${ic('menuL')}</button>
-          <button class="icon-btn" id="calNext">${ic('menuR')}</button>
-          <h2 id="calTitle"></h2>
-        </div>
-        <div class="month-grid" id="calGrid">
-          ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="dow">${d}</div>`).join('')}
-        </div>
+      <div class="month-grid" id="calGrid">
+        ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="dow">${d}</div>`).join('')}
       </div>
     </div>`;
   let cur=new Date();
@@ -1516,27 +1535,24 @@ function renderCalendarPage(container){
       cells.map(c=>{
         const iso=isoOf(y,m,c.day);
         const plans=T().plans.filter(p=>p.date===iso);
-        return `<div class="month-cell ${c.other?'other':''} ${iso===todayIso?'today':''}">
+        return `<div class="month-cell ${c.other?'other':''} ${iso===todayIso?'today':''}" onclick="handleCalendarDateClick('${iso}')">
           <div class="num">${c.day}</div>
-          ${plans.map(p=>`<div class="plan-chip" style="background:${p.color||'#00c9a7'}" title="${escAttr(p.name)}" onclick="navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
+          ${plans.map(p=>`<div class="plan-chip" style="background:${p.color||'#00c9a7'}" title="${escAttr(p.name)}" onclick="event.stopPropagation();navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
         </div>`;
       }).join('');
-  }
-  function drawMini(){
-    mountMiniMonthCalendar(document.getElementById('miniCalHost'));
   }
   document.getElementById('calPrev').onclick=()=>{cur=new Date(cur.getFullYear(),cur.getMonth()-1,1);drawMain();};
   document.getElementById('calNext').onclick=()=>{cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);drawMain();};
   document.getElementById('calToday').onclick=()=>{cur=new Date();drawMain();};
-  drawMain();drawMini();
-  const upcoming=[...T().plans].sort((a,b)=>a.date.localeCompare(b.date)).filter(p=>p.date>=todayISO()).slice(0,5);
-  document.getElementById('calUpcoming').innerHTML = upcoming.length? upcoming.map(p=>{
-    const d=new Date(p.date+'T00:00:00');
-    return `<div class="upcoming-item" style="cursor:pointer" onclick="navigate('plans/edit/${p.id}')">
-      <div class="date-pill"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('en-US',{month:'short'})}</div></div>
-      <div><div style="font-weight:600;">${esc(p.name)}</div><div class="mutedtext">${p.startTime} ${p.ampm}</div></div>
-    </div>`;
-  }).join('') : '<p class="mutedtext">No upcoming events available.</p>';
+  drawMain();
+}
+// Clicking a date with at least one plan opens the first plan scheduled
+// that day; clicking an empty date creates a new plan pre-filled with
+// that date (matching createPlan()'s existing create-then-edit flow).
+function handleCalendarDateClick(iso){
+  const plans=T().plans.filter(p=>p.date===iso);
+  if(plans.length>=1) navigate('plans/edit/'+plans[0].id);
+  else createPlan(iso);
 }
 
 /* ============================= PLAN LIST ============================= */
@@ -1571,10 +1587,10 @@ function renderPlanList(container){
   }
   draw();
 }
-function createPlan(){
+function createPlan(dateOverride){
   const n=T().plans.length+1;
-  const plan={id:uid('plan'),name:'Day '+n,date:todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
-    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',noteCardIds:[],dateCreated:nowStamp(),rows:[]};
+  const plan={id:uid('plan'),name:'Day '+n,date:dateOverride||todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
+    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',dateCreated:nowStamp(),rows:[]};
   T().plans.push(plan);saveDB();
   navigate('plans/edit/'+plan.id);
 }
@@ -1620,11 +1636,11 @@ function generateAIPlan(){
   while(remaining>0 && pool.length && guard<200){
     const d=pool[i%pool.length];
     const m=Math.min(d.minutes||5,remaining);
-    rows.push({id:uid('row'),activity:d.name,min:m,category:categoryName(d.categoryId),notes:d.notes||'',groupIds:[],image:null,noteCardId:'',stations:d.stations});
+    rows.push({id:uid('row'),activity:d.name,min:m,category:categoryName(d.categoryId),notes:d.notes||'',groupIds:[],image:null,stations:d.stations});
     remaining-=m;i++;guard++;
   }
   const plan={id:uid('plan'),name,date,location:'',startTime:'3:00',ampm:'PM',duration:minutes,color:'#00c9a7',
-    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:cat,noteCardIds:[],dateCreated:nowStamp(),rows};
+    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:cat,dateCreated:nowStamp(),rows};
   T().plans.push(plan);saveDB();closeModal();
   navigate('plans/edit/'+plan.id);
   toast('AI plan generated — review and tweak as needed');
@@ -1695,11 +1711,6 @@ function renderPlanEdit(id,container){
             <div class="field"><label>Duration (Mins)</label><input class="input" type="number" id="p_duration" value="${esc(plan.duration)}"></div>
           </div>
           <div class="field"><label>Calendar Color</label><input class="color-swatch" type="color" id="p_color" value="${plan.color||'#00c9a7'}"></div>
-          <div class="field" style="margin-top:20px;">
-            <label>Plan Note Cards</label>
-            <div id="planNoteCards"></div>
-            <span class="link-add" onclick="addNoteCardToPlan('${plan.id}')">${ic('plus')} Add</span>
-          </div>
         </div>
         <div class="card chartcard">
           <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -1727,11 +1738,11 @@ function renderPlanEdit(id,container){
       </div>
       <div class="tablewrap skilltable" style="margin-top:12px;">
         <table><thead><tr>
-          <th></th><th style="width:34px">#</th><th style="min-width:180px">Activity</th><th style="width:70px">Min</th><th>Time Slot</th><th>Category</th><th style="min-width:160px">Notes</th>
-          <th>Groups</th><th>Uploads</th><th>Note Card</th><th>Stations</th><th style="text-align:right">Action</th>
+          <th></th><th style="width:34px">#</th><th style="min-width:180px">Activity</th><th style="width:110px">Min</th><th>Time Slot</th><th>Category</th><th style="min-width:160px">Notes</th>
+          <th>Groups</th><th>Uploads</th><th>Stations</th><th style="text-align:right">Action</th>
         </tr></thead>
         <tbody id="planRowsBody">
-        ${plan.rows.length===0?`<tr class="empty-row"><td colspan="12">No skills added yet. Use "Add from Skill Library" or "Add Blank Row".</td></tr>`:
+        ${plan.rows.length===0?`<tr class="empty-row"><td colspan="11">No skills added yet. Use "Add from Skill Library" or "Add Blank Row".</td></tr>`:
           plan.rows.map((r,idx)=>{
             const t=times[idx];
             return `<tr draggable="true" data-idx="${idx}" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event,'${plan.id}')">
@@ -1740,7 +1751,7 @@ function renderPlanEdit(id,container){
               <td>${r.ddSkillId
                 ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from Dive Drills">🔒 Dive Drills</span>`
                 : `<input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)">`}</td>
-              <td><input type="number" value="${esc(r.min)}" onchange="updatePlanRow('${plan.id}','${r.id}','min',this.value)"></td>
+              <td>${minutesInputPairHtml('row_min_'+r.id, r.min, `updatePlanRow('${plan.id}','${r.id}','min',this.value)`)}</td>
               <td class="mutedtext" style="white-space:nowrap;">${fromMinutes(t.start)} - ${fromMinutes(t.end)}</td>
               <td>${r.ddSkillId
                 ? `<span class="mutedtext">${esc(r.category||'')}${r.ddSkillLevel!=null?' · L'+esc(String(r.ddSkillLevel)):''}</span>`
@@ -1751,7 +1762,6 @@ function renderPlanEdit(id,container){
               <td><input value="${escAttr(r.notes)}" onchange="updatePlanRow('${plan.id}','${r.id}','notes',this.value)"></td>
               <td>${renderRowGroups(plan.id,r)}</td>
               <td>${renderRowUpload(plan.id,r)}</td>
-              <td>${renderRowNoteCard(plan.id,r)}</td>
               <td style="text-align:center;"><label class="toggle" style="width:36px;height:20px;"><input type="checkbox" ${r.stations?'checked':''} onchange="updatePlanRow('${plan.id}','${r.id}','stations',this.checked)"><span class="slider"></span></label></td>
               <td><div class="row-actions">
                 <button class="icon-btn" title="Duplicate row" onclick="duplicatePlanRow('${plan.id}','${r.id}')">${ic('duplicate')}</button>
@@ -1763,7 +1773,6 @@ function renderPlanEdit(id,container){
       </div>
       <div style="margin-top:18px;"><button class="btn btn-primary" onclick="savePlanMeta('${plan.id}');toast('Plan saved')">Save</button></div>
     `;
-    renderPlanNoteCards(plan);
     ['p_name','p_date','p_ann','p_quote','p_practice_emph','p_comp_emph','p_filtercat','p_loc','p_start','p_duration','p_color'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.addEventListener('change',()=>{savePlanMeta(plan.id);});
@@ -1801,12 +1810,32 @@ function updatePlanRow(planId,rowId,field,value){
   const plan=T().plans.find(p=>p.id===planId);
   const row=plan.rows.find(r=>r.id===rowId);
   row[field]= field==='min'? (parseInt(value)||0) : value;
+  if(field==='activity' && !row.ddSkillId) autoSaveSkillFromRow(row);
   saveDB();
   window.__currentPlanDraw();
 }
+// A coach typing a custom activity name into a plan row (not a
+// Dive-Drills-sourced row — those are read-only and excluded via
+// row.ddSkillId) gets auto-saved into T().skills so it's reusable from
+// the Skill Directory in future plans. Matches by name (trimmed,
+// case-insensitive) so re-typing the same activity across plans never
+// creates a duplicate library entry.
+function autoSaveSkillFromRow(row){
+  const name=(row.activity||'').trim();
+  if(!name)return;
+  const exists=T().skills.some(s=>s.name.trim().toLowerCase()===name.toLowerCase());
+  if(exists)return;
+  const cat=T().categories.find(c=>c.name===row.category);
+  T().skills.push({
+    id:uid('skill'), name, categoryId:cat?cat.id:'',
+    minutes:row.min||5, notes:row.notes||'', stations:!!row.stations,
+    status:'Enabled', dateCreated:nowStamp(), image:null,
+  });
+  toast('Skill saved to your library');
+}
 function addPlanRow(planId){
   const plan=T().plans.find(p=>p.id===planId);
-  plan.rows.push({id:uid('row'),activity:'',min:5,category:plan.filterCategory||'',notes:'',groupIds:[],image:null,noteCardId:'',stations:false});
+  plan.rows.push({id:uid('row'),activity:'',min:5,category:plan.filterCategory||'',notes:'',groupIds:[],image:null,stations:false});
   saveDB();window.__currentPlanDraw();
 }
 function duplicatePlanRow(planId,rowId){
@@ -1849,7 +1878,7 @@ function addPlanRowFromLibrary(planId){
 function addSkillToPlan(planId,skillId){
   const plan=T().plans.find(p=>p.id===planId);
   const d=T().skills.find(d=>d.id===skillId);
-  plan.rows.push({id:uid('row'),activity:d.name,min:d.minutes,category:categoryName(d.categoryId),notes:d.notes||'',groupIds:[],image:d.image||null,noteCardId:'',stations:d.stations});
+  plan.rows.push({id:uid('row'),activity:d.name,min:d.minutes,category:categoryName(d.categoryId),notes:d.notes||'',groupIds:[],image:d.image||null,stations:d.stations});
   saveDB();
   window.__currentPlanDraw();
   toast(d.name+' added to plan');
@@ -1893,41 +1922,6 @@ function uploadRowImage(e,planId,rowId){
 function viewImage(src){
   openModal({title:'Image',bodyHtml:`<img src="${src}" style="max-width:100%;border-radius:8px;">`});
 }
-function renderRowNoteCard(planId,row){
-  if(row.noteCardId){
-    const nc=T().noteCards.find(n=>n.id===row.noteCardId);
-    return `<span class="chip">${esc(nc?nc.title:'Note')}<button onclick="updatePlanRow('${planId}','${row.id}','noteCardId','')">${ic('x')}</button></span>`;
-  }
-  return `<span class="link-add" onclick="pickRowNoteCard('${planId}','${row.id}')">${ic('plus')} Note Card</span>`;
-}
-function pickRowNoteCard(planId,rowId){
-  if(T().noteCards.length===0){toast('Create a Note Card first');return;}
-  openModal({title:'Attach Note Card',bodyHtml:`<div>${T().noteCards.map(n=>`<div class="qa-item" onclick="updatePlanRow('${planId}','${rowId}','noteCardId','${n.id}');closeModal();">${ic('note')}<span>${esc(n.title)}</span></div>`).join('')}</div>`});
-}
-function renderPlanNoteCards(plan){
-  const host=document.getElementById('planNoteCards');
-  if(!host)return;
-  host.innerHTML=(plan.noteCardIds||[]).map(id=>{
-    const nc=T().noteCards.find(n=>n.id===id);if(!nc)return'';
-    return `<span class="chip">${esc(nc.title)}<button onclick="removeNoteCardFromPlan('${plan.id}','${id}')">${ic('x')}</button></span>`;
-  }).join('') || '<p class="mutedtext" style="margin:4px 0;">No note cards attached.</p>';
-}
-function addNoteCardToPlan(planId){
-  if(T().noteCards.length===0){toast('Create a Note Card first (Planner > Note Card List)');return;}
-  openModal({title:'Attach Note Card',bodyHtml:`<div>${T().noteCards.map(n=>`<div class="qa-item" onclick="doAddNoteCard('${planId}','${n.id}')">${ic('note')}<span>${esc(n.title)}</span></div>`).join('')}</div>`});
-}
-function doAddNoteCard(planId,ncId){
-  const plan=T().plans.find(p=>p.id===planId);
-  plan.noteCardIds=plan.noteCardIds||[];
-  if(!plan.noteCardIds.includes(ncId))plan.noteCardIds.push(ncId);
-  saveDB();closeModal();renderPlanNoteCards(plan);
-}
-function removeNoteCardFromPlan(planId,ncId){
-  const plan=T().plans.find(p=>p.id===planId);
-  plan.noteCardIds=(plan.noteCardIds||[]).filter(id=>id!==ncId);
-  saveDB();renderPlanNoteCards(plan);
-}
-
 function printPlan(id){
   const plan=T().plans.find(p=>p.id===id);
   const times=computeRowTimes(plan);
@@ -2066,7 +2060,7 @@ function openSkillForm(id){
       <div class="field"><label>Name</label><input class="input" id="d_name" value="${escAttr(d.name||'')}"></div>
       <div class="field-row">
         <div class="field"><label>Category</label><select class="input" id="d_cat"><option value="">--</option>${cats.map(c=>`<option value="${c.id}" ${d.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-        <div class="field"><label>Minutes</label><input class="input" type="number" id="d_min" value="${esc(d.minutes||5)}"></div>
+        <div class="field"><label>Minutes</label>${minutesInputPairHtml('d_min', d.minutes||5)}</div>
       </div>
       <div class="field"><label>Notes</label><textarea class="input" id="d_notes" rows="2">${esc(d.notes||'')}</textarea></div>
       <div class="toggle-row"><span>Has Stations</span><label class="toggle"><input type="checkbox" id="d_stations" ${d.stations?'checked':''}><span class="slider"></span></label></div>
@@ -2079,7 +2073,7 @@ function saveSkillForm(id){
   const data={
     name:document.getElementById('d_name').value.trim()||'Untitled Skill',
     categoryId:document.getElementById('d_cat').value,
-    minutes:parseInt(document.getElementById('d_min').value)||0,
+    minutes:parseInt(document.getElementById('d_min_num').value,10)||5,
     notes:document.getElementById('d_notes').value,
     stations:document.getElementById('d_stations').checked,
     status:document.getElementById('d_status').checked?'Enabled':'Disabled',
@@ -2166,7 +2160,7 @@ function addDDSkillToPlan(skillId){
   if(!plan){toast('Open or create a practice plan first');return;}
   const skill=DD_SKILLS.find(s=>s.id===skillId);
   if(!skill)return;
-  plan.rows.push({id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:skill.description||'',groupIds:[],image:null,noteCardId:'',stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level});
+  plan.rows.push({id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:skill.description||'',groupIds:[],image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level});
   saveDB();
   toast(skill.name+' added to '+plan.name);
   if(window.__currentPlanDraw)window.__currentPlanDraw();
@@ -2432,7 +2426,6 @@ function renderSettings(container,activeTab){
       <div class="inner">
         <div class="toggle-row"><span>Include Images</span><label class="toggle"><input type="checkbox" id="pref_images" ${p.includeImages?'checked':''}><span class="slider"></span></label></div>
         <div class="toggle-row"><span>Include Videos</span><label class="toggle"><input type="checkbox" id="pref_videos" ${p.includeVideos?'checked':''}><span class="slider"></span></label></div>
-        <div class="toggle-row"><span>Plan Note Cards in Printout</span><label class="toggle"><input type="checkbox" id="pref_notecards" ${p.noteCardsInPrintout?'checked':''}><span class="slider"></span></label></div>
       </div>
     </div>
     <button class="btn btn-primary" onclick="savePlannerPrefs()">Save changes</button>`;
@@ -2487,7 +2480,6 @@ function savePlannerPrefs(){
   DB.prefs.timeFormat=document.getElementById('pref_timeformat').value;
   DB.prefs.includeImages=document.getElementById('pref_images').checked;
   DB.prefs.includeVideos=document.getElementById('pref_videos').checked;
-  DB.prefs.noteCardsInPrintout=document.getElementById('pref_notecards').checked;
   saveDB();toast('Preferences saved');
 }
 function savePrintoutPrefs(){
