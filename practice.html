@@ -152,6 +152,14 @@ button{font-family:inherit;cursor:pointer;}
 .sync-dot.error{background:#eb5757;}
 @keyframes sync-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
+/* DEBUG BAR — only shown when the page URL has ?debug=1 */
+.debug-bar{
+  display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 16px;font-size:.72rem;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  background:#1a0f00;border-bottom:2px solid #f5a623;color:#f5a623;
+}
+.debug-bar strong{color:#fff;}
+
 /* INITIAL LOAD SPINNER (duplicated from the shared site stylesheet — this page is self-contained) */
 .pp-loading-spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:pp-spin .65s linear infinite;flex-shrink:0;}
 .pp-loading-spinner-lg{width:38px;height:38px;border-width:3px;}
@@ -322,6 +330,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 <div id="app">
   <nav id="sidebar"></nav>
   <div id="mainWrap">
+    <div id="debugBar"></div>
     <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a></div>
     <div id="statusBanner"></div>
     <main><div id="content"><div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Loading your practice data…</span></div></div></main>
@@ -542,6 +551,10 @@ let syncTimer = null, syncInFlight = false, syncQueued = false;
 let isOffline = false;
 let currentSyncStatus = 'idle';
 let pendingMigrationLocalDB = null;
+
+// Debug bar state (?debug=1) — see renderDebugBar() below.
+let debugLoadSource      = 'loading…';
+let debugCloudPlansCount = null;
 
 function scheduleSync(){
   clearTimeout(syncTimer);
@@ -791,6 +804,8 @@ async function loadDB(coachId){
     remoteDB = await fetchAllFromSupabase(coachId);
     console.log('loadDB: Supabase returned', remoteDB);
     isOffline = false;
+    debugCloudPlansCount = Object.values(remoteDB.dataByTeam)
+      .reduce((sum,teamData)=>sum+teamData.plans.length, 0);
   }catch(e){
     console.error('[practice] Supabase fetch failed, falling back to local', e);
     isOffline = true;
@@ -800,6 +815,7 @@ async function loadDB(coachId){
     loadLocalOnly();
     lastSyncedSnapshot = localSyncedRaw ? JSON.parse(localSyncedRaw) : {dataByTeam:{}};
     persistLocalOnly(); // in case loadLocalOnly() just seeded/migrated fresh data
+    debugLoadSource = localRaw ? 'localStorage (fetch failed)' : 'seed (fetch failed)';
     return;
   }
 
@@ -817,6 +833,7 @@ async function loadDB(coachId){
         DB = JSON.parse(localRaw); migrateIfNeeded();
         lastSyncedSnapshot = syncedSnapshot;
         scheduleSync();
+        debugLoadSource = 'localStorage (pending edits)';
         return;
       }
     }
@@ -828,12 +845,14 @@ async function loadDB(coachId){
     lastSyncedSnapshot = structuredClone(DB);
     persistLocalOnly();
     localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(DB));
+    debugLoadSource = 'supabase';
     return;
   }
 
   // Cloud is empty for this coach.
   if(localRaw){
     pendingMigrationLocalDB = JSON.parse(localRaw);
+    debugLoadSource = 'localStorage (awaiting migration choice)';
     return;
   }
 
@@ -843,6 +862,7 @@ async function loadDB(coachId){
   lastSyncedSnapshot = {dataByTeam:{}};
   persistLocalOnly();
   scheduleSync();
+  debugLoadSource = 'seed';
 }
 
 /* ============================= ONE-TIME LOCAL -> CLOUD MIGRATION ============================= */
@@ -862,6 +882,7 @@ function startFreshFromMigrationPrompt(){
   pendingMigrationLocalDB = null;
   persistLocalOnly();
   scheduleSync();
+  debugLoadSource = 'seed (started fresh)';
   finishInit(window.__migrationUser);
 }
 async function runLocalMigration(){
@@ -878,8 +899,30 @@ async function runLocalMigration(){
   } else {
     toast('Import failed — your data is safe on this device, please try again.');
   }
+  debugLoadSource = 'localStorage (migrated to cloud)';
   pendingMigrationLocalDB = null;
   finishInit(window.__migrationUser);
+}
+
+/* ============================= DEBUG BAR (?debug=1) ============================= */
+// On-screen diagnostics for the load-source bug (iPhone Safari showing
+// stale localStorage instead of Supabase data) — lets us see what
+// happened without needing Safari's remote Web Inspector.
+function isDebugMode(){
+  return new URLSearchParams(location.search).get('debug') === '1';
+}
+function renderDebugBar(){
+  const host = document.getElementById('debugBar');
+  if(!host) return;
+  if(!isDebugMode()){ host.innerHTML=''; return; }
+  const hasLocal  = !!localStorage.getItem(STORAGE_KEY);
+  const hasSynced = !!localStorage.getItem(SYNC_SNAPSHOT_KEY);
+  host.innerHTML = `<div class="debug-bar">
+    <span>Load source: <strong>${esc(debugLoadSource)}</strong></span>
+    <span>Plans found in cloud: <strong>${debugCloudPlansCount===null?'n/a (fetch not yet run or failed)':debugCloudPlansCount}</strong></span>
+    <span>Local storage has data: <strong>${hasLocal?'yes':'no'}</strong></span>
+    <span>Sync snapshot exists: <strong>${hasSynced?'yes':'no'}</strong></span>
+  </div>`;
 }
 
 /* ============================= OFFLINE BANNER ============================= */
@@ -2416,6 +2459,7 @@ function resetAllData(){
 
 /* ============================= INIT ============================= */
 (async function initPracticePlanner(){
+  renderDebugBar(); // show "loading…" immediately, before the async fetch even starts
   initSupabase();
   const user = await Auth.init(true);
   if(!user)return; // Auth.init() already redirected to index.html
@@ -2426,6 +2470,7 @@ function resetAllData(){
   }
 
   await loadDB(user.id);
+  renderDebugBar();
 
   if(pendingMigrationLocalDB){
     offerLocalMigration(user);
@@ -2446,6 +2491,7 @@ function finishInit(user){
 
   loadDiveDrillsSkills();
   renderOfflineBanner();
+  renderDebugBar();
 
   if(!location.hash)location.hash='#/dashboard';
   router();
