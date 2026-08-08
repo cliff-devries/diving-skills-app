@@ -364,6 +364,7 @@
        weight than the plain Prev button so it's the obvious default tap
        without competing with Complete Session's filled accent style. */
     .scoring-nav-btn.scoring-next-btn {
+      position: relative; /* anchors the .save-indicator overlay to this button, not the column */
       border: 2px solid var(--accent, #14b8a6);
       color: var(--accent, #14b8a6);
       background: rgba(20, 184, 166, 0.1);
@@ -396,23 +397,23 @@
       line-height: 1.2;
       margin-top: 1px;
     }
-    /* Subtle inline save status, sat below the Next button inside the nav
-       column (not a full-width row under the whole panel) — collapses to
-       zero height/no margin when empty so it never leaves a permanent
-       gap, and grows + fades in only while it actually has something to
-       show. Stays visible (retry already in flight) on failure. */
+    /* Save status — an absolutely-positioned overlay INSIDE the Next
+       button, not a row that reserves its own space anywhere. It never
+       affects the button's box, so Next can't move or become a moving
+       target on mobile; it purely fades in/out in place. */
     .save-indicator {
-      flex: 0 0 auto;
-      max-height: 0;
-      margin-top: 0;
-      overflow: hidden;
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
       font-size: 0.68rem;
-      font-weight: 600;
-      text-align: center;
+      font-weight: 700;
+      white-space: nowrap;
       opacity: 0;
-      transition: opacity 0.4s ease, max-height 0.3s ease, margin-top 0.3s ease;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
     }
-    .save-indicator.show { max-height: 18px; margin-top: 4px; opacity: 1; }
+    .save-indicator.show { opacity: 1; }
     .save-indicator-saved { color: var(--accent, #14b8a6); }
     .save-indicator-error { color: #ef4444; }
 
@@ -1273,7 +1274,7 @@
             <div class="${numClass}" id="scoring-number">${numText}</div>
           </div>
           ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
-          ${isPrior ? `<div class="prior-score-label">Prior score — enter new score to update</div>` : ''}
+          ${isPrior ? `<div class="prior-score-label">Prior score</div>` : ''}
         </div>
         <div class="calc-grid">
           <button class="calc-btn" onclick="calcInput(7)">7</button>
@@ -1298,9 +1299,8 @@
           </button>
           <button class="scoring-nav-btn scoring-next-btn" id="btn-advance"
             onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
-            ${isLastSkill ? 'Last ✓' : 'Next →'}
+            ${isLastSkill ? 'Last ✓' : 'Next →'}<span id="save-indicator" class="save-indicator"></span>
           </button>
-          <div id="save-indicator" class="save-indicator"></div>
         </div>
       </div>`;
   }
@@ -1469,26 +1469,21 @@
     return Promise.all(promises);
   }
 
-  let saveIndicatorFadeTimer  = null;
-  let saveIndicatorClearTimer = null;
+  // Purely an absolutely-positioned overlay inside the Next button (see
+  // .save-indicator CSS) — toggling it on/off never affects layout, so
+  // there's nothing to collapse/reserve space for like before.
+  let saveIndicatorFadeTimer = null;
   function showSaveIndicator(state) {
     const el = document.getElementById('save-indicator');
     if (!el) return;
     clearTimeout(saveIndicatorFadeTimer);
-    clearTimeout(saveIndicatorClearTimer);
     if (state === 'saving') {
       el.textContent = '';
       el.className   = 'save-indicator';
     } else if (state === 'saved') {
-      el.textContent = '✓ Saved';
+      el.textContent = '✓';
       el.className   = 'save-indicator save-indicator-saved show';
-      // Visible for 2s, then fade out (opacity) and collapse (max-height)
-      // together, then clear the text once the transition has finished
-      // so no empty-but-occupying-space element lingers.
-      saveIndicatorFadeTimer = setTimeout(() => {
-        el.classList.remove('show');
-        saveIndicatorClearTimer = setTimeout(() => { el.textContent = ''; el.className = 'save-indicator'; }, 400);
-      }, 2000);
+      saveIndicatorFadeTimer = setTimeout(() => el.classList.remove('show'), 2000);
     } else if (state === 'error') {
       el.textContent = '⚠ Save failed — will retry';
       el.className   = 'save-indicator save-indicator-error show';
