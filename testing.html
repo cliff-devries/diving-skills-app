@@ -210,6 +210,16 @@
       color: var(--accent, #14b8a6);
       border-color: rgba(20, 184, 166, 0.3);
     }
+    /* Prior-session score (pre-loaded from skill_completions, not yet
+       re-scored this session) — muted slate, distinct from both the
+       plain-gray "unscored" badge and the teal "scored this session"
+       badge, so a coach can tell at a glance which skills still need a
+       fresh look today. */
+    .skill-row.scored.prior-score .skill-score-badge {
+      background: rgba(148, 163, 184, 0.14);
+      color: #94a3b8;
+      border-color: rgba(148, 163, 184, 0.35);
+    }
 
     /* BOTTOM SECTION — fixed scoring panel */
     .scoring-panel {
@@ -311,7 +321,7 @@
     .calc-btn:hover { border-color: var(--accent, #14b8a6); color: var(--accent, #14b8a6); }
     .calc-btn:active { background: rgba(20, 184, 166, 0.15); }
 
-    /* Right column: Prev / Complete Diver / Next, stacked and identically sized */
+    /* Right column: Prev / Complete Session / Next, stacked and identically sized */
     .scoring-nav-col {
       flex: 0 0 90px;
       min-width: 0;
@@ -350,6 +360,20 @@
       color: #000;
     }
     .scoring-nav-btn.scoring-complete-btn:disabled { opacity: 0.4; cursor: default; }
+    /* Next is the most-tapped button poolside — give it more visual
+       weight than the plain Prev button so it's the obvious default tap
+       without competing with Complete Session's filled accent style. */
+    .scoring-nav-btn.scoring-next-btn {
+      border: 2px solid var(--accent, #14b8a6);
+      color: var(--accent, #14b8a6);
+      background: rgba(20, 184, 166, 0.1);
+    }
+    .scoring-nav-btn.scoring-next-btn:disabled {
+      border-color: var(--border);
+      color: var(--text-primary);
+      background: var(--surface, #141826);
+      opacity: 0.4;
+    }
     .scoring-number {
       font-size: 1.35rem;
       font-weight: 800;
@@ -361,6 +385,30 @@
       color: var(--text-secondary);
       font-size: 1.1rem;
     }
+    /* Prior-session score shown in the scoring panel — muted like the
+       skill-row badge, so the coach can tell it hasn't been re-verified
+       today without needing to check the skill list. */
+    .scoring-number.prior-score { color: #94a3b8; }
+    .prior-score-label {
+      font-size: 0.6rem;
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.2;
+      margin-top: 1px;
+    }
+    /* Subtle inline save status — fades out after a successful save,
+       stays visible (with a retry already in flight) on failure. */
+    .save-indicator {
+      min-height: 14px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-align: center;
+      transition: opacity 0.6s ease;
+      opacity: 1;
+    }
+    .save-indicator-saved { color: var(--accent, #14b8a6); }
+    .save-indicator-error { color: #ef4444; }
+    .save-indicator-fade { opacity: 0; }
 
     /* Very narrow screens: nav/score columns can still shrink — calculator
        keys stay fixed at 54x36 on every screen size per design. */
@@ -693,7 +741,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=29"></script>
+<script src="js/supabase.js?v=30"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=8"></script>
 
@@ -704,13 +752,23 @@
   let currentUser     = null;
   let rosterDivers    = [];  // [diver] — all divers on coach's roster
   let selectedMap     = {};  // {diverId: {diver, selectedLevel}}
-  let sessionDivers   = [];  // [{diver, level, skills}] — ordered list for testing
+  let sessionDivers   = [];  // [{diver, level, skills, lastSelectedSkillId}] — ordered list for testing
   let currentDiverIdx = 0;
   let activeSkillId   = null; // skill currently shown in the scoring panel
-  let sessionScores   = {};  // {diverId: {skillId: {value, completionId}}}
+  let sessionScores   = {};  // {diverId: {skillId: {value, completionId, isPriorScore}}}
   let diverNotes      = {};  // {diverId: string} — per-diver session notes
   let completedDivers = {};  // {diverId: result}
   let confirmCallback = null;
+  let skillSaveTimers = {};  // {"diverId:skillId": setTimeout handle} — per-skill debounced Supabase saves
+
+  // How long to wait after the last edit to a skill's score before
+  // pushing it to Supabase — collapses rapid calculator taps (e.g. "7"
+  // then ".5") into a single save instead of one per tap.
+  const SKILL_SAVE_DEBOUNCE_MS = 2500;
+  // Delay before retrying a failed save (e.g. poolside wifi drop) — reuses
+  // the same debounce timer slot, so a fresh edit before the retry fires
+  // supersedes it naturally.
+  const SKILL_SAVE_RETRY_MS = 5000;
 
   // Display order for skill-type groups — matches skills.html / progress.html
   // so Step 3's skill list follows the same curriculum order everywhere.
@@ -990,7 +1048,23 @@
     try {
       sd.skills = await SupabaseDB.getTestingSkillsForDiverLevel(sd.diver.id, sd.level);
       sd.skills.sort(compareBySection);
-      sessionScores[sd.diver.id] = {};
+      // Pre-populate prior scores from skill_completions — already fetched
+      // above by getTestingSkillsForDiverLevel (latestScore/completionId
+      // per skill), no extra query needed. Lets a diver tested partially
+      // at dryland and finished at the pool combine into one session
+      // instead of starting from zero. Marked isPriorScore so the UI can
+      // show them muted until the coach re-scores (or leaves as-is).
+      const scores = {};
+      sd.skills.forEach(skill => {
+        if (skill.latestScore !== null && skill.latestScore !== undefined) {
+          scores[skill.id] = {
+            value:        parseFloat(skill.latestScore),
+            completionId: skill.completionId,
+            isPriorScore: true,
+          };
+        }
+      });
+      sessionScores[sd.diver.id] = scores;
     } catch (err) {
       sd.skills = [];
       App.showToast('Error loading skills: ' + err.message, 'error');
@@ -999,6 +1073,10 @@
 
   async function switchDiver(idx) {
     if (idx === currentDiverIdx && document.getElementById('skill-list').children.length > 0) return;
+    // Don't make the coach wait on the network to switch divers — fire
+    // any pending debounced saves for the diver being left and move on.
+    const leavingSd = sessionDivers[currentDiverIdx];
+    if (leavingSd) flushPendingSavesForDiver(leavingSd.diver.id);
     currentDiverIdx = idx;
     await loadDiverSkills(idx);
     selectDiver(idx);
@@ -1049,22 +1127,40 @@
           oninput="saveDiverNote('${sd.diver.id}', this.value)">${savedNotes}</textarea>
       </div>`;
 
-    // Default to first skill
-    activeSkillId = sd.skills[0]?.id ?? null;
+    // Returning to a diver already worked this session: pick up exactly
+    // where the coach left off. Opening a diver for the FIRST time:
+    // jump to their first unscored skill (which naturally skips both
+    // prior-session scores and anything already scored this session,
+    // since both live in `scores`) so dryland-scored skills don't need
+    // to be scrolled past to find the pool skills.
+    let targetSkillId = null;
+    if (sd.lastSelectedSkillId !== undefined && sd.lastSelectedSkillId !== null
+        && sd.skills.some(s => s.id === sd.lastSelectedSkillId)) {
+      targetSkillId = sd.lastSelectedSkillId;
+    } else {
+      const firstUnscored = sd.skills.find(s => !scores[s.id]);
+      targetSkillId = firstUnscored ? firstUnscored.id : sd.skills[0].id;
+    }
+    activeSkillId = targetSkillId;
+    sd.lastSelectedSkillId = targetSkillId;
     if (activeSkillId !== null) {
-      const firstRow = document.getElementById(`skill-row-${activeSkillId}`);
-      if (firstRow) firstRow.classList.add('active');
+      const targetRow = document.getElementById(`skill-row-${activeSkillId}`);
+      if (targetRow) {
+        targetRow.classList.add('active');
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
 
     renderScoringPanel(idx);
     updateScoredCountLabel(idx);
-    updateCompleteDiverBtn(idx);
+    updateCompleteSessionBtn(idx);
   }
 
   function buildSkillRow(skill, diverId, scores) {
     const scored    = scores[skill.id];
     const scoreVal  = scored ? parseFloat(scored.value) : null;
     const isScored  = scoreVal !== null;
+    const isPrior   = isScored && !!scored.isPriorScore;
     const typeBadge = skill.type
       ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : '';
     const catBadge  = skill.category
@@ -1072,7 +1168,7 @@
     const descHtml  = skill.description
       ? `<div class="skill-row-desc">${App.escHtml(skill.description)}</div>` : '';
     return `
-      <div class="skill-row${isScored ? ' scored' : ''}" id="skill-row-${skill.id}"
+      <div class="skill-row${isScored ? ' scored' : ''}${isPrior ? ' prior-score' : ''}" id="skill-row-${skill.id}"
         data-skill-id="${skill.id}" onclick="selectSkillForScoring(${skill.id})">
         <div class="skill-row-info">
           <div class="skill-name-row">
@@ -1082,7 +1178,7 @@
           ${descHtml}
           ${catBadge}
         </div>
-        <span class="skill-score-badge">${isScored ? scoreVal.toFixed(1) : '—'}</span>
+        <span class="skill-score-badge${isPrior ? ' prior' : ''}" title="${isPrior ? 'Prior score' : ''}">${isScored ? scoreVal.toFixed(1) : '—'}</span>
       </div>`;
   }
 
@@ -1091,6 +1187,8 @@
       row.classList.toggle('active', parseInt(row.dataset.skillId, 10) === skillId);
     });
     activeSkillId = skillId;
+    const sd = sessionDivers[currentDiverIdx];
+    if (sd) sd.lastSelectedSkillId = skillId;
     renderScoringPanel(currentDiverIdx);
   }
 
@@ -1102,16 +1200,23 @@
     const skill    = activeSkillId !== null ? sd.skills?.find(s => s.id === activeSkillId) : null;
     const scored   = skill ? scores[skill.id] : null;
     const scoreVal = scored ? parseFloat(scored.value) : null;
+    const isPrior  = !!(scored && scored.isPriorScore);
 
     const numText  = scoreVal !== null ? scoreVal.toFixed(1) : '—';
-    const numClass = scoreVal !== null ? 'scoring-number' : 'scoring-number unscored';
+    const numClass = scoreVal !== null
+      ? (isPrior ? 'scoring-number prior-score' : 'scoring-number')
+      : 'scoring-number unscored';
 
     const currentSkillIdx = sd.skills ? sd.skills.findIndex(s => s.id === activeSkillId) : -1;
     const isFirstSkill    = currentSkillIdx === 0;
     const isLastSkill     = currentSkillIdx >= 0 && currentSkillIdx === (sd.skills?.length || 0) - 1;
 
+    // Counts both scores entered this session AND pre-loaded prior
+    // scores — they share the same sessionScores map (see
+    // loadDiverSkills), so a partial dryland session plus today's pool
+    // scores combine into one total automatically.
     const totalScored = Object.keys(sessionScores[sd.diver.id] || {}).length;
-    const total       = sd.skills?.length || 0;
+    const total        = sd.skills?.length || 0;
 
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-body">
@@ -1121,6 +1226,7 @@
             <div class="${numClass}" id="scoring-number">${numText}</div>
           </div>
           ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
+          ${isPrior ? `<div class="prior-score-label">Prior score — enter new score to update</div>` : ''}
         </div>
         <div class="calc-grid">
           <button class="calc-btn" onclick="calcInput(7)">7</button>
@@ -1139,16 +1245,17 @@
         <div class="scoring-nav-col">
           <button class="scoring-nav-btn" id="btn-prev"
             onclick="moveToPrevSkill()" ${isFirstSkill ? 'disabled' : ''}>← Prev</button>
-          <button class="scoring-nav-btn scoring-complete-btn" id="btn-complete-diver"
-            onclick="confirmCompleteDiver()" ${totalScored === 0 ? 'disabled' : ''}>
-            Complete (${totalScored}/${total})
+          <button class="scoring-nav-btn scoring-complete-btn" id="btn-complete-session"
+            onclick="confirmCompleteSession()" ${totalScored === 0 ? 'disabled' : ''}>
+            Complete Session (${totalScored}/${total})
           </button>
-          <button class="scoring-nav-btn" id="btn-advance"
+          <button class="scoring-nav-btn scoring-next-btn" id="btn-advance"
             onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
             ${isLastSkill ? 'Last ✓' : 'Next →'}
           </button>
         </div>
-      </div>`;
+      </div>
+      <div id="save-indicator" class="save-indicator"></div>`;
   }
 
   // Tap a digit button: sets score directly.
@@ -1180,17 +1287,21 @@
     recordScore(activeSkillId, diverId, scoreVal);
 
     const numEl = document.getElementById('scoring-number');
-    if (numEl) { numEl.textContent = scoreVal.toFixed(1); numEl.classList.remove('unscored'); }
+    if (numEl) { numEl.textContent = scoreVal.toFixed(1); numEl.classList.remove('unscored', 'prior-score'); }
+    const priorLabel = document.querySelector('.prior-score-label');
+    if (priorLabel) priorLabel.remove(); // any new entry is a current-session score, not a prior one
 
     const row = document.getElementById(`skill-row-${activeSkillId}`);
     if (row) {
       row.classList.add('scored');
+      row.classList.remove('prior-score'); // entering a new score promotes a prior score to a current one
       const badge = row.querySelector('.skill-score-badge');
-      if (badge) badge.textContent = scoreVal.toFixed(1);
+      if (badge) { badge.textContent = scoreVal.toFixed(1); badge.classList.remove('prior'); badge.removeAttribute('title'); }
     }
 
     updateScoredCountLabel(currentDiverIdx);
-    updateCompleteDiverBtn(currentDiverIdx);
+    updateCompleteSessionBtn(currentDiverIdx);
+    scheduleSkillSave(diverId, activeSkillId);
   }
 
   function clearScore() {
@@ -1198,19 +1309,23 @@
     const sd      = sessionDivers[currentDiverIdx];
     const diverId = sd.diver.id;
     if (sessionScores[diverId]) delete sessionScores[diverId][activeSkillId];
+    // Don't let a pending debounced save push the value we just cleared.
+    const timerKey = diverId + ':' + activeSkillId;
+    clearTimeout(skillSaveTimers[timerKey]);
+    delete skillSaveTimers[timerKey];
 
     const numEl = document.getElementById('scoring-number');
     if (numEl) { numEl.textContent = '—'; numEl.classList.add('unscored'); }
 
     const row = document.getElementById(`skill-row-${activeSkillId}`);
     if (row) {
-      row.classList.remove('scored');
+      row.classList.remove('scored', 'prior-score');
       const badge = row.querySelector('.skill-score-badge');
-      if (badge) badge.textContent = '—';
+      if (badge) { badge.textContent = '—'; badge.classList.remove('prior'); }
     }
 
     updateScoredCountLabel(currentDiverIdx);
-    updateCompleteDiverBtn(currentDiverIdx);
+    updateCompleteSessionBtn(currentDiverIdx);
   }
 
   function advanceToNextSkill() {
@@ -1245,7 +1360,85 @@
     if (!sessionScores[diverId]) sessionScores[diverId] = {};
     const sd    = sessionDivers.find(s => s.diver.id === diverId);
     const skill = sd?.skills?.find(s => s.id === skillId);
-    sessionScores[diverId][skillId] = { value, completionId: skill?.completionId || null };
+    // isPriorScore:false — entering a score (fresh or overwriting a
+    // prior one) always makes it a current-session score.
+    sessionScores[diverId][skillId] = { value, completionId: skill?.completionId || null, isPriorScore: false };
+  }
+
+  // =============================================
+  // Immediate per-skill Supabase saves (debounced)
+  // =============================================
+  function scheduleSkillSave(diverId, skillId) {
+    const key = diverId + ':' + skillId;
+    clearTimeout(skillSaveTimers[key]);
+    skillSaveTimers[key] = setTimeout(() => performSkillSave(diverId, skillId), SKILL_SAVE_DEBOUNCE_MS);
+  }
+
+  async function performSkillSave(diverId, skillId) {
+    const key = diverId + ':' + skillId;
+    delete skillSaveTimers[key];
+
+    const current = sessionScores[diverId]?.[skillId];
+    if (!current || current.value === undefined || current.value === null) return; // cleared before the debounce fired
+
+    showSaveIndicator('saving');
+    try {
+      const result = await SupabaseDB.saveSkillScore({
+        diverId, skillId, coachId: currentUser.id,
+        score: current.value, completionId: current.completionId,
+      });
+      // Remember the completion id so the NEXT save for this skill is an
+      // UPDATE, not another INSERT — keep sessionScores and sd.skills in
+      // sync (both are read from when scoring later).
+      const rec = sessionScores[diverId]?.[skillId];
+      if (rec) rec.completionId = result.completionId;
+      const sd    = sessionDivers.find(s => s.diver.id === diverId);
+      const skill = sd?.skills?.find(s => s.id === skillId);
+      if (skill) skill.completionId = result.completionId;
+      showSaveIndicator('saved');
+    } catch (err) {
+      console.error('[testing] skill save failed:', err.message);
+      showSaveIndicator('error');
+      // Retry automatically — reuses the same timer slot, so a fresh
+      // edit before the retry fires supersedes it via scheduleSkillSave's
+      // own clearTimeout above.
+      skillSaveTimers[key] = setTimeout(() => performSkillSave(diverId, skillId), SKILL_SAVE_RETRY_MS);
+    }
+  }
+
+  // Fires any pending debounced saves for a diver immediately instead of
+  // waiting out the timer — called when switching away from a diver and
+  // before finalizing a session, so nothing is left stranded in the
+  // 2.5s window.
+  function flushPendingSavesForDiver(diverId) {
+    const prefix   = diverId + ':';
+    const promises = [];
+    Object.keys(skillSaveTimers).forEach(key => {
+      if (!key.startsWith(prefix)) return;
+      clearTimeout(skillSaveTimers[key]);
+      const skillId = parseInt(key.slice(prefix.length), 10);
+      promises.push(performSkillSave(diverId, skillId));
+    });
+    return Promise.all(promises);
+  }
+
+  let saveIndicatorFadeTimer = null;
+  function showSaveIndicator(state) {
+    const el = document.getElementById('save-indicator');
+    if (!el) return;
+    clearTimeout(saveIndicatorFadeTimer);
+    el.classList.remove('save-indicator-fade');
+    if (state === 'saving') {
+      el.textContent = '';
+      el.className   = 'save-indicator';
+    } else if (state === 'saved') {
+      el.textContent = 'Saved ✓';
+      el.className   = 'save-indicator save-indicator-saved';
+      saveIndicatorFadeTimer = setTimeout(() => el.classList.add('save-indicator-fade'), 2000);
+    } else if (state === 'error') {
+      el.textContent = '⚠ Save failed — will retry';
+      el.className   = 'save-indicator save-indicator-error';
+    }
   }
 
   function updateScoredCountLabel(idx) {
@@ -1257,15 +1450,15 @@
     if (progEl) progEl.textContent = `${scored}/${total}`;
   }
 
-  function updateCompleteDiverBtn(idx) {
+  function updateCompleteSessionBtn(idx) {
     if (idx !== currentDiverIdx) return;
     const sd     = sessionDivers[idx];
     const scored = Object.keys(sessionScores[sd.diver.id] || {}).length;
     const total  = sd.skills?.length || 0;
-    const btn    = document.getElementById('btn-complete-diver');
+    const btn    = document.getElementById('btn-complete-session');
     if (btn) {
       btn.disabled    = scored === 0;
-      btn.textContent = `Complete (${scored}/${total})`;
+      btn.textContent = `Complete Session (${scored}/${total})`;
     }
   }
 
@@ -1274,36 +1467,40 @@
   }
 
   // =============================================
-  // Complete Diver — confirm + save
+  // Complete Session — confirm + finalize
+  // Individual skill scores are already saved (see saveSkillScore(),
+  // called on every score entry) — this just computes the average /
+  // pass status / designation and saves the level_completions summary.
   // =============================================
-  function confirmCompleteDiver() {
-    console.log('Complete Diver button clicked');
+  function confirmCompleteSession() {
     const sd        = sessionDivers[currentDiverIdx];
     const firstName = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
-    const scored    = Object.keys(sessionScores[sd.diver.id] || {}).length;
     openConfirmModal(
-      `Save scores for ${firstName}?`,
-      `This will record all ${scored} scored skills for Level ${sd.level}.`,
-      () => completeDiver(currentDiverIdx)
+      `Complete testing session for ${firstName}?`,
+      `This will calculate their final designation based on all scored skills.`,
+      () => completeSession(currentDiverIdx)
     );
   }
 
-  async function completeDiver(idx) {
+  async function completeSession(idx) {
     const sd     = sessionDivers[idx];
     const scores = sessionScores[sd.diver.id] || {};
     const notes  = diverNotes[sd.diver.id] || '';
 
-    const btn = document.getElementById('btn-complete-diver');
+    const btn = document.getElementById('btn-complete-session');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
     try {
+      // Make sure every score is actually on the server (not just
+      // sitting in a debounce window) before finalizing the designation.
+      await flushPendingSavesForDiver(sd.diver.id);
+
       const result = await SupabaseDB.saveTestingSessionDiver({
-        diverId:  sd.diver.id,
-        level:    sd.level,
-        coachId:  currentUser.id,
+        diverId: sd.diver.id,
+        level:   sd.level,
+        coachId: currentUser.id,
         scores,
         notes,
-        testDate: new Date().toISOString().slice(0, 10),
       });
 
       completedDivers[sd.diver.id] = { ...result, diver: sd.diver, level: sd.level, scores, skills: sd.skills };
@@ -1324,7 +1521,7 @@
       }
     } catch (err) {
       App.showToast('Error saving: ' + err.message, 'error');
-      if (btn) { btn.disabled = false; updateCompleteDiverBtn(idx); }
+      if (btn) { btn.disabled = false; updateCompleteSessionBtn(idx); }
     }
   }
 
@@ -1422,6 +1619,8 @@
   }
 
   function startNewSession() {
+    Object.values(skillSaveTimers).forEach(clearTimeout);
+    skillSaveTimers = {};
     selectedMap     = {};
     sessionDivers   = [];
     sessionScores   = {};
