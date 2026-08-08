@@ -66,7 +66,7 @@ This has caused repeated bugs throughout development.
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
 | js/reports.js | v=4 |
-| css/styles.css | v=9 |
+| css/styles.css | v=10 |
 
 ---
 

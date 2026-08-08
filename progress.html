@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Drills — Progress</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=9">
+  <link rel="stylesheet" href="css/styles.css?v=10">
   <style>
     /* Profile header */
     .profile-header-card {
@@ -720,19 +720,33 @@
     return { total, attained, ready, certified, pct };
   }
 
+  // Tab color priority (highest to lowest):
+  //   complete (teal) — every skill tested, all >= 5.0
+  //   failed   (red)  — every skill tested, at least one < 5.0
+  //   partial  (orange) — any activity (Stage 1/2 self-report OR a coach
+  //                       test score) but not every skill tested/passing
+  //   (none)   (gray)  — no activity at all
   function buildLevelTabs(skills, cMap) {
     const levels = Skills.uniqueLevels(skills);
     const tabsEl = document.getElementById('level-tabs');
 
     tabsEl.innerHTML = levels.map(lvl => {
-      const lvlSkills  = skills.filter(s => s.level === lvl);
-      const certified  = lvlSkills.filter(s => cMap[s.id]?.tested_and_passed).length;
-      const attained   = lvlSkills.filter(s => cMap[s.id]?.skill_attained).length;
-      const isComplete = certified === lvlSkills.length && lvlSkills.length > 0;
-      const isPartial  = !isComplete && attained > 0;
+      const lvlSkills = skills.filter(s => s.level === lvl);
+      const total     = lvlSkills.length;
+      const certified = lvlSkills.filter(s => cMap[s.id]?.tested_and_passed).length;
+      const attained  = lvlSkills.filter(s => cMap[s.id]?.skill_attained).length;
+      const ready     = lvlSkills.filter(s => cMap[s.id]?.ready_for_test).length;
+      const tested    = lvlSkills.filter(s => cMap[s.id]?.latest_score != null);
+
+      const isComplete = total > 0 && certified === total;
+      const isFailed    = !isComplete && total > 0 && tested.length === total
+        && tested.some(s => Number(cMap[s.id].latest_score) < 5.0);
+      const hasActivity = attained > 0 || ready > 0 || tested.length > 0;
+      const isPartial    = !isComplete && !isFailed && hasActivity;
 
       let cls = '';
-      if (isComplete) cls = 'complete';
+      if (isComplete)     cls = 'complete';
+      else if (isFailed)  cls = 'failed';
       else if (isPartial) cls = 'partial';
 
       return `

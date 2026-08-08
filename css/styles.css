@@ -1125,6 +1125,7 @@ h4 { font-size: 0.95rem; font-weight: 600; }
 .level-tab:hover { border-color: var(--accent); color: var(--text-primary); }
 .level-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
 .level-tab.complete { background: var(--accent); border-color: var(--accent); color: #000; }
+.level-tab.failed { background: var(--danger-dim); border-color: var(--danger); color: var(--danger); }
 .level-tab.partial { background: var(--pending-dim); border-color: var(--pending); color: var(--pending); }
 
 /* =============================================
