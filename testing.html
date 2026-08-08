@@ -396,19 +396,25 @@
       line-height: 1.2;
       margin-top: 1px;
     }
-    /* Subtle inline save status — fades out after a successful save,
-       stays visible (with a retry already in flight) on failure. */
+    /* Subtle inline save status, sat below the Next button inside the nav
+       column (not a full-width row under the whole panel) — collapses to
+       zero height/no margin when empty so it never leaves a permanent
+       gap, and grows + fades in only while it actually has something to
+       show. Stays visible (retry already in flight) on failure. */
     .save-indicator {
-      min-height: 14px;
+      flex: 0 0 auto;
+      max-height: 0;
+      margin-top: 0;
+      overflow: hidden;
       font-size: 0.68rem;
       font-weight: 600;
       text-align: center;
-      transition: opacity 0.6s ease;
-      opacity: 1;
+      opacity: 0;
+      transition: opacity 0.4s ease, max-height 0.3s ease, margin-top 0.3s ease;
     }
+    .save-indicator.show { max-height: 18px; margin-top: 4px; opacity: 1; }
     .save-indicator-saved { color: var(--accent, #14b8a6); }
     .save-indicator-error { color: #ef4444; }
-    .save-indicator-fade { opacity: 0; }
 
     /* Very narrow screens: nav/score columns can still shrink — calculator
        keys stay fixed at 54x36 on every screen size per design. */
@@ -1152,21 +1158,40 @@
     // prior-session scores and anything already scored this session,
     // since both live in `scores`) so dryland-scored skills don't need
     // to be scrolled past to find the pool skills.
+    const isReturning = sd.lastSelectedSkillId !== undefined && sd.lastSelectedSkillId !== null
+      && sd.skills.some(s => s.id === sd.lastSelectedSkillId);
     let targetSkillId = null;
-    if (sd.lastSelectedSkillId !== undefined && sd.lastSelectedSkillId !== null
-        && sd.skills.some(s => s.id === sd.lastSelectedSkillId)) {
+    if (isReturning) {
       targetSkillId = sd.lastSelectedSkillId;
     } else {
       const firstUnscored = sd.skills.find(s => !scores[s.id]);
       targetSkillId = firstUnscored ? firstUnscored.id : sd.skills[0].id;
     }
+    console.log('[testing] renderSkillPanel', {
+      diverIdx: idx, diverName: sd.diver.first_name, isReturning,
+      storedLastSelectedSkillId: sd.lastSelectedSkillId, resolvedTargetSkillId: targetSkillId,
+    });
     activeSkillId = targetSkillId;
     sd.lastSelectedSkillId = targetSkillId;
     if (activeSkillId !== null) {
       const targetRow = document.getElementById(`skill-row-${activeSkillId}`);
       if (targetRow) {
         targetRow.classList.add('active');
-        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Deferred to the next two animation frames: on a diver whose
+        // skills are already loaded, switchDiver() re-renders this list
+        // synchronously right on the click, before the browser has had a
+        // chance to lay out the freshly-inserted rows or settle any
+        // still-running smooth-scroll animation from the PREVIOUS diver's
+        // view — calling scrollIntoView in that same tick can silently
+        // no-op or land in the wrong place. The very first diver of a
+        // session never hits this: it renders after an `await
+        // loadDiverSkills()` network round trip, which is slow enough
+        // that layout is already settled by the time we get here — which
+        // is why this looked like an index-0-only bug even though the
+        // underlying lastSelectedSkillId storage was fine for every diver.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }));
       }
     }
 
@@ -1208,6 +1233,9 @@
     activeSkillId = skillId;
     const sd = sessionDivers[currentDiverIdx];
     if (sd) sd.lastSelectedSkillId = skillId;
+    console.log('[testing] selectSkillForScoring', {
+      currentDiverIdx, diverName: sd?.diver?.first_name, savedLastSelectedSkillId: sd?.lastSelectedSkillId,
+    });
     renderScoringPanel(currentDiverIdx);
   }
 
@@ -1272,9 +1300,9 @@
             onclick="advanceToNextSkill()" ${isLastSkill ? 'disabled' : ''}>
             ${isLastSkill ? 'Last ✓' : 'Next →'}
           </button>
+          <div id="save-indicator" class="save-indicator"></div>
         </div>
-      </div>
-      <div id="save-indicator" class="save-indicator"></div>`;
+      </div>`;
   }
 
   // Tap a digit button: sets score directly.
@@ -1441,22 +1469,29 @@
     return Promise.all(promises);
   }
 
-  let saveIndicatorFadeTimer = null;
+  let saveIndicatorFadeTimer  = null;
+  let saveIndicatorClearTimer = null;
   function showSaveIndicator(state) {
     const el = document.getElementById('save-indicator');
     if (!el) return;
     clearTimeout(saveIndicatorFadeTimer);
-    el.classList.remove('save-indicator-fade');
+    clearTimeout(saveIndicatorClearTimer);
     if (state === 'saving') {
       el.textContent = '';
       el.className   = 'save-indicator';
     } else if (state === 'saved') {
-      el.textContent = 'Saved ✓';
-      el.className   = 'save-indicator save-indicator-saved';
-      saveIndicatorFadeTimer = setTimeout(() => el.classList.add('save-indicator-fade'), 2000);
+      el.textContent = '✓ Saved';
+      el.className   = 'save-indicator save-indicator-saved show';
+      // Visible for 2s, then fade out (opacity) and collapse (max-height)
+      // together, then clear the text once the transition has finished
+      // so no empty-but-occupying-space element lingers.
+      saveIndicatorFadeTimer = setTimeout(() => {
+        el.classList.remove('show');
+        saveIndicatorClearTimer = setTimeout(() => { el.textContent = ''; el.className = 'save-indicator'; }, 400);
+      }, 2000);
     } else if (state === 'error') {
       el.textContent = '⚠ Save failed — will retry';
-      el.className   = 'save-indicator save-indicator-error';
+      el.className   = 'save-indicator save-indicator-error show';
     }
   }
 
@@ -1507,12 +1542,30 @@
     const notes  = diverNotes[sd.diver.id] || '';
 
     const btn = document.getElementById('btn-complete-session');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    if (btn) btn.disabled = true;
+
+    // Individual scores are already saved as they're entered (see
+    // scheduleSkillSave/performSkillSave) and saveTestingSessionDiver()
+    // below only computes the average/designation from what's already in
+    // memory and upserts one level_completions row — no per-skill DB
+    // writes, no re-fetch of anything. The only real wait left is
+    // flushPendingSavesForDiver() below, which is normally near-instant
+    // (nothing pending — most skills' debounce windows have long since
+    // fired) but can take a real network round trip if the coach scored
+    // several skills in the last couple of seconds. Only show a loading
+    // state for that case — don't flash one for the common instant path.
+    const loadingTimer = setTimeout(() => {
+      if (btn) {
+        btn.innerHTML = `<span class="loading-spinner" style="width:14px;height:14px;border-color:rgba(0,0,0,.3);border-top-color:#000;margin-right:6px;"></span>Completing session…`;
+      }
+    }, 500);
 
     try {
       // Make sure every score is actually on the server (not just
       // sitting in a debounce window) before finalizing the designation.
+      const flushStart = performance.now();
       await flushPendingSavesForDiver(sd.diver.id);
+      console.log('[testing] completeSession: flush took', Math.round(performance.now() - flushStart), 'ms');
 
       const result = await SupabaseDB.saveTestingSessionDiver({
         diverId: sd.diver.id,
@@ -1521,6 +1574,7 @@
         scores,
         notes,
       });
+      clearTimeout(loadingTimer);
 
       completedDivers[sd.diver.id] = { ...result, diver: sd.diver, level: sd.level, scores, skills: sd.skills };
 
@@ -1539,6 +1593,7 @@
         setTimeout(() => showSessionComplete(), 1500);
       }
     } catch (err) {
+      clearTimeout(loadingTimer);
       App.showToast('Error saving: ' + err.message, 'error');
       if (btn) { btn.disabled = false; updateCompleteSessionBtn(idx); }
     }
