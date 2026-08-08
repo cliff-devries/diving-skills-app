@@ -314,8 +314,8 @@
 <script src="js/supabase.js?v=31"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
-<script src="js/app.js?v=8"></script>
-<script src="js/reports.js?v=3"></script>
+<script src="js/app.js?v=9"></script>
+<script src="js/reports.js?v=4"></script>
 
 <script>
   let allSkills       = [];
@@ -358,11 +358,10 @@
 
     const isCoach = user.role === 'coach' || user.role === 'super_user';
 
-    const [skills, cMap, attempts, levelCompMap, coachData, parentData] = await Promise.all([
+    const [skills, cMap, attempts, coachData, parentData] = await Promise.all([
       Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
       SupabaseDB.getAllTestAttempts(targetDiverId),
-      SupabaseDB.getLevelCompletions(targetDiverId),
       SupabaseDB.getDiverCoach(targetDiverId),
       isCoach ? SupabaseDB.getLinkedParent(targetDiverId) : Promise.resolve(null),
     ]);
@@ -372,7 +371,6 @@
 
     allSkills     = skills.filter(s => s.isTestable);
     completionMap = cMap;
-    window._levelCompMap = levelCompMap;
 
     attemptsBySkill = {};
     attempts.forEach(a => {
@@ -786,20 +784,20 @@
     const { total, attained, ready, certified, pct } = levelStats(level);
     const groups = groupSkillsByType(lvlSkills);
 
-    const levelComp = (window._levelCompMap || {})[level];
-    let desigBadge = '';
-    if (levelComp) {
-      if (levelComp.passed === false) {
-        desigBadge = '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ Not Passed</span>';
-      } else if (levelComp.designation) {
-        desigBadge = levelDesignationBadge(levelComp.designation);
-      } else {
-        desigBadge = '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
-      }
-    }
-
-    // A report is only meaningful once at least one skill in this level has a score.
-    const hasTestedSkills   = lvlSkills.some(s => completionMap[s.id]?.latest_score != null);
+    // Computed fresh from the already-loaded skills + completionMap (no
+    // extra DB call) via the same App.computeLevelResult() shared with
+    // testing.html's Complete Session and the PDF report, so this badge
+    // always agrees with both — instead of the old level_completions.
+    // designation, which could be stale or based on a partial session.
+    const skillsWithScores = lvlSkills.map(s => ({
+      id: s.id, name: s.name, latestScore: completionMap[s.id]?.latest_score ?? null,
+    }));
+    const levelResult = App.computeLevelResult(skillsWithScores);
+    // A report/badge is only meaningful once at least one skill in this
+    // level has a score — a level the diver simply hasn't started yet
+    // shouldn't show an "Incomplete" badge.
+    const hasTestedSkills   = levelResult.scoredCount > 0;
+    const desigBadge        = hasTestedSkills ? levelResultBadgeHtml(levelResult) : '';
     const reportParentEmail = linkedParent?.email || targetDiver?.parent_email || null;
     const canEmailReport    = currentUser.role === 'coach' && hasTestedSkills && !!reportParentEmail;
 
@@ -1079,11 +1077,20 @@
     return formHtml + attemptsHtml;
   }
 
-  function levelDesignationBadge(designation) {
-    if (designation === 'gold')   return '<span class="badge badge-gold">🥇 Gold</span>';
-    if (designation === 'silver') return '<span class="badge badge-silver">🥈 Silver</span>';
-    if (designation === 'bronze') return '<span class="badge badge-bronze">🥉 Bronze</span>';
-    return '';
+  // result: anything with a .status ('incomplete'|'failed'|'passed') and
+  // .designation ('gold'|'silver'|'bronze'|null) — same shape returned
+  // by App.computeLevelResult().
+  function levelResultBadgeHtml(result) {
+    if (result.status === 'incomplete') {
+      return '<span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">⏳ Incomplete</span>';
+    }
+    if (result.status === 'failed') {
+      return '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ Not Passed</span>';
+    }
+    if (result.designation === 'gold')   return '<span class="badge badge-gold">🥇 Gold</span>';
+    if (result.designation === 'silver') return '<span class="badge badge-silver">🥈 Silver</span>';
+    if (result.designation === 'bronze') return '<span class="badge badge-bronze">🥉 Bronze</span>';
+    return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
   }
 
   function scoreOptionsHtml() {

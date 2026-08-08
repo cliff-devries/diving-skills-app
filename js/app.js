@@ -223,6 +223,57 @@ const App = {
   },
 
   // =============================================
+  // LEVEL TEST RESULT — the single source of truth for whether a level
+  // is Incomplete / Failed / Passed(+designation), used by testing.html
+  // (Complete Session), js/reports.js (PDF header/summary), and
+  // progress.html (level accordion header badge) — all three must agree,
+  // so this logic lives in exactly one place.
+  //
+  // skillsWithScores: every testable skill in the level, each shaped
+  // { id, name, latestScore } — latestScore null/undefined means never
+  // tested (by ANY session, not just the current one). Checked in order:
+  //   1. Any skill with no score at all -> incomplete, full stop, even
+  //      if everything scored so far was a perfect 10.
+  //   2. Every skill scored, but any of them below 5.0 -> failed.
+  //   3. Every skill scored and all >= 5.0 -> passed, with a designation
+  //      (gold/silver/bronze) above 7.0, or a plain pass below that.
+  // =============================================
+  computeLevelResult(skillsWithScores) {
+    const total    = skillsWithScores.length;
+    const unscored = skillsWithScores.filter(s => s.latestScore === null || s.latestScore === undefined);
+
+    // No testable skills at all is its own edge case (a level with no
+    // curriculum entered yet) — always incomplete, never falls through
+    // to an average-of-zero-skills computation.
+    if (total === 0 || unscored.length > 0) {
+      return {
+        status: 'incomplete', total, scoredCount: total - unscored.length,
+        unscored, failing: [], averageScore: null, designation: null, passed: false,
+      };
+    }
+
+    const failing = skillsWithScores.filter(s => parseFloat(s.latestScore) < 5.0);
+    const averageScore = skillsWithScores.reduce((sum, s) => sum + parseFloat(s.latestScore), 0) / total;
+
+    if (failing.length > 0) {
+      return {
+        status: 'failed', total, scoredCount: total,
+        unscored: [], failing, averageScore, designation: null, passed: false,
+      };
+    }
+
+    let designation = null;
+    if (averageScore >= 9.0)      designation = 'gold';
+    else if (averageScore >= 8.0) designation = 'silver';
+    else if (averageScore >= 7.0) designation = 'bronze';
+
+    return {
+      status: 'passed', total, scoredCount: total,
+      unscored: [], failing: [], averageScore, designation, passed: true,
+    };
+  },
+
+  // =============================================
   // STAGE STATUS HELPERS (3-stage skill progression)
   // =============================================
   stageStatus(completion) {

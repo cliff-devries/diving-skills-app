@@ -792,7 +792,7 @@
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=31"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
 
 <script>
   // =============================================
@@ -1549,7 +1549,9 @@
   // finished at the pool this afternoon must combine both into one
   // result, and a level can never be passed while any testable skill in
   // it is still unscored, no matter how well everything scored so far
-  // went. See computeLevelResult() below for the exact rules.
+  // went. See App.computeLevelResult() (js/app.js) for the exact rules —
+  // shared with the PDF report generator and progress.html's level
+  // header badge, so all three always agree.
   // =============================================
   function confirmCompleteSession() {
     const sd        = sessionDivers[currentDiverIdx];
@@ -1559,47 +1561,6 @@
       `This will check every skill in Level ${sd.level} and calculate their result.`,
       () => completeSession(currentDiverIdx)
     );
-  }
-
-  // freshSkills: the complete, authoritative list for one diver+level,
-  // straight from getTestingSkillsForDiverLevel — every testable skill,
-  // each with its latestScore (null if never tested, from ANY session,
-  // not just this one). Order of checks matters and is deliberate:
-  //   1. Any skill with no score at all -> incomplete, full stop. Even
-  //      if every scored skill so far was a perfect 10.
-  //   2. Every skill scored, but any of them below 5.0 -> failed.
-  //   3. Every skill scored and all >= 5.0 -> passed, with a designation
-  //      (gold/silver/bronze) above 7.0, or a plain pass below that.
-  function computeLevelResult(freshSkills) {
-    const total    = freshSkills.length;
-    const unscored = freshSkills.filter(s => s.latestScore === null || s.latestScore === undefined);
-
-    if (unscored.length > 0) {
-      return {
-        status: 'incomplete', total, scoredCount: total - unscored.length,
-        unscored, failing: [], averageScore: null, designation: null, passed: false,
-      };
-    }
-
-    const failing = freshSkills.filter(s => parseFloat(s.latestScore) < 5.0);
-    const averageScore = freshSkills.reduce((sum, s) => sum + parseFloat(s.latestScore), 0) / total;
-
-    if (failing.length > 0) {
-      return {
-        status: 'failed', total, scoredCount: total,
-        unscored: [], failing, averageScore, designation: null, passed: false,
-      };
-    }
-
-    let designation = null;
-    if (averageScore >= 9.0)      designation = 'gold';
-    else if (averageScore >= 8.0) designation = 'silver';
-    else if (averageScore >= 7.0) designation = 'bronze';
-
-    return {
-      status: 'passed', total, scoredCount: total,
-      unscored: [], failing: [], averageScore, designation, passed: true,
-    };
   }
 
   async function completeSession(idx) {
@@ -1636,7 +1597,7 @@
       // on the button, but the actual pass/fail decision needs the real
       // current server state at the moment of finalizing.
       const freshSkills = await SupabaseDB.getTestingSkillsForDiverLevel(sd.diver.id, sd.level);
-      const levelResult = computeLevelResult(freshSkills);
+      const levelResult = App.computeLevelResult(freshSkills);
       console.log('[testing] completeSession: level result', levelResult);
 
       await SupabaseDB.saveLevelResult({

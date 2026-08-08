@@ -68,31 +68,32 @@ const Reports = {
   },
 
   // =============================================
-  // PASS / FAIL / INCOMPLETE — computed fresh from the skills list every
-  // time (not from the stored level_completions.designation/passed), so a
-  // single retest is reflected immediately without needing that row
-  // recomputed. Checked in order: incomplete, then failed, then average tier.
+  // PASS / FAIL / INCOMPLETE — thin wrapper around App.computeLevelResult()
+  // (js/app.js), the single shared implementation also used by
+  // testing.html's Complete Session and progress.html's level header
+  // badge, so all three always agree. Computed fresh from the skills
+  // list every time (not from the stored level_completions.designation/
+  // passed), so a single retest is reflected immediately without needing
+  // that row recomputed. This wrapper just adapts the shared
+  // status/averageScore/designation shape to the field names and PDF
+  // presentation (label/bg/color) the rest of this file already expects.
   // =============================================
 
   computeResult(skills) {
-    const c = this.COLORS;
-    const total   = skills.length;
-    const tested  = skills.filter(s => s.latestScore != null);
-    const failed  = tested.filter(s => Number(s.latestScore) < 5.0);
-    const avg     = tested.length
-      ? tested.reduce((sum, s) => sum + Number(s.latestScore), 0) / tested.length
-      : null;
+    const c    = this.COLORS;
+    const base = App.computeLevelResult(skills);
+    const tested = skills.filter(s => s.latestScore != null);
 
-    if (total === 0 || tested.length < total) {
-      return { status: 'incomplete', label: 'INCOMPLETE', bg: c.incomplete, color: '#ffffff', tested, failed, avg };
+    if (base.status === 'incomplete') {
+      return { status: 'incomplete', label: 'INCOMPLETE', bg: c.incomplete, color: '#ffffff', tested, failed: base.failing, avg: base.averageScore };
     }
-    if (failed.length > 0) {
-      return { status: 'failed', label: 'FAILED', bg: c.failed, color: '#ffffff', tested, failed, avg };
+    if (base.status === 'failed') {
+      return { status: 'failed', label: 'FAILED', bg: c.failed, color: '#ffffff', tested, failed: base.failing, avg: base.averageScore };
     }
-    if (avg >= 9.0) return { status: 'gold',   label: '🥇 Gold',   bg: c.gold,   color: '#1a1a1a', tested, failed, avg };
-    if (avg >= 8.0) return { status: 'silver', label: '🥈 Silver', bg: c.silver, color: '#1a1a1a', tested, failed, avg };
-    if (avg >= 7.0) return { status: 'bronze', label: '🥉 Bronze', bg: c.bronze, color: '#ffffff', tested, failed, avg };
-    return { status: 'passed', label: '✅ Passed', bg: c.passed, color: '#ffffff', tested, failed, avg };
+    if (base.designation === 'gold')   return { status: 'gold',   label: '🥇 Gold',   bg: c.gold,   color: '#1a1a1a', tested, failed: base.failing, avg: base.averageScore };
+    if (base.designation === 'silver') return { status: 'silver', label: '🥈 Silver', bg: c.silver, color: '#1a1a1a', tested, failed: base.failing, avg: base.averageScore };
+    if (base.designation === 'bronze') return { status: 'bronze', label: '🥉 Bronze', bg: c.bronze, color: '#ffffff', tested, failed: base.failing, avg: base.averageScore };
+    return { status: 'passed', label: '✅ Passed', bg: c.passed, color: '#ffffff', tested, failed: base.failing, avg: base.averageScore };
   },
 
   // =============================================
