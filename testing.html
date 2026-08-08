@@ -255,6 +255,7 @@
        and filling the full height of the calculator grid. A slightly
        lighter surface than the panel background sets it apart visually. */
     .scoring-score-col {
+      position: relative; /* anchors the .prior-score-label overlay */
       flex: 0 0 60px;
       min-width: 0;
       display: flex;
@@ -263,7 +264,12 @@
       background: var(--surface, #141826);
       border: 1.5px solid var(--border);
       border-radius: 7px;
-      padding: 6px 4px;
+      /* Extra top padding reserved permanently (not just when a prior
+         score is present) for the absolutely-positioned .prior-score-label
+         to sit in without ever overlapping the badge below it — since
+         it's constant either way, nothing here shifts when the label
+         fades in/out. */
+      padding: 14px 4px 6px;
       gap: 4px;
     }
     .scoring-number-wrap {
@@ -390,13 +396,24 @@
        skill-row badge, so the coach can tell it hasn't been re-verified
        today without needing to check the skill list. */
     .scoring-number.prior-score { color: #94a3b8; }
+    /* Absolutely-positioned overlay pinned above the skill type badge —
+       same technique as .save-indicator: always rendered, opacity-only
+       toggle, so it never reserves/releases space and can't shift the
+       badge (or anything else in the column) as skills are switched. */
     .prior-score-label {
-      font-size: 0.6rem;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      right: 2px;
+      font-size: 0.55rem;
       color: #94a3b8;
       text-align: center;
-      line-height: 1.2;
-      margin-top: 1px;
+      line-height: 1.1;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
     }
+    .prior-score-label.show { opacity: 1; }
     /* Save status — an absolutely-positioned overlay INSIDE the Next
        button, not a row that reserves its own space anywhere. It never
        affects the button's box, so Next can't move or become a moving
@@ -422,7 +439,7 @@
     @media (max-width: 360px) {
       .scoring-nav-col { flex-basis: 76px; }
       .scoring-nav-btn { font-size: 0.68rem; }
-      .scoring-score-col { flex-basis: 46px; padding: 5px 3px; }
+      .scoring-score-col { flex-basis: 46px; padding: 13px 3px 5px; }
       .scoring-number { font-size: 1.1rem; }
       .scoring-number.unscored { font-size: 0.95rem; }
     }
@@ -1269,12 +1286,12 @@
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-body">
         <div class="scoring-score-col">
-          <button class="scoring-clear-btn" onclick="clearScore()">C</button>
+          <div class="prior-score-label${isPrior ? ' show' : ''}">Prior score</div>
+          ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
           <div class="scoring-number-wrap">
             <div class="${numClass}" id="scoring-number">${numText}</div>
           </div>
-          ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
-          ${isPrior ? `<div class="prior-score-label">Prior score</div>` : ''}
+          <button class="scoring-clear-btn" onclick="clearScore()">C</button>
         </div>
         <div class="calc-grid">
           <button class="calc-btn" onclick="calcInput(7)">7</button>
@@ -1336,7 +1353,7 @@
     const numEl = document.getElementById('scoring-number');
     if (numEl) { numEl.textContent = scoreVal.toFixed(1); numEl.classList.remove('unscored', 'prior-score'); }
     const priorLabel = document.querySelector('.prior-score-label');
-    if (priorLabel) priorLabel.remove(); // any new entry is a current-session score, not a prior one
+    if (priorLabel) priorLabel.classList.remove('show'); // any new entry is a current-session score, not a prior one
 
     const row = document.getElementById(`skill-row-${activeSkillId}`);
     if (row) {
