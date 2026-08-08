@@ -62,10 +62,10 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=8 |
-| js/supabase.js | v=30 |
+| js/supabase.js | v=31 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
-| js/reports.js | v=2 |
+| js/reports.js | v=3 |
 | css/styles.css | v=9 |
 
 ---

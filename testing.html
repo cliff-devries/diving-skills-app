@@ -251,11 +251,16 @@
       gap: 8px;
       align-items: stretch;
     }
-    /* Left column — Clear button / score value / skill type badge, stacked
-       and filling the full height of the calculator grid. A slightly
-       lighter surface than the panel background sets it apart visually. */
+    /* Left column — skill type badge / prior-score label / score value /
+       Clear button, stacked in that fixed order and filling the full
+       height of the calculator grid. A slightly lighter surface than
+       the panel background sets it apart visually. Every slot in this
+       column is always present in the DOM at a fixed (or minimum)
+       height — the type badge and prior-score label are opacity-toggled
+       in place rather than conditionally inserted/removed, so switching
+       between skills that do/don't have a type or a prior score never
+       shifts the score number or Clear button. */
     .scoring-score-col {
-      position: relative; /* anchors the .prior-score-label overlay */
       flex: 0 0 60px;
       min-width: 0;
       display: flex;
@@ -264,13 +269,16 @@
       background: var(--surface, #141826);
       border: 1.5px solid var(--border);
       border-radius: 7px;
-      /* Extra top padding reserved permanently (not just when a prior
-         score is present) for the absolutely-positioned .prior-score-label
-         to sit in without ever overlapping the badge below it — since
-         it's constant either way, nothing here shifts when the label
-         fades in/out. */
-      padding: 14px 4px 6px;
+      padding: 6px 4px;
       gap: 4px;
+    }
+    .scoring-type-slot {
+      flex-shrink: 0;
+      min-height: 20px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .scoring-number-wrap {
       flex: 1;
@@ -396,21 +404,19 @@
        skill-row badge, so the coach can tell it hasn't been re-verified
        today without needing to check the skill list. */
     .scoring-number.prior-score { color: #94a3b8; }
-    /* Absolutely-positioned overlay pinned above the skill type badge —
-       same technique as .save-indicator: always rendered, opacity-only
-       toggle, so it never reserves/releases space and can't shift the
-       badge (or anything else in the column) as skills are switched. */
+    /* Fixed slot directly below the type badge — always rendered,
+       opacity-only toggle (never conditionally inserted/removed), so it
+       never reserves/releases space and can't shift the score number or
+       Clear button below it as skills are switched. */
     .prior-score-label {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      right: 2px;
-      font-size: 0.55rem;
-      color: #94a3b8;
+      flex-shrink: 0;
+      min-height: 11px;
+      width: 100%;
+      font-size: 0.65rem;
+      color: #a0a0a0;
       text-align: center;
       line-height: 1.1;
       opacity: 0;
-      pointer-events: none;
       transition: opacity 0.3s ease;
     }
     .prior-score-label.show { opacity: 1; }
@@ -439,7 +445,7 @@
     @media (max-width: 360px) {
       .scoring-nav-col { flex-basis: 76px; }
       .scoring-nav-btn { font-size: 0.68rem; }
-      .scoring-score-col { flex-basis: 46px; padding: 13px 3px 5px; }
+      .scoring-score-col { flex-basis: 46px; padding: 5px 3px; }
       .scoring-number { font-size: 1.1rem; }
       .scoring-number.unscored { font-size: 0.95rem; }
     }
@@ -784,7 +790,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=30"></script>
+<script src="js/supabase.js?v=31"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=8"></script>
 
@@ -1286,8 +1292,10 @@
     document.getElementById('scoring-panel').innerHTML = `
       <div class="scoring-body">
         <div class="scoring-score-col">
+          <div class="scoring-type-slot">
+            ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
+          </div>
           <div class="prior-score-label${isPrior ? ' show' : ''}">Prior score</div>
-          ${skill?.type ? `<span class="badge badge-secondary skill-type-tag">${App.escHtml(skill.type)}</span>` : ''}
           <div class="scoring-number-wrap">
             <div class="${numClass}" id="scoring-number">${numText}</div>
           </div>
@@ -1535,37 +1543,77 @@
   // =============================================
   // Complete Session — confirm + finalize
   // Individual skill scores are already saved (see saveSkillScore(),
-  // called on every score entry) — this just computes the average /
-  // pass status / designation and saves the level_completions summary.
+  // called on every score entry). Complete Session's job is to decide
+  // the level RESULT — and that has to account for the whole level, not
+  // just this sitting: a diver scored at dryland this morning and
+  // finished at the pool this afternoon must combine both into one
+  // result, and a level can never be passed while any testable skill in
+  // it is still unscored, no matter how well everything scored so far
+  // went. See computeLevelResult() below for the exact rules.
   // =============================================
   function confirmCompleteSession() {
     const sd        = sessionDivers[currentDiverIdx];
     const firstName = sd.diver.first_name || sd.diver.full_name.split(' ')[0] || '';
     openConfirmModal(
       `Complete testing session for ${firstName}?`,
-      `This will calculate their final designation based on all scored skills.`,
+      `This will check every skill in Level ${sd.level} and calculate their result.`,
       () => completeSession(currentDiverIdx)
     );
   }
 
+  // freshSkills: the complete, authoritative list for one diver+level,
+  // straight from getTestingSkillsForDiverLevel — every testable skill,
+  // each with its latestScore (null if never tested, from ANY session,
+  // not just this one). Order of checks matters and is deliberate:
+  //   1. Any skill with no score at all -> incomplete, full stop. Even
+  //      if every scored skill so far was a perfect 10.
+  //   2. Every skill scored, but any of them below 5.0 -> failed.
+  //   3. Every skill scored and all >= 5.0 -> passed, with a designation
+  //      (gold/silver/bronze) above 7.0, or a plain pass below that.
+  function computeLevelResult(freshSkills) {
+    const total    = freshSkills.length;
+    const unscored = freshSkills.filter(s => s.latestScore === null || s.latestScore === undefined);
+
+    if (unscored.length > 0) {
+      return {
+        status: 'incomplete', total, scoredCount: total - unscored.length,
+        unscored, failing: [], averageScore: null, designation: null, passed: false,
+      };
+    }
+
+    const failing = freshSkills.filter(s => parseFloat(s.latestScore) < 5.0);
+    const averageScore = freshSkills.reduce((sum, s) => sum + parseFloat(s.latestScore), 0) / total;
+
+    if (failing.length > 0) {
+      return {
+        status: 'failed', total, scoredCount: total,
+        unscored: [], failing, averageScore, designation: null, passed: false,
+      };
+    }
+
+    let designation = null;
+    if (averageScore >= 9.0)      designation = 'gold';
+    else if (averageScore >= 8.0) designation = 'silver';
+    else if (averageScore >= 7.0) designation = 'bronze';
+
+    return {
+      status: 'passed', total, scoredCount: total,
+      unscored: [], failing: [], averageScore, designation, passed: true,
+    };
+  }
+
   async function completeSession(idx) {
-    const sd     = sessionDivers[idx];
-    const scores = sessionScores[sd.diver.id] || {};
-    const notes  = diverNotes[sd.diver.id] || '';
+    const sd    = sessionDivers[idx];
+    const notes = diverNotes[sd.diver.id] || '';
 
     const btn = document.getElementById('btn-complete-session');
     if (btn) btn.disabled = true;
 
     // Individual scores are already saved as they're entered (see
-    // scheduleSkillSave/performSkillSave) and saveTestingSessionDiver()
-    // below only computes the average/designation from what's already in
-    // memory and upserts one level_completions row — no per-skill DB
-    // writes, no re-fetch of anything. The only real wait left is
-    // flushPendingSavesForDiver() below, which is normally near-instant
-    // (nothing pending — most skills' debounce windows have long since
-    // fired) but can take a real network round trip if the coach scored
-    // several skills in the last couple of seconds. Only show a loading
-    // state for that case — don't flash one for the common instant path.
+    // scheduleSkillSave/performSkillSave). The two real waits left are
+    // flushing anything scored in the last couple of seconds, and the
+    // fresh fetch below — both normally fast, but only show a loading
+    // state if it's genuinely taking a while, not for the common case.
     const loadingTimer = setTimeout(() => {
       if (btn) {
         btn.innerHTML = `<span class="loading-spinner" style="width:14px;height:14px;border-color:rgba(0,0,0,.3);border-top-color:#000;margin-right:6px;"></span>Completing session…`;
@@ -1573,29 +1621,52 @@
     }, 500);
 
     try {
-      // Make sure every score is actually on the server (not just
-      // sitting in a debounce window) before finalizing the designation.
+      // Make sure every score entered THIS session is actually on the
+      // server before checking the level's complete status.
       const flushStart = performance.now();
       await flushPendingSavesForDiver(sd.diver.id);
       console.log('[testing] completeSession: flush took', Math.round(performance.now() - flushStart), 'ms');
 
-      const result = await SupabaseDB.saveTestingSessionDiver({
-        diverId: sd.diver.id,
-        level:   sd.level,
-        coachId: currentUser.id,
-        scores,
+      // Fetch the authoritative, complete picture — every testable skill
+      // in the level and its latest score from skill_completions,
+      // whether that came from a prior session or was just entered.
+      // Deliberately NOT using the in-memory sd.skills/sessionScores
+      // here: those were snapshotted whenever this diver was first
+      // loaded into the session and are fine for the live X/Y counter
+      // on the button, but the actual pass/fail decision needs the real
+      // current server state at the moment of finalizing.
+      const freshSkills = await SupabaseDB.getTestingSkillsForDiverLevel(sd.diver.id, sd.level);
+      const levelResult = computeLevelResult(freshSkills);
+      console.log('[testing] completeSession: level result', levelResult);
+
+      await SupabaseDB.saveLevelResult({
+        diverId:      sd.diver.id,
+        level:        sd.level,
+        coachId:      currentUser.id,
+        status:       levelResult.status,
+        averageScore: levelResult.averageScore,
+        designation:  levelResult.designation,
         notes,
       });
       clearTimeout(loadingTimer);
 
-      completedDivers[sd.diver.id] = { ...result, diver: sd.diver, level: sd.level, scores, skills: sd.skills };
+      const result = { ...levelResult, diver: sd.diver, level: sd.level, skills: freshSkills, notes };
+      completedDivers[sd.diver.id] = result;
 
       const diverBtn = document.getElementById(`diver-btn-${idx}`);
       if (diverBtn) diverBtn.classList.add('complete');
       const progEl = document.getElementById(`diver-progress-${idx}`);
-      if (progEl) progEl.textContent = '✓ Done';
+      if (progEl) {
+        progEl.textContent = levelResult.status === 'incomplete'
+          ? `${levelResult.scoredCount}/${levelResult.total}`
+          : '✓ Done';
+      }
 
-      App.showToast(`${sd.diver.first_name || 'Diver'} saved!`);
+      App.showToast(
+        levelResult.status === 'incomplete'
+          ? `${sd.diver.first_name || 'Diver'} saved — ${levelResult.scoredCount}/${levelResult.total} skills tested`
+          : `${sd.diver.first_name || 'Diver'} saved!`
+      );
       renderDiverResult(idx, result);
 
       const next = sessionDivers.findIndex((s, i) => i !== idx && !completedDivers[s.diver.id]);
@@ -1611,25 +1682,29 @@
     }
   }
 
+  // result: the object built in completeSession() — status
+  // ('incomplete'|'failed'|'passed'), total, scoredCount, unscored[],
+  // failing[], averageScore, designation, skills (the fresh fetch).
   function renderDiverResult(idx, result) {
-    const sd     = sessionDivers[idx];
-    const scores = sessionScores[sd.diver.id] || {};
-    const below  = sd.skills.filter(sk => {
-      const s = scores[sk.id];
-      return s && parseFloat(s.value) < 5.0;
-    });
+    const sd = sessionDivers[idx];
 
-    const desigHtml   = designationHtml(result.designation, result.passed);
-    const borderColor = result.passed ? 'var(--accent)' : '#ef4444';
-    document.getElementById('skill-list').innerHTML = `
-      <div class="card" style="margin:16px;border-color:${borderColor}">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="avatar-sm">${App.escHtml(Auth.getInitials(sd.diver.full_name))}</div>
-          <div>
-            <div style="font-weight:600">${App.escHtml(App.formatNameLastFirst(sd.diver))}</div>
-            <div class="text-sm text-secondary">Level ${sd.level} · ${result.scoredCount} skills scored</div>
-          </div>
-          ${desigHtml}
+    const desigHtml   = resultBadgeHtml(result);
+    const borderColor = result.status === 'incomplete' ? '#f59e0b' : result.status === 'failed' ? '#ef4444' : 'var(--accent)';
+
+    let bodyHtml;
+    if (result.status === 'incomplete') {
+      bodyHtml = `
+        <div class="text-sm" style="font-weight:600;color:#f59e0b;margin-bottom:8px;">
+          Incomplete — ${result.scoredCount} of ${result.total} skills tested
+        </div>
+        <div class="text-sm" style="font-weight:600;color:var(--text-secondary);margin-bottom:4px">Not yet tested:</div>
+        <ul class="skills-below-list">
+          ${result.unscored.map(sk => `<li>· ${App.escHtml(sk.name)} — Not tested</li>`).join('')}
+        </ul>`;
+    } else if (result.status === 'failed') {
+      bodyHtml = `
+        <div class="text-sm" style="font-weight:600;color:#ef4444;margin-bottom:8px;">
+          Failed — ${result.failing.length} skill${result.failing.length === 1 ? '' : 's'} scored below 5.0
         </div>
         <div class="card-grid-2 mb-4">
           <div class="stat-card">
@@ -1637,18 +1712,40 @@
             <div class="stat-label">Average Score</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${result.scoredCount}</div>
-            <div class="stat-label">Skills Scored</div>
+            <div class="stat-value">${result.total}</div>
+            <div class="stat-label">Skills Tested</div>
           </div>
         </div>
-        ${below.length ? `
-          <div class="text-sm" style="font-weight:600;color:#ef4444;margin-bottom:4px">
-            Skills below passing score:
+        <div class="text-sm" style="font-weight:600;color:#ef4444;margin-bottom:4px">Skills below passing score:</div>
+        <ul class="skills-below-list">
+          ${result.failing.map(sk => `<li>· ${App.escHtml(sk.name)} — ${parseFloat(sk.latestScore).toFixed(1)}</li>`).join('')}
+        </ul>`;
+    } else {
+      bodyHtml = `
+        <div class="card-grid-2 mb-4">
+          <div class="stat-card">
+            <div class="stat-value" style="color:var(--accent)">${result.averageScore.toFixed(1)}</div>
+            <div class="stat-label">Average Score</div>
           </div>
-          <ul class="skills-below-list">
-            ${below.map(sk => `<li>· ${App.escHtml(sk.name)} — ${(parseFloat(scores[sk.id]?.value) || 0).toFixed(1)}</li>`).join('')}
-          </ul>
-        ` : `<div class="text-sm" style="color:#22c55e">✓ All skills scored ≥ 5.0</div>`}
+          <div class="stat-card">
+            <div class="stat-value">${result.total}</div>
+            <div class="stat-label">Skills Tested</div>
+          </div>
+        </div>
+        <div class="text-sm" style="color:#22c55e">✓ All ${result.total} skills scored ≥ 5.0</div>`;
+    }
+
+    document.getElementById('skill-list').innerHTML = `
+      <div class="card" style="margin:16px;border-color:${borderColor}">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="avatar-sm">${App.escHtml(Auth.getInitials(sd.diver.full_name))}</div>
+          <div>
+            <div style="font-weight:600">${App.escHtml(App.formatNameLastFirst(sd.diver))}</div>
+            <div class="text-sm text-secondary">Level ${sd.level} · ${result.scoredCount} of ${result.total} skills tested</div>
+          </div>
+          ${desigHtml}
+        </div>
+        ${bodyHtml}
       </div>`;
 
     document.getElementById('scoring-panel').innerHTML =
@@ -1667,11 +1764,17 @@
 
     document.getElementById('session-complete-content').innerHTML =
       completed.map(d => {
-        const below = d.skills.filter(sk => {
-          const s = d.scores[sk.id];
-          return s && parseFloat(s.value) < 5.0;
-        });
-        const cardClass = d.designation ? 'has-designation' : d.passed ? 'has-passed' : 'has-failed';
+        const cardClass = d.status !== 'passed' ? 'has-failed' : d.designation ? 'has-designation' : 'has-passed';
+        let extraHtml = '';
+        if (d.status === 'incomplete') {
+          extraHtml = `<div class="text-sm" style="font-weight:600;color:#f59e0b;margin-top:6px;">Incomplete — ${d.scoredCount} of ${d.total} skills tested</div>`;
+        } else if (d.status === 'failed') {
+          extraHtml = `
+            <div class="skills-below-list mt-2">
+              <div style="font-size:0.75rem;font-weight:600;color:#ef4444">Skills below passing score:</div>
+              <ul>${d.failing.map(sk => `<li>· ${App.escHtml(sk.name)} — ${parseFloat(sk.latestScore).toFixed(1)}</li>`).join('')}</ul>
+            </div>`;
+        }
         return `
           <a class="diver-result-card ${cardClass}" href="progress.html?diver=${encodeURIComponent(d.diver.id)}">
             <div class="flex items-center gap-3 mb-3">
@@ -1680,18 +1783,13 @@
                 <div style="font-weight:600">${App.escHtml(App.formatNameWithNickname(d.diver))}</div>
                 <div class="text-sm text-secondary">Level ${d.level}</div>
               </div>
-              ${designationHtml(d.designation, d.passed)}
+              ${resultBadgeHtml(d)}
             </div>
             <div class="flex gap-3 flex-wrap">
-              <span class="text-sm text-secondary">Avg: <strong style="color:var(--accent)">${d.averageScore.toFixed(1)}</strong></span>
-              <span class="text-sm text-secondary">${d.scoredCount} skills</span>
+              ${d.averageScore != null ? `<span class="text-sm text-secondary">Avg: <strong style="color:var(--accent)">${d.averageScore.toFixed(1)}</strong></span>` : ''}
+              <span class="text-sm text-secondary">${d.scoredCount} of ${d.total} skills</span>
             </div>
-            ${below.length ? `
-              <div class="skills-below-list mt-2">
-                <div style="font-size:0.75rem;font-weight:600;color:#ef4444">Skills below passing score:</div>
-                <ul>${below.map(sk => `<li>· ${App.escHtml(sk.name)} — ${(parseFloat(d.scores[sk.id]?.value) || 0).toFixed(1)}</li>`).join('')}</ul>
-              </div>
-            ` : ''}
+            ${extraHtml}
             <div class="diver-card-hint">→ View Progress</div>
           </a>`;
       }).join('');
@@ -1741,11 +1839,19 @@
     window.scrollTo(0, 0);
   }
 
-  function designationHtml(designation, passed) {
-    if (!passed) return '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ Not Passed</span>';
-    if (designation === 'gold')   return '<span class="badge badge-gold">🥇 Gold</span>';
-    if (designation === 'silver') return '<span class="badge badge-silver">🥈 Silver</span>';
-    if (designation === 'bronze') return '<span class="badge badge-bronze">🥉 Bronze</span>';
+  // result: anything with a .status ('incomplete'|'failed'|'passed') and
+  // .designation ('gold'|'silver'|'bronze'|null) — used for both the
+  // single-diver result card and each session-complete summary card.
+  function resultBadgeHtml(result) {
+    if (result.status === 'incomplete') {
+      return '<span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">⏳ INCOMPLETE</span>';
+    }
+    if (result.status === 'failed') {
+      return '<span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)">❌ FAILED</span>';
+    }
+    if (result.designation === 'gold')   return '<span class="badge badge-gold">🥇 Gold</span>';
+    if (result.designation === 'silver') return '<span class="badge badge-silver">🥈 Silver</span>';
+    if (result.designation === 'bronze') return '<span class="badge badge-bronze">🥉 Bronze</span>';
     return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
   }
 

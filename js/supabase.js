@@ -956,48 +956,40 @@ const SupabaseDB = {
     return { completionId: finalCompletionId };
   },
 
-  // Finalizes a testing session for one diver: computes the average
-  // score / pass status / designation from the FULL set of scored
-  // skills (current-session entries plus any pre-loaded prior scores —
-  // the caller passes the combined set) and upserts the
-  // level_completions summary row. Individual skill scores are already
-  // saved via saveSkillScore() as they're entered, so this no longer
-  // touches skill_completions or skill_test_attempts itself.
-  // scores: { [skillId]: { value: number, ... } }
-  async saveTestingSessionDiver({ diverId, level, coachId, scores, notes }) {
-    const entries = Object.entries(scores);
-    if (!entries.length) throw new Error('No skills scored.');
-
-    const scoreValues = entries.map(([, s]) => parseFloat(s.value));
-    const avg         = scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length;
-    const allPassed   = scoreValues.every(v => v >= 5.0);
-    let designation   = null;
-    if (allPassed) {
-      if (avg >= 9.0)      designation = 'gold';
-      else if (avg >= 8.0) designation = 'silver';
-      else if (avg >= 7.0) designation = 'bronze';
-    }
+  // Saves the FINALIZED result of a level test — status/averageScore/
+  // designation are computed by the caller (see computeLevelResult() in
+  // testing.html) from the complete, authoritative set of every
+  // testable skill in the level (fetched fresh via
+  // getTestingSkillsForDiverLevel right before this is called), not just
+  // whatever was scored in one sitting. A diver only gets a
+  // level_completions row once every skill in the level has been tested
+  // — status 'incomplete' means nothing is finalized yet, so this is a
+  // no-op for that case (there's nothing correct to record: not passed,
+  // not failed, just not done). Individual skill scores are already
+  // saved via saveSkillScore() as they're entered, so this never touches
+  // skill_completions or skill_test_attempts itself.
+  async saveLevelResult({ diverId, level, coachId, status, averageScore, designation, notes }) {
+    if (status === 'incomplete') return null;
 
     const lcPayload = {
       diver_id:      diverId,
       level,
       completed_at:  new Date().toISOString(),
-      average_score: parseFloat(avg.toFixed(2)),
+      average_score: averageScore != null ? parseFloat(averageScore.toFixed(2)) : null,
       designation:   designation || null,
-      passed:        allPassed,
+      passed:        status === 'passed',
       notes:         notes || null,
       coach_id:      coachId,
     };
-    const { data: lcData, error: lcErr } = await this.db
+    const { data, error } = await this.db
       .from('level_completions')
       .upsert(lcPayload, { onConflict: 'diver_id,level' })
       .select();
-    if (lcErr) throw new Error('Failed to save level completion: ' + lcErr.message);
-    if (!lcData || lcData.length === 0) {
-      console.warn('[saveTestingSessionDiver] level_completions upsert returned no rows — possible RLS block');
+    if (error) throw new Error('Failed to save level completion: ' + error.message);
+    if (!data || data.length === 0) {
+      console.warn('[saveLevelResult] level_completions upsert returned no rows — possible RLS block');
     }
-
-    return { averageScore: avg, designation, passed: allPassed, scoredCount: entries.length };
+    return data;
   },
 
   // Total count of diver profiles in the club (all coaches' rosters combined).

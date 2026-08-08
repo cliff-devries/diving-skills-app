@@ -181,13 +181,21 @@ const Reports = {
   _skillRowHtml(skill, idx) {
     const c = this.COLORS;
     const bg = idx % 2 === 0 ? '#ffffff' : c.rowAlt;
-    const tested = skill.latestScore != null;
-    const scoreText = tested ? Number(skill.latestScore).toFixed(1) : '—';
+    const tested  = skill.latestScore != null;
+    const failing = tested && Number(skill.latestScore) < 5.0;
+    const scoreText = tested ? Number(skill.latestScore).toFixed(1) : 'Not tested';
+    // Unscored: small muted italic so it reads clearly as "nothing
+    // recorded yet", not just a blank/dash easy to skim past. Failing
+    // (tested but < 5.0): bold red, so it's obvious at a glance which
+    // specific rows are why the level didn't pass.
+    const scoreStyle = tested
+      ? `font-size:11px;font-weight:${failing ? '700' : '400'};color:${failing ? c.failed : c.textPrimary}`
+      : `font-size:9.5px;font-style:italic;color:${c.textSecondary}`;
     const icon = !tested ? '' : (skill.latestScore >= 5.0 ? '✅' : '❌');
     return `
       <tr style="background:${bg}">
         <td style="padding:6px 10px;font-size:11px;color:${c.textPrimary};border-bottom:1px solid ${c.border}">${App.escHtml(skill.name)}</td>
-        <td style="padding:6px 10px;font-size:11px;color:${c.textPrimary};border-bottom:1px solid ${c.border};text-align:center;width:60px">${scoreText}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid ${c.border};text-align:center;width:60px;${scoreStyle}">${scoreText}</td>
         <td style="padding:6px 10px;font-size:13px;border-bottom:1px solid ${c.border};text-align:center;width:40px">${icon}</td>
       </tr>`;
   },
