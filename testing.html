@@ -420,6 +420,9 @@
       .scoring-number.unscored { font-size: 0.95rem; }
     }
 
+    /* Navigation guard modal buttons — large, easy poolside tap targets. */
+    .nav-guard-btn { width: 100%; min-height: 48px; font-size: 0.95rem; }
+
     /* Mobile: flex column, full height minus bottom nav */
     @media (max-width: 768px) {
       .testing-layout {
@@ -735,6 +738,22 @@
     <div class="flex gap-3">
       <button class="btn btn-ghost" onclick="closeConfirmModal()">Cancel</button>
       <button id="confirm-modal-ok" class="btn btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation guard modal — shown instead of the browser's native dialog
+     when a coach taps an in-app nav link during an active testing session. -->
+<div id="nav-guard-modal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);">
+  <div class="card" style="max-width:420px;width:90%;margin:0 auto;animation:slideUp .22s ease;">
+    <h3 style="margin-bottom:8px;">Leave Testing Session?</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:20px;">
+      Your scores have been automatically saved. However your session setup
+      (selected divers and levels) will need to be recreated if you leave.
+    </p>
+    <div class="flex flex-col gap-3">
+      <button class="btn btn-primary nav-guard-btn" onclick="closeNavGuardModal()">Stay in Session</button>
+      <button class="btn btn-secondary nav-guard-btn" onclick="confirmLeaveSession()">Leave Anyway</button>
     </div>
   </div>
 </div>
@@ -1711,6 +1730,85 @@
   document.addEventListener('click', (e) => {
     const wrapper = document.querySelector('.search-wrapper');
     if (wrapper && !wrapper.contains(e.target)) hideSearchResults();
+  });
+
+  // =============================================
+  // Navigation guard — warns before leaving an active testing session.
+  // Step 1/2/complete are all fine to navigate away from freely; only an
+  // in-progress Step 3 (at least one diver selected, not every diver
+  // completed yet) is guarded. Computed fresh from the DOM/session state
+  // every time rather than tracked as a separate flag, so it can never
+  // drift out of sync with reality (e.g. after Start New Session or once
+  // the last diver's session is completed, this just naturally goes
+  // false — no explicit "clear the guard" step needed anywhere).
+  // =============================================
+  function isTestingSessionActive() {
+    const step3 = document.getElementById('step-3');
+    if (!step3 || step3.classList.contains('hidden')) return false;
+    if (!sessionDivers.length) return false;
+    return !sessionDivers.every(sd => completedDivers[sd.diver.id]);
+  }
+
+  let pendingNavHref        = null;
+  let skipBeforeUnloadGuard = false; // set right before a confirmed in-app navigation, so beforeunload doesn't ALSO prompt
+
+  function openNavGuardModal(href) {
+    pendingNavHref = href;
+    document.getElementById('nav-guard-modal').style.display = 'flex';
+  }
+
+  function closeNavGuardModal() {
+    document.getElementById('nav-guard-modal').style.display = 'none';
+    pendingNavHref = null;
+  }
+
+  function confirmLeaveSession() {
+    const href = pendingNavHref;
+    closeNavGuardModal();
+    if (href) {
+      skipBeforeUnloadGuard = true;
+      window.location.href = href;
+    }
+  }
+
+  document.getElementById('nav-guard-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeNavGuardModal(); // clicking the overlay = the safe default, Stay in Session
+  });
+
+  // Sidebar links, bottom-nav links, and the sidebar brand/profile links
+  // (all rendered by App.renderNav — shared across every page, not just
+  // this one) are plain <a href> elements with no in-page routing, so a
+  // single capture-phase listener catches every one of them without
+  // needing page-specific selectors. Runs before the browser starts the
+  // navigation. Nothing inside the testing screen itself (diver panel,
+  // skill rows, calculator, Prev/Next/Complete Session) is an <a> tag —
+  // those are all buttons/divs with onclick — so this can never
+  // intercept an action that should be allowed through.
+  document.addEventListener('click', (e) => {
+    if (!isTestingSessionActive()) return;
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openNavGuardModal(href);
+  }, true);
+
+  // Browser Back/Forward, tab/window close, refresh, and a typed address
+  // bar URL can't be intercepted with a click handler — beforeunload is
+  // the only hook for these. Modern browsers show their own native
+  // dialog regardless of e.returnValue's text (custom messages were
+  // removed everywhere for security reasons years ago) — this is the
+  // standard required boilerplate, not a bug. Note this event is
+  // unreliable on iOS Safari; the in-app link guard above is the
+  // meaningful protection on mobile.
+  window.addEventListener('beforeunload', (e) => {
+    if (skipBeforeUnloadGuard) return;
+    if (isTestingSessionActive()) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
   });
 </script>
 
