@@ -722,9 +722,11 @@
 
   // Tab color priority (highest to lowest):
   //   complete (teal) — every skill tested, all >= 5.0
-  //   failed   (red)  — every skill tested, at least one < 5.0
+  //   failed   (red)  — ANY skill has been tested and scored < 5.0,
+  //                     regardless of whether every skill in the level
+  //                     has been tested yet
   //   partial  (orange) — any activity (Stage 1/2 self-report OR a coach
-  //                       test score) but not every skill tested/passing
+  //                       test score) but not complete and no failing score
   //   (none)   (gray)  — no activity at all
   function buildLevelTabs(skills, cMap) {
     const levels = Skills.uniqueLevels(skills);
@@ -739,8 +741,7 @@
       const tested    = lvlSkills.filter(s => cMap[s.id]?.latest_score != null);
 
       const isComplete = total > 0 && certified === total;
-      const isFailed    = !isComplete && total > 0 && tested.length === total
-        && tested.some(s => Number(cMap[s.id].latest_score) < 5.0);
+      const isFailed    = !isComplete && tested.some(s => Number(cMap[s.id].latest_score) < 5.0);
       const hasActivity = attained > 0 || ready > 0 || tested.length > 0;
       const isPartial    = !isComplete && !isFailed && hasActivity;
 
