@@ -214,6 +214,8 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .badge-accent{background:var(--accent-dim);color:var(--accent);}
 .badge-secondary{background:var(--bg-surface-2);color:var(--text-secondary);border:1px solid var(--border);}
 .badge-pending{background:var(--pending-dim);color:var(--pending);}
+.badge-gold{background:rgba(245,197,24,.15);color:#f5c518;}
+.badge-level{background:var(--bg-surface-2);color:var(--text-secondary);}
 
 .icon-btn{background:none;border:none;color:var(--text-secondary);padding:5px;border-radius:6px;display:inline-flex;font-size:.95rem;transition:var(--transition);}
 .icon-btn:hover{color:var(--accent);}
@@ -403,18 +405,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary);}
 .empty-state-icon{font-size:2.2rem;margin-bottom:10px;opacity:.5;}
 
-/* DIVE DRILLS SKILLS LIBRARY (read-only, from Supabase) */
 .pp-divider{border-top:1px solid var(--border);margin:36px 0 24px;}
-.dd-skills-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-.dd-skills-header img{width:26px;height:26px;flex-shrink:0;}
-.dd-skills-header h2{font-size:1.15rem;}
-.dd-skills-header p{margin-top:2px;}
-.skill-type-section{margin-bottom:22px;}
-.skill-type-section h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin:0 0 10px;font-weight:700;}
-.dd-skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.dd-skill-card .name{font-weight:700;color:var(--text-primary);}
-.dd-skill-card .desc{color:var(--text-secondary);font-size:.82rem;margin-top:4px;}
-.dd-skill-card .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
 </style>
 </head>
 <body>
@@ -2294,18 +2285,22 @@ function addPlanRowFromLibrary(planId){
   openModal({
     title:'Add from Skill Library',
     wide:true,
-    bodyHtml:`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Name</th><th>Min</th><th>Notes</th><th></th></tr></thead><tbody>
-      ${pool.length===0?`<tr class="empty-row"><td colspan="5">No skills in your library yet.</td></tr>`:
-      pool.map(d=>`<tr><td>${esc(categoryName(d.categoryId))}</td><td>${esc(d.name)}</td><td>${d.minutes}</td><td class="mutedtext">${esc(d.notes||'')}</td>
+    bodyHtml:`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Name</th><th>Notes</th><th></th></tr></thead><tbody>
+      ${pool.length===0?`<tr class="empty-row"><td colspan="4">No skills in your library yet.</td></tr>`:
+      pool.map(d=>`<tr><td>${esc(categoryName(d.categoryId))}</td><td>${esc(d.name)}</td><td class="mutedtext">${esc(d.notes||'')}</td>
       <td><button class="btn btn-sm btn-primary" onclick="addSkillToPlan('${planId}','${d.id}')">Add</button></td></tr>`).join('')}
     </tbody></table></div>`,
     footHtml:`<button class="btn" onclick="closeModal()">Done</button>`
   });
 }
+// Minutes always defaults to 5 regardless of entry point (this modal, the
+// Builder's inline search, Dive Drills results) — the skill library no
+// longer stores a meaningful minutes value; the coach adjusts it per-row
+// in the plan itself.
 function addSkillToPlan(planId,skillId){
   const plan=findPlanById(planId);
   const d=DB.skills.find(d=>d.id===skillId);
-  plan.rows.push({id:uid('row'),activity:d.name,min:d.minutes,category:categoryName(d.categoryId),notes:d.notes||'',image:d.image||null,stations:d.stations});
+  plan.rows.push({id:uid('row'),activity:d.name,min:5,category:categoryName(d.categoryId),notes:d.notes||'',image:d.image||null,stations:d.stations});
   builderDirty=true;
   window.__currentPlanDraw();
   toast(d.name+' added to plan');
@@ -2574,40 +2569,65 @@ async function generatePracticePDF(id){
 }
 
 /* ============================= SKILL DIRECTORY ============================= */
+// Unified list (stationsOnly===false): DB.skills (Custom) + DD_SKILLS
+// (Dive Drills, already cached by loadDiveDrillsSkills() — reused as-is,
+// no separate fetch here) merged into one alphabetical list. stationsOnly
+// stays custom-only, since "stations" is a per-custom-skill flag with no
+// Dive Drills equivalent.
 function renderSkillList(container, stationsOnly){
   let search='';
   function draw(){
-    let list=[...DB.skills];
-    if(stationsOnly)list=list.filter(d=>d.stations);
-    if(search)list=list.filter(d=>d.name.toLowerCase().includes(search.toLowerCase())||(d.notes||'').toLowerCase().includes(search.toLowerCase()));
-    list.sort((a,b)=>(b.dateCreated||'').localeCompare(a.dateCreated||''));
+    let customList=[...DB.skills];
+    if(stationsOnly)customList=customList.filter(d=>d.stations);
+    if(search)customList=customList.filter(d=>d.name.toLowerCase().includes(search.toLowerCase()));
+
+    let theadHtml,rowsHtml;
+    if(stationsOnly){
+      customList.sort((a,b)=>a.name.localeCompare(b.name));
+      theadHtml=`<th>Name</th><th>Station</th><th style="text-align:right">Action</th>`;
+      rowsHtml = customList.length===0?`<tr class="empty-row"><td colspan="3">No skills found.</td></tr>`:
+        customList.map(d=>{const mine=isMine(d);return `<tr>
+          <td>${mine?`<a onclick="openSkillForm('${d.id}')" style="font-weight:700;color:var(--accent);">${esc(d.name)}</a>`:`<span style="font-weight:700;">${esc(d.name)}</span>`}</td>
+          <td>${esc(categoryName(d.categoryId))}</td>
+          <td><div class="row-actions">
+            ${mine?`<button class="icon-btn" onclick="openSkillForm('${d.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkill('${d.id}')">${ic('trash')}</button>`:''}
+          </div></td>
+        </tr>`;}).join('');
+    } else {
+      const customMatches=customList.map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),mine:isMine(d)}));
+      const ddMatches=DD_SKILLS.filter(s=>!search||s.name.toLowerCase().includes(search.toLowerCase()))
+        .map(s=>({kind:'dd',id:s.id,name:s.name,station:s.type,level:s.level}));
+      const combined=[...customMatches,...ddMatches].sort((a,b)=>a.name.localeCompare(b.name));
+      theadHtml=`<th>Name</th><th>Station</th><th>Level</th><th>Source</th><th style="text-align:right">Action</th>`;
+      rowsHtml = combined.length===0?`<tr class="empty-row"><td colspan="5">No skills found.</td></tr>`:
+        combined.map(m=>{
+          if(m.kind==='custom'){
+            return `<tr>
+              <td>${m.mine?`<a onclick="openSkillForm('${m.id}')" style="font-weight:700;color:var(--accent);">${esc(m.name)}</a>`:`<span style="font-weight:700;color:var(--accent);">${esc(m.name)}</span>`}</td>
+              <td>${esc(m.station||'')}</td>
+              <td></td>
+              <td><span class="badge badge-gold">&#9733; Custom</span></td>
+              <td><div class="row-actions">
+                ${m.mine?`<button class="icon-btn" onclick="openSkillForm('${m.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkill('${m.id}')">${ic('trash')}</button>`:''}
+              </div></td>
+            </tr>`;
+          }
+          return `<tr>
+            <td style="font-weight:700;">${esc(m.name)}</td>
+            <td>${esc(m.station||'')}</td>
+            <td>${m.level!=null?`<span class="badge badge-level">L${esc(String(m.level))}</span>`:''}</td>
+            <td><span class="badge badge-accent">DD</span></td>
+            <td></td>
+          </tr>`;
+        }).join('');
+    }
+
     container.innerHTML = pageHeader(stationsOnly?'Stations Skill List':'Skill List', `
-      <button class="btn" onclick="toast('Skill History coming soon.')">${ic('history')} Skill History</button>
-      <button class="btn" onclick="toast('Import from CSV coming soon — add skills manually for now.')">${ic('upload')} Import Skills</button>
       <button class="btn btn-primary" onclick="openSkillForm()">${ic('plus')} New Skill</button>
     `) +
     (stationsOnly?'':`<div style="margin:-10px 0 16px;"><a onclick="navigate('skill-blocks')">${ic('block')} Skill Block List</a> &nbsp;·&nbsp; <a onclick="navigate('stations')">Stations Skill List</a></div>`) +
-    `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name, station, or notes"></div></div>
-    <div class="tablewrap"><table><thead><tr>
-      <th style="width:34px"><input type="checkbox" disabled></th>
-      <th>Station</th><th>Name</th><th>Minutes</th><th>Notes</th><th>Stations</th><th>Status</th><th>Date Created</th><th style="text-align:right">Action</th>
-    </tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="9">No skills found.</td></tr>`:
-      list.map(d=>{const mine=isMine(d);return `<tr>
-        <td><input type="checkbox"></td>
-        <td>${esc(categoryName(d.categoryId))}</td>
-        <td>${mine?`<a onclick="openSkillForm('${d.id}')">${esc(d.name)}</a>`:esc(d.name)}</td>
-        <td>${d.minutes}</td>
-        <td>${esc(d.notes||'')}</td>
-        <td>${d.stations?`<span class="badge badge-accent">Yes</span>`:'<span class="mutedtext">—</span>'}</td>
-        <td><span class="badge ${d.status==='Disabled'?'badge-secondary':'badge-accent'}" ${mine?`style="cursor:pointer" onclick="toggleSkillStatus('${d.id}')"`:''}>${d.status}</span></td>
-        <td>${fmtDate(d.dateCreated)}</td>
-        <td><div class="row-actions">
-          ${mine?`<button class="icon-btn" onclick="openSkillForm('${d.id}')">${ic('edit')}</button>
-          <button class="icon-btn" onclick="deleteSkill('${d.id}')">${ic('trash')}</button>`:''}
-        </div></td>
-      </tr>`;}).join('')}
-    </tbody></table></div>` +
+    `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name"></div></div>
+    <div class="tablewrap"><table><thead><tr>${theadHtml}</tr></thead><tbody>${rowsHtml}</tbody></table></div>` +
     (stationsOnly?'':`
       <div class="pp-divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -2626,42 +2646,14 @@ function renderSkillList(container, stationsOnly){
           </div></td>
         </tr>`;}).join('')}
       </tbody></table></div>
-      <div class="dd-skills-header">
-        <img src="assets/icons/diver-icon.svg" alt="">
-        <div>
-          <h2>Dive Drills Skills Library</h2>
-          <p class="mutedtext">Read-only skills from your Dive Drills curriculum</p>
-        </div>
-      </div>
-      <div class="toolbar">
-        <div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dd-skill-search" placeholder="Search skills"></div>
-        <select class="input" id="dd-skill-level">
-          <option value="">All Levels</option>
-          ${Array.from({length:12},(_,i)=>i+1).map(l=>`<option value="${l}">Level ${l}</option>`).join('')}
-        </select>
-        <div class="toggle-row" style="border:none;padding:0;gap:8px;">
-          <span class="mutedtext">Include Supplemental Skills</span>
-          <label class="toggle"><input type="checkbox" id="dd-skill-showall"><span class="slider"></span></label>
-        </div>
-      </div>
-      <div id="ddSkillsBody"></div>
     `);
     document.getElementById('dr-search').value=search;
     document.getElementById('dr-search').oninput=e=>{search=e.target.value;draw();};
-    if(!stationsOnly){
-      document.getElementById('dd-skill-search').value=ddSkillSearch;
-      document.getElementById('dd-skill-search').oninput=e=>{ddSkillSearch=e.target.value;drawDDSkills();};
-      document.getElementById('dd-skill-level').value=ddSkillLevelFilter;
-      document.getElementById('dd-skill-level').onchange=e=>{ddSkillLevelFilter=e.target.value;drawDDSkills();};
-      document.getElementById('dd-skill-showall').checked=ddShowAllSkills;
-      document.getElementById('dd-skill-showall').onchange=e=>{ddShowAllSkills=e.target.checked;drawDDSkills();};
-      drawDDSkills();
-    }
   }
+  window.__skillListDraw=draw; // loadDiveDrillsSkills() calls this to refresh once DD_SKILLS finishes loading
   draw();
 }
 function renderStationsList(container){renderSkillList(container,true);}
-function toggleSkillStatus(id){const d=DB.skills.find(d=>d.id===id);d.status=d.status==='Disabled'?'Enabled':'Disabled';saveDB();router();}
 function deleteSkill(id){confirmDelete('This will permanently delete this skill. Continue?',()=>{DB.skills=DB.skills.filter(d=>d.id!==id);saveDB();router();});}
 /* ============================= ROTATIONS ============================= */
 function openRotationForm(id){
@@ -2723,44 +2715,35 @@ function openSkillForm(id){
     title:id?'Edit Skill':'New Skill',
     bodyHtml:`
       <div class="field"><label>Name</label><input class="input" id="d_name" value="${escAttr(d.name||'')}"></div>
-      <div class="field-row">
-        <div class="field"><label>Station</label><select class="input" id="d_cat"><option value="">--</option>${cats.map(c=>`<option value="${c.id}" ${d.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-        <div class="field"><label>Minutes</label>${minutesInputPairHtml('d_min', d.minutes||5)}</div>
-      </div>
+      <div class="field"><label>Station</label><select class="input" id="d_cat"><option value="">--</option>${cats.map(c=>`<option value="${c.id}" ${d.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Notes</label><textarea class="input" id="d_notes" rows="2">${esc(d.notes||'')}</textarea></div>
       <div class="toggle-row"><span>Has Stations</span><label class="toggle"><input type="checkbox" id="d_stations" ${d.stations?'checked':''}><span class="slider"></span></label></div>
-      <div class="toggle-row"><span>Enabled</span><label class="toggle"><input type="checkbox" id="d_status" ${d.status!=='Disabled'?'checked':''}><span class="slider"></span></label></div>
     `,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSkillForm('${id||''}')">Save</button>`
   });
 }
+// Minutes/status are no longer editable — new skills default to 5
+// minutes/Enabled (coach adjusts minutes per-row in the plan itself);
+// editing an existing skill leaves its stored minutes/status untouched
+// rather than silently overwriting them from a form that no longer shows
+// either field.
 function saveSkillForm(id){
   const data={
     name:document.getElementById('d_name').value.trim()||'Untitled Skill',
     categoryId:document.getElementById('d_cat').value,
-    minutes:parseInt(document.getElementById('d_min_num').value,10)||5,
     notes:document.getElementById('d_notes').value,
     stations:document.getElementById('d_stations').checked,
-    status:document.getElementById('d_status').checked?'Enabled':'Disabled',
   };
   if(id){Object.assign(DB.skills.find(d=>d.id===id),data);}
-  else{data.id=uid('skill');data.dateCreated=nowStamp();data.image=null;DB.skills.push(data);}
+  else{data.id=uid('skill');data.dateCreated=nowStamp();data.image=null;data.minutes=5;data.status='Enabled';DB.skills.push(data);}
   saveDB();closeModal();router();toast('Skill saved');
 }
 
-/* ============================= DIVE DRILLS SKILLS LIBRARY (read-only, Supabase) ============================= */
-// Display order for skill-type sections — matches the Dive Drills Skills Library page.
-const SKILL_SECTION_ORDER = [
-  'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
-  'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
-  '1m Springboard', '3m Springboard', 'Platform', 'Pool', 'Games', 'Bonus',
-];
-let DD_SKILLS=[];          // cached Dive Drills skills, fetched once from Supabase
+/* ============================= DIVE DRILLS SKILLS (read-only, Supabase) ============================= */
+let DD_SKILLS=[];          // cached Dive Drills skills, fetched once from Supabase — reused by both
+                            // the unified Skill List and Practice Builder's inline search
 let ddSkillsLoading=false;
 let ddSkillsError=null;
-let ddShowAllSkills=false; // false = Testing Skills only (default), true = include supplemental
-let ddSkillSearch='';
-let ddSkillLevelFilter='';
 let currentOpenPlanId=null; // the plan currently being edited — target for "+ Add to Plan"
 // Set by the Skills page's "+ Add to Plan" when there's no active Builder
 // draft to add straight into — Practice Builder picks this up and adds it
@@ -2775,56 +2758,11 @@ function loadDiveDrillsSkills(){
   ddSkillsLoading=true;ddSkillsError=null;
   Skills.getAll().then(data=>{
     DD_SKILLS=data;ddSkillsLoading=false;
-    if(currentRoute().split('/')[0]==='skills')drawDDSkills();
+    if(currentRoute().split('/')[0]==='skills' && window.__skillListDraw)window.__skillListDraw();
   }).catch(err=>{
     ddSkillsError=err.message||'Failed to load skills.';ddSkillsLoading=false;
-    if(currentRoute().split('/')[0]==='skills')drawDDSkills();
+    if(currentRoute().split('/')[0]==='skills' && window.__skillListDraw)window.__skillListDraw();
   });
-}
-
-function drawDDSkills(){
-  const host=document.getElementById('ddSkillsBody');
-  if(!host)return;
-  if(ddSkillsLoading){
-    host.innerHTML=`<div style="display:flex;justify-content:center;padding:30px;"><span class="loading-spinner-dd"></span></div>
-      <style>.loading-spinner-dd{display:inline-block;width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:dd-spin .8s linear infinite;}@keyframes dd-spin{to{transform:rotate(360deg);}}</style>`;
-    return;
-  }
-  if(ddSkillsError){
-    host.innerHTML=`<div class="empty-state"><p style="color:var(--danger)">Could not load Dive Drills skills — ${esc(ddSkillsError)}</p><button class="btn btn-sm" onclick="loadDiveDrillsSkills();drawDDSkills();">Retry</button></div>`;
-    return;
-  }
-  let list=DD_SKILLS.filter(s=>ddShowAllSkills||s.isTestable);
-  if(ddSkillLevelFilter!=='')list=list.filter(s=>String(s.level)===String(ddSkillLevelFilter));
-  if(ddSkillSearch)list=list.filter(s=>s.name.toLowerCase().includes(ddSkillSearch.toLowerCase()));
-  if(!list.length){host.innerHTML='<p class="mutedtext">No matching skills found.</p>';return;}
-  const byType={};
-  list.forEach(s=>{const t=s.type||'Other';(byType[t]=byType[t]||[]).push(s);});
-  const typesPresent=Object.keys(byType);
-  const orderedTypes=[...SKILL_SECTION_ORDER.filter(t=>typesPresent.includes(t)),...typesPresent.filter(t=>!SKILL_SECTION_ORDER.includes(t)).sort()];
-  host.innerHTML=orderedTypes.map(type=>{
-    const skillsInType=byType[type].slice().sort((a,b)=>App.compareSkillOrder(a,b));
-    return `<div class="skill-type-section">
-      <h4>${esc(type)} <span class="mutedtext">(${skillsInType.length})</span></h4>
-      ${skillsInType.map(buildDDSkillCard).join('')}
-    </div>`;
-  }).join('');
-}
-
-function buildDDSkillCard(skill){
-  return `
-    <div class="dd-skill-card">
-      <div style="flex:1;min-width:200px;">
-        <div class="name">${esc(skill.name)}</div>
-        ${skill.description?`<div class="desc">${esc(skill.description)}</div>`:''}
-        <div class="badges">
-          <span class="badge badge-level">L${skill.level ?? '?'}</span>
-          <span class="badge badge-secondary">${esc(skill.type)}</span>
-        </div>
-      </div>
-      <button class="btn btn-sm btn-primary" onclick="addDDSkillToPlan('${skill.id}')">${ic('plus')} Add to Plan</button>
-    </div>
-  `;
 }
 
 // Called from both the Skills page's "+ Add to Plan" button and Practice
