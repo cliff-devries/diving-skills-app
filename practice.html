@@ -154,10 +154,15 @@ button{font-family:inherit;cursor:pointer;}
 .debug-bar-row{display:flex;flex-wrap:wrap;gap:6px 16px;}
 .debug-bar strong{color:#fff;}
 
-/* MINUTES INPUT PAIR */
+/* MINUTES INPUT PAIR — minutesInputPairHtml() renders a number input plus a
+   text-pattern twin kept in sync purely so validateMinutesInput() always has
+   a plain-text value to fall back on; showing both was making every Min
+   field look like two duplicate columns. Only the number input is shown —
+   the text twin stays in the DOM (untouched, still synced) so
+   syncMinutesInputs()/validateMinutesInput() need no changes. */
 .min-input-pair{display:flex;gap:4px;align-items:center;}
 .min-input-pair .min-num{width:52px;padding:6px 4px;}
-.min-input-pair .min-txt{width:48px;padding:6px 4px;text-align:center;}
+.min-input-pair .min-txt{display:none;}
 
 /* INITIAL LOAD SPINNER (duplicated from the shared site stylesheet — this page is self-contained) */
 .pp-loading-spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:pp-spin .65s linear infinite;flex-shrink:0;}
