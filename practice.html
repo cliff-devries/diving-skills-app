@@ -293,6 +293,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .searchadd-badge.competition{color:#f5a623;}
 .searchadd-badge.custom{color:var(--text-secondary);}
 .searchadd-badge.dd{color:var(--accent);}
+.searchadd-badge.level{color:var(--text-secondary);background:transparent;padding:1px 4px;}
 .searchadd-chips{margin-bottom:6px;}
 
 .rotation-row{border-left:3px solid var(--accent);}
@@ -2158,14 +2159,24 @@ function drawBuilderSkillSearch(planId){
   const q=input.value.trim().toLowerCase();
   if(!q){host.style.display='none';host.innerHTML='';host.__matches=[];return;}
   const customMatches=DB.skills.filter(d=>d.status!=='Disabled'&&d.name.toLowerCase().includes(q)).slice(0,15)
-    .map(d=>({kind:'custom',id:d.id,name:d.name,stations:d.stations}));
+    .map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),stations:d.stations}));
   const ddMatches=DD_SKILLS.filter(s=>s.name.toLowerCase().includes(q)).slice(0,15)
-    .map(s=>({kind:'dd',id:s.id,name:s.name}));
+    .map(s=>({kind:'dd',id:s.id,name:s.name,station:s.type,level:s.level}));
   const matches=[...customMatches,...ddMatches].slice(0,20);
   host.__matches=matches;
-  host.innerHTML = matches.length ? matches.map((m,i)=>`<div class="searchadd-result" onmousedown="event.preventDefault();pickBuilderSkillSearchResult('${planId}',${i})">
-      ${esc(m.name)} ${m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>'}${m.stations?' <span class="searchadd-badge practice">Stations</span>':''}
-    </div>`).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
+  // Same name can exist at multiple stations (e.g. "Reverse 2 Somersault"
+  // on both 1m Springboard and Trampoline) — station + level distinguish
+  // them so a coach isn't picking blind between identically-named rows.
+  host.innerHTML = matches.length ? matches.map((m,i)=>{
+    const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
+    const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
+    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
+    const stationsFlagBadge=m.stations?' <span class="searchadd-badge practice">Stations</span>':'';
+    return `<div class="searchadd-result" onmousedown="event.preventDefault();pickBuilderSkillSearchResult('${planId}',${i})" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${esc(m.name)}</strong>${stationPart}${levelPart}</span>
+      <span style="flex-shrink:0;white-space:nowrap;">${kindBadge}${stationsFlagBadge}</span>
+    </div>`;
+  }).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
   host.style.display='block';
 }
 function pickBuilderSkillSearchResult(planId,idx){
