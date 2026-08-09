@@ -291,6 +291,8 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .searchadd-badge{display:inline-block;font-size:.65rem;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:8px;margin-left:6px;background:var(--bg-surface-2);color:var(--text-secondary);}
 .searchadd-badge.practice{color:var(--accent);}
 .searchadd-badge.competition{color:#f5a623;}
+.searchadd-badge.custom{color:var(--text-secondary);}
+.searchadd-badge.dd{color:var(--accent);}
 .searchadd-chips{margin-bottom:6px;}
 
 .rotation-row{border-left:3px solid var(--accent);}
@@ -1150,13 +1152,16 @@ function router(){
     history.replaceState(null,'','#/'+lastFullRoute);
     requireLeaveConfirmation(()=>{
       builderDirty=false;
+      builderDraft=null; // explicit discard — reopening this plan later starts fresh from DB, not from the abandoned edits
       guardBypass=true;
       navigate(full);
     });
     return;
   }
   guardBypass=false;
-  if(prevRoot==='builder' && full.split('/')[0]!=='builder'){ builderDraft=null; }
+  // builderDraft otherwise stays alive across navigation (e.g. hopping to
+  // the Skills page to find more skills to add) — only an explicit Leave
+  // above, or loadBuilderDraft() starting a different plan, replaces it.
   lastFullRoute=full;
 
   renderSidebar();
@@ -1847,6 +1852,7 @@ function renderPracticeBuilder(id,container){
   if(!builderDraft || builderDraft.__sourceId!==wantSource){
     if(!loadBuilderDraft(id)){container.innerHTML='<p>Plan not found.</p>';return;}
   }
+  applyPendingSkillToAdd();
   const plan=builderDraft;
   currentOpenPlanId=plan.id;
   const cats=getEnabledCategories();
@@ -2139,17 +2145,38 @@ function updateBuilderMeta(){
   builderDirty=true;
   draw();
 }
+// Searches both the coach's own library (DB.skills, "Custom") and the
+// read-only Dive Drills catalog (DD_SKILLS, already cached by
+// loadDiveDrillsSkills() for the Skills page — reused as-is, no second
+// fetch). onmousedown+preventDefault instead of onclick for the same
+// reason as the search-add widget: clicking a result blurs this input
+// first, which would otherwise race (or on iOS, outright lose) the click.
 function drawBuilderSkillSearch(planId){
   const input=document.getElementById('bskill_input');
   const host=document.getElementById('bskill_results');
   if(!input||!host)return;
   const q=input.value.trim().toLowerCase();
-  if(!q){host.style.display='none';host.innerHTML='';return;}
-  const matches=DB.skills.filter(d=>d.status!=='Disabled'&&d.name.toLowerCase().includes(q)).slice(0,20);
-  host.innerHTML = matches.length ? matches.map(d=>`<div class="searchadd-result" onclick="addSkillToPlan('${planId}','${d.id}');document.getElementById('bskill_input').value='';document.getElementById('bskill_results').style.display='none';">
-      ${esc(d.name)}${d.stations?' <span class="searchadd-badge practice">Stations</span>':''}
+  if(!q){host.style.display='none';host.innerHTML='';host.__matches=[];return;}
+  const customMatches=DB.skills.filter(d=>d.status!=='Disabled'&&d.name.toLowerCase().includes(q)).slice(0,15)
+    .map(d=>({kind:'custom',id:d.id,name:d.name,stations:d.stations}));
+  const ddMatches=DD_SKILLS.filter(s=>s.name.toLowerCase().includes(q)).slice(0,15)
+    .map(s=>({kind:'dd',id:s.id,name:s.name}));
+  const matches=[...customMatches,...ddMatches].slice(0,20);
+  host.__matches=matches;
+  host.innerHTML = matches.length ? matches.map((m,i)=>`<div class="searchadd-result" onmousedown="event.preventDefault();pickBuilderSkillSearchResult('${planId}',${i})">
+      ${esc(m.name)} ${m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>'}${m.stations?' <span class="searchadd-badge practice">Stations</span>':''}
     </div>`).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
   host.style.display='block';
+}
+function pickBuilderSkillSearchResult(planId,idx){
+  const host=document.getElementById('bskill_results');
+  const m=host&&host.__matches&&host.__matches[idx];
+  if(!m)return;
+  if(m.kind==='dd') addDDSkillToPlan(m.id);
+  else addSkillToPlan(planId,m.id);
+  const input=document.getElementById('bskill_input');
+  if(input)input.value='';
+  host.style.display='none';
 }
 function openRotationPickerModal(planId){
   openModal({
@@ -2724,6 +2751,13 @@ let ddShowAllSkills=false; // false = Testing Skills only (default), true = incl
 let ddSkillSearch='';
 let ddSkillLevelFilter='';
 let currentOpenPlanId=null; // the plan currently being edited — target for "+ Add to Plan"
+// Set by the Skills page's "+ Add to Plan" when there's no active Builder
+// draft to add straight into — Practice Builder picks this up and adds it
+// the moment a draft becomes available (see renderPracticeBuilder()).
+let pendingSkillToAdd=null; // {type:'dd', id} | null
+function ddSkillToRow(skill){
+  return {id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:'',image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level};
+}
 
 function loadDiveDrillsSkills(){
   if(ddSkillsLoading)return;
@@ -2782,15 +2816,35 @@ function buildDDSkillCard(skill){
   `;
 }
 
+// Called from both the Skills page's "+ Add to Plan" button and Practice
+// Builder's own inline skill search (Dive Drills results). If a Builder
+// draft is already active (even from a different page — see router()'s
+// unsaved-draft handling), add straight to it and jump to the Builder. If
+// not, queue it in pendingSkillToAdd and start a fresh draft — Practice
+// Builder applies the queued skill as soon as that draft exists.
 function addDDSkillToPlan(skillId){
-  const plan=currentOpenPlanId?findPlanById(currentOpenPlanId):null;
-  if(!plan){toast('Open or create a practice plan first');return;}
   const skill=DD_SKILLS.find(s=>s.id===skillId);
   if(!skill)return;
-  plan.rows.push({id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:skill.description||'',image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level});
-  builderDirty=true;
-  toast(skill.name+' added to '+plan.name);
-  if(window.__currentPlanDraw)window.__currentPlanDraw();
+  if(builderDraft){
+    builderDraft.rows.push(ddSkillToRow(skill));
+    builderDirty=true;
+    if(window.__currentPlanDraw)window.__currentPlanDraw();
+    toast('Skill added to Practice Builder');
+    navigate(builderDraft.__sourceId?'builder/'+builderDraft.__sourceId:'builder');
+  } else {
+    pendingSkillToAdd={type:'dd',id:skill.id};
+    toast('Skill added to Practice Builder');
+    navigate('builder');
+  }
+}
+function applyPendingSkillToAdd(){
+  if(!pendingSkillToAdd || !builderDraft)return;
+  const pending=pendingSkillToAdd;
+  pendingSkillToAdd=null;
+  if(pending.type==='dd'){
+    const skill=DD_SKILLS.find(s=>s.id===pending.id);
+    if(skill){ builderDraft.rows.push(ddSkillToRow(skill)); builderDirty=true; }
+  }
 }
 
 function renderSkillBlockList(container){
