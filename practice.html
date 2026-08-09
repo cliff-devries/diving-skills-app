@@ -285,7 +285,8 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .rotation-row{border-left:3px solid var(--accent);}
 .rotation-group-label{font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;font-weight:700;}
 
-.builder-savebar{position:sticky;bottom:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;margin-top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;box-shadow:var(--shadow-card);z-index:5;}
+.builder-savebar{position:sticky;bottom:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;margin-top:8px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;box-shadow:var(--shadow-card);z-index:5;}
+.builder-savebar-right{display:flex;flex-wrap:wrap;gap:8px;}
 
 /* Practice Builder — dense/compact layout, scoped so it never affects
    other pages that reuse .card/.field/.input. */
@@ -1958,10 +1959,12 @@ function renderPracticeBuilder(id,container){
       </div>
 
       <div class="builder-savebar">
-        <button class="btn" onclick="printPlan('${plan.id}')">${ic('printer')} Print</button>
-        <button class="btn" onclick="createPlan()">${ic('plus')} New Practice</button>
-        ${readOnly?'':`<button class="btn btn-danger" onclick="deleteBuilderPlan()">${ic('trash')} Delete</button>`}
-        ${readOnly?'':`<button class="btn btn-primary" onclick="saveBuilderDraft()">💾 Save Practice</button>`}
+        <div>${readOnly?'':`<button class="btn btn-danger" onclick="deleteBuilderPlan()">${ic('trash')} Delete</button>`}</div>
+        <div class="builder-savebar-right">
+          <button class="btn" onclick="printPlan('${plan.id}')">${ic('printer')} Print</button>
+          <button class="btn" onclick="createPlan()">${ic('plus')} New Practice</button>
+          ${readOnly?'':`<button class="btn btn-primary" onclick="saveBuilderDraft()">💾 Save Practice</button>`}
+        </div>
       </div>
       </div>
     `;
