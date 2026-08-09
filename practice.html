@@ -367,6 +367,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 @media(max-width:1200px){.plan-grid{grid-template-columns:1fr 1fr;}.plan-grid>.chartcard{grid-column:1/-1;}}
 @media(max-width:760px){.plan-grid{grid-template-columns:1fr;}}
 .skilltable input,.skilltable select{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.82rem;width:100%;background:var(--bg-surface-2);color:var(--text-primary);}
+.skill-card input,.skill-card select{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.82rem;background:var(--bg-surface-2);color:var(--text-primary);}
 .drag-handle{cursor:grab;color:var(--text-secondary);}
 .tabbar{display:flex;gap:22px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto;}
 .tabbar button{background:none;border:none;padding:10px 2px;font-size:.9rem;color:var(--text-secondary);border-bottom:2px solid transparent;font-weight:600;white-space:nowrap;}
@@ -1709,6 +1710,10 @@ function loadBuilderDraft(id){
     if(!existing) return false;
     builderDraft=JSON.parse(JSON.stringify(existing));
     builderDraft.__sourceId=id;
+    // A plan synced from an older/hand-edited row can have a null rows
+    // column instead of []  — guard here so every row-iterating helper
+    // (the donut chart included) doesn't have to re-check this itself.
+    if(!Array.isArray(builderDraft.rows)) builderDraft.rows=[];
   } else {
     const n=DB.plans.length+1;
     builderDraft={id:uid('plan'),name:'Practice '+n,date:todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
@@ -1853,7 +1858,16 @@ function renderPracticeBuilder(id,container){
 
   function draw(){
     const times=computeRowTimes(plan);
-    const d=buildDonutData(plan);
+    let d;
+    try{
+      d=buildDonutData(plan);
+    }catch(err){
+      // Never let a bad row (corrupt minutes value, etc.) blank the whole
+      // donut card — fall back to an empty/unallocated ring and log the
+      // real cause so it's diagnosable instead of silently invisible.
+      console.error('buildDonutData failed, falling back to empty donut:',err,plan.rows);
+      d={agg:{},catNames:[],catColors:{},total:1,usedTotal:0,unallocated:1,unallocatedPct:100,donutBg:'conic-gradient(#9aa5b1 0% 100%)'};
+    }
 
     container.innerHTML = `
       <div class="builder-compact">
@@ -1916,7 +1930,6 @@ function renderPracticeBuilder(id,container){
       <div class="card builder-card">
         <label class="builder-label">Quote of the Day</label>
         ${searchAddFieldHtml(buildQuoteCfg())}
-        ${readOnly?'':`<button class="btn btn-sm" style="margin-top:8px;" onclick="pickRandomQuote()">🎲 Random</button>`}
       </div>
 
       <div class="card builder-card">
@@ -2066,14 +2079,6 @@ function updateBuilderMeta(){
   if(vis) plan.visibility=vis.value;
   builderDirty=true;
   draw();
-}
-function pickRandomQuote(){
-  if(!DB.quotes.length){toast('No quotes in your library yet');return;}
-  const cfg=SEARCHADD['sab_quote'];
-  if(!cfg)return;
-  const q=DB.quotes[Math.floor(Math.random()*DB.quotes.length)];
-  cfg.selected=[q];
-  cfg.onChange();
 }
 function drawBuilderSkillSearch(planId){
   const input=document.getElementById('bskill_input');
