@@ -1713,6 +1713,19 @@ function findPlanById(id){
   if(builderDraft && builderDraft.id===id) return builderDraft;
   return DB.plans.find(p=>p.id===id);
 }
+// Builder Settings' "Default Start Time" is a free-text field (placeholder
+// "e.g. 3:00 PM"), not a <input type="time">, so it has to be parsed back
+// into the plan's {startTime, ampm} shape here. Returns null on anything
+// that doesn't match — callers fall back to the hardcoded default rather
+// than fail on an unparseable value a coach typed some other way.
+function parseDefaultStartTime(str){
+  if(!str) return null;
+  const m=String(str).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if(!m) return null;
+  const h=parseInt(m[1],10);
+  if(h<1||h>12) return null;
+  return { startTime:`${h}:${m[2]}`, ampm:m[3].toUpperCase() };
+}
 function loadBuilderDraft(id){
   if(id){
     const existing=DB.plans.find(p=>p.id===id);
@@ -1725,7 +1738,10 @@ function loadBuilderDraft(id){
     if(!Array.isArray(builderDraft.rows)) builderDraft.rows=[];
   } else {
     const n=DB.plans.length+1;
-    builderDraft={id:uid('plan'),name:'Practice '+n,date:todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
+    const defaultTime=parseDefaultStartTime(DB.prefs.defaultStartTime);
+    builderDraft={id:uid('plan'),name:'Practice '+n,date:todayISO(),location:'',
+      startTime:defaultTime?defaultTime.startTime:'12:00', ampm:defaultTime?defaultTime.ampm:'AM',
+      duration:DB.prefs.defaultDuration||'', color:'#00c9a7',
       announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',groups:[],visibility:'club',
       announcementList:[],practicePoints:[],notes:'',dateCreated:nowStamp(),rows:[],__sourceId:null};
   }
@@ -2973,7 +2989,10 @@ function saveBuilderSettings(){
   DB.prefs.includeImages=document.getElementById('pref_images').checked;
   DB.prefs.includeVideos=document.getElementById('pref_videos').checked;
   DB.prefs.includeColorsPrint=document.getElementById('pref_printcolor').checked;
-  saveDB();toast('Preferences saved');
+  console.log('[Builder Settings] saving DB.prefs:', JSON.parse(JSON.stringify(DB.prefs)));
+  saveDB();
+  console.log('[Builder Settings] saveDB() called — localStorage written, cloud sync scheduled.');
+  toast('Preferences saved');
 }
 
 /* ============================= INIT ============================= */
