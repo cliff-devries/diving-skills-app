@@ -62,11 +62,10 @@ button{font-family:inherit;cursor:pointer;}
 @media(min-width:768px){#sidebar{display:flex;}}
 .pp-back-link{display:flex;align-items:center;gap:8px;padding:14px 20px;color:var(--text-secondary);font-size:.8rem;font-weight:600;text-decoration:none;border-bottom:1px solid var(--border);transition:var(--transition);flex-shrink:0;}
 .pp-back-link:hover{color:var(--accent);background:var(--bg-surface-2);text-decoration:none;}
-.pp-mobile-backbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--bg-surface);border-bottom:1px solid var(--border);}
+.pp-mobile-backbar{display:flex;padding:10px 20px;background:var(--bg-surface);border-bottom:1px solid var(--border);}
 .pp-mobile-backbar a{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:.8rem;font-weight:600;}
 .pp-mobile-backbar a:hover{color:var(--accent);}
 @media(min-width:768px){.pp-mobile-backbar{display:none;}}
-.mobile-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;cursor:pointer;flex-shrink:0;}
 .brand{display:flex;align-items:center;gap:10px;padding:20px 20px 16px;border-bottom:1px solid var(--border);cursor:pointer;}
 .brand:hover{opacity:.8;}
 .brand-mark{width:1.7rem;height:1.7rem;flex-shrink:0;object-fit:contain;}
@@ -115,6 +114,7 @@ button{font-family:inherit;cursor:pointer;}
 }
 .bottom-nav-item:hover,.bottom-nav-item.active{color:var(--accent);}
 .bottom-nav-item .nav-icon{font-size:1.25rem;line-height:1;}
+.bottom-nav-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;}
 
 /* MAIN */
 #mainWrap{flex:1;min-width:0;display:flex;flex-direction:column;}
@@ -424,7 +424,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
   <nav id="sidebar"></nav>
   <div id="mainWrap">
     <div id="debugBar"></div>
-    <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a><div class="mobile-avatar" id="mobileAvatar" onclick="navigate('profile')" title="View profile"></div></div>
+    <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a></div>
     <div id="statusBanner"></div>
     <main><div id="content"><div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Loading your practice data…</span></div></div></main>
   </div>
@@ -1136,12 +1136,13 @@ function renderSidebar(){
 
   const bn=document.getElementById('bottomNav');
   if(bn){
-    bn.innerHTML=BOTTOM_NAV.map(l=>`<div class="bottom-nav-item ${mainRoute===l.route?'active':''}" onclick="navigate('${l.route}')"><span class="nav-icon">${ic(l.icon)}</span><span>${l.label}</span></div>`).join('');
+    // Sidebar (and its coach-name-to-Profile link) is hidden on mobile —
+    // append a small avatar as its own bottom-nav item, on the right, so
+    // Profile is still one tap away.
+    const initials=(DB.coach.firstName[0]||'')+(DB.coach.lastName[0]||'');
+    bn.innerHTML=BOTTOM_NAV.map(l=>`<div class="bottom-nav-item ${mainRoute===l.route?'active':''}" onclick="navigate('${l.route}')"><span class="nav-icon">${ic(l.icon)}</span><span>${l.label}</span></div>`).join('')
+      + `<div class="bottom-nav-item ${mainRoute==='profile'?'active':''}" onclick="navigate('profile')" title="View profile"><span class="bottom-nav-avatar">${esc(initials)}</span><span>Profile</span></div>`;
   }
-  // Sidebar is hidden on mobile (bottom nav takes over) — mirror the coach's
-  // initials into the mobile header bar so profile is still one tap away.
-  const mobileAvatar=document.getElementById('mobileAvatar');
-  if(mobileAvatar)mobileAvatar.textContent=(DB.coach.firstName[0]||'')+(DB.coach.lastName[0]||'');
 }
 
 
@@ -1550,12 +1551,10 @@ function renderPlanList(container){
       <select class="input" id="pl-group-filter"><option value="">All Groups</option>${DB.groups.map(g=>`<option value="${escAttr(g.name)}">${esc(g.name)}</option>`).join('')}</select>
     </div>
     <div class="tablewrap plans-desktop-table"><table><thead><tr>
-      <th style="width:34px"><input type="checkbox" disabled></th>
       <th>Practice Date</th><th>Practice Time</th><th>Name</th><th>Group</th><th>Coach</th><th style="text-align:right">Action</th>
     </tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="7">No practice plans found.</td></tr>`:
+    ${list.length===0?`<tr class="empty-row"><td colspan="6">No practice plans found.</td></tr>`:
       list.map(p=>`<tr>
-        <td><input type="checkbox"></td>
         <td>${fmtDate(p.date)}</td>
         <td>${p.startTime?p.startTime+' '+p.ampm:'-'}</td>
         <td><a onclick="navigate('plans/edit/${p.id}')">${esc(p.name)}</a> ${visibilityBadge(p)}</td>
