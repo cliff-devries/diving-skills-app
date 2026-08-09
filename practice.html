@@ -62,10 +62,11 @@ button{font-family:inherit;cursor:pointer;}
 @media(min-width:768px){#sidebar{display:flex;}}
 .pp-back-link{display:flex;align-items:center;gap:8px;padding:14px 20px;color:var(--text-secondary);font-size:.8rem;font-weight:600;text-decoration:none;border-bottom:1px solid var(--border);transition:var(--transition);flex-shrink:0;}
 .pp-back-link:hover{color:var(--accent);background:var(--bg-surface-2);text-decoration:none;}
-.pp-mobile-backbar{display:flex;padding:10px 20px;background:var(--bg-surface);border-bottom:1px solid var(--border);}
+.pp-mobile-backbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--bg-surface);border-bottom:1px solid var(--border);}
 .pp-mobile-backbar a{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:.8rem;font-weight:600;}
 .pp-mobile-backbar a:hover{color:var(--accent);}
 @media(min-width:768px){.pp-mobile-backbar{display:none;}}
+.mobile-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;cursor:pointer;flex-shrink:0;}
 .brand{display:flex;align-items:center;gap:10px;padding:20px 20px 16px;border-bottom:1px solid var(--border);cursor:pointer;}
 .brand:hover{opacity:.8;}
 .brand-mark{width:1.7rem;height:1.7rem;flex-shrink:0;object-fit:contain;}
@@ -308,6 +309,16 @@ tbody tr:hover{background:var(--bg-surface-2);}
   .skilltable{display:none;}
   .skill-cards-mobile{display:block;}
 }
+/* Practice Plans: same table-on-desktop/cards-on-mobile split. */
+.plan-cards-mobile{display:none;}
+@media(max-width:767px){
+  .plans-desktop-table{display:none;}
+  .plan-cards-mobile{display:block;}
+}
+.plan-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:10px;}
+.plan-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.plan-card-row{font-size:.82rem;margin-top:6px;}
+.plan-card-actions{display:flex;gap:6px;margin-top:10px;justify-content:flex-end;}
 .skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;}
 .skill-card.rotation-row{border-left:3px solid var(--accent);}
 .skill-card-top{display:flex;align-items:center;gap:8px;}
@@ -413,7 +424,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
   <nav id="sidebar"></nav>
   <div id="mainWrap">
     <div id="debugBar"></div>
-    <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a></div>
+    <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a><div class="mobile-avatar" id="mobileAvatar" onclick="navigate('profile')" title="View profile"></div></div>
     <div id="statusBanner"></div>
     <main><div id="content"><div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Loading your practice data…</span></div></div></main>
   </div>
@@ -452,6 +463,15 @@ let seq=1000;
 function uid(p){seq++;return (p||'id')+'_'+seq+'_'+Math.random().toString(36).slice(2,7);}
 function todayISO(){const d=new Date();return d.toISOString().slice(0,10);}
 function nowStamp(){return new Date().toISOString();}
+// "Cliff D." — stored on a plan at creation time (not re-derived on every
+// read) so the Practice Plans list can show who created each plan without
+// a Supabase join to profiles; simpler and avoids a second fetch for a
+// value that never changes after a plan is first saved.
+function coachDisplayName(){
+  const first=DB.coach.firstName||'';
+  const lastInitial=(DB.coach.lastName||'').trim()[0];
+  return lastInitial?`${first} ${lastInitial}.`:first;
+}
 
 // Club-wide default practice groups — seeded once (see loadDB()) and
 // editable afterward from Settings -> Club Groups.
@@ -1118,6 +1138,10 @@ function renderSidebar(){
   if(bn){
     bn.innerHTML=BOTTOM_NAV.map(l=>`<div class="bottom-nav-item ${mainRoute===l.route?'active':''}" onclick="navigate('${l.route}')"><span class="nav-icon">${ic(l.icon)}</span><span>${l.label}</span></div>`).join('');
   }
+  // Sidebar is hidden on mobile (bottom nav takes over) — mirror the coach's
+  // initials into the mobile header bar so profile is still one tap away.
+  const mobileAvatar=document.getElementById('mobileAvatar');
+  if(mobileAvatar)mobileAvatar.textContent=(DB.coach.firstName[0]||'')+(DB.coach.lastName[0]||'');
 }
 
 
@@ -1525,24 +1549,41 @@ function renderPlanList(container){
       <div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="pl-search" placeholder="Search"></div>
       <select class="input" id="pl-group-filter"><option value="">All Groups</option>${DB.groups.map(g=>`<option value="${escAttr(g.name)}">${esc(g.name)}</option>`).join('')}</select>
     </div>
-    <div class="tablewrap"><table><thead><tr>
+    <div class="tablewrap plans-desktop-table"><table><thead><tr>
       <th style="width:34px"><input type="checkbox" disabled></th>
-      <th>Practice Date</th><th>Practice Time</th><th>Name</th><th>Group</th><th style="text-align:right">Action</th>
+      <th>Practice Date</th><th>Practice Time</th><th>Name</th><th>Group</th><th>Coach</th><th style="text-align:right">Action</th>
     </tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="6">No practice plans found.</td></tr>`:
+    ${list.length===0?`<tr class="empty-row"><td colspan="7">No practice plans found.</td></tr>`:
       list.map(p=>`<tr>
         <td><input type="checkbox"></td>
         <td>${fmtDate(p.date)}</td>
         <td>${p.startTime?p.startTime+' '+p.ampm:'-'}</td>
         <td><a onclick="navigate('plans/edit/${p.id}')">${esc(p.name)}</a> ${visibilityBadge(p)}</td>
         <td>${p.groups&&p.groups[0]?`<span class="badge badge-accent">${esc(p.groups[0])}</span>`:''}</td>
+        <td>${esc(p.coachName||'—')}</td>
         <td><div class="row-actions">
           <button class="btn btn-sm" onclick="duplicatePlan('${p.id}')">${ic('duplicate')} Copy Plan</button>
           <button class="icon-btn" title="Edit" onclick="navigate('plans/edit/${p.id}')">${ic('edit')}</button>
           ${isMine(p)?`<button class="icon-btn" title="Delete" onclick="deletePlan('${p.id}')">${ic('trash')}</button>`:''}
         </div></td>
       </tr>`).join('')}
-    </tbody></table></div>`;
+    </tbody></table></div>
+    <div class="plan-cards-mobile">
+      ${list.length===0?`<p class="mutedtext">No practice plans found.</p>`:
+        list.map(p=>`<div class="plan-card">
+          <div class="plan-card-top">
+            <a onclick="navigate('plans/edit/${p.id}')" style="font-weight:700;">${esc(p.name)}</a> ${visibilityBadge(p)}
+            ${p.groups&&p.groups[0]?`<span class="badge badge-accent">${esc(p.groups[0])}</span>`:''}
+          </div>
+          <div class="plan-card-row mutedtext">${fmtDate(p.date)} &middot; ${p.startTime?p.startTime+' '+p.ampm:'-'}${p.duration?' &middot; '+esc(String(p.duration))+' min':''}</div>
+          <div class="plan-card-row mutedtext">${p.location?esc(p.location)+' &middot; ':''}Coach: ${esc(p.coachName||'—')}</div>
+          <div class="plan-card-actions">
+            <button class="btn btn-sm" onclick="duplicatePlan('${p.id}')">${ic('duplicate')} Copy Plan</button>
+            <button class="icon-btn" title="Edit" onclick="navigate('plans/edit/${p.id}')">${ic('edit')}</button>
+            ${isMine(p)?`<button class="icon-btn" title="Delete" onclick="deletePlan('${p.id}')">${ic('trash')}</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`;
     document.getElementById('pl-search').value=search;
     document.getElementById('pl-search').oninput=e=>{search=e.target.value;draw();};
     document.getElementById('pl-group-filter').value=groupFilter;
@@ -1569,6 +1610,7 @@ function duplicatePlan(id){
   const copy=JSON.parse(JSON.stringify(p));
   copy.id=uid('plan');copy.name=p.name+' (Copy)';copy.dateCreated=nowStamp();
   copy.coachId=SYNC_COACH_ID; // this duplicate belongs to you, even if the original plan didn't
+  copy.coachName=coachDisplayName();
   copy.rows=copy.rows.map(r=>({...r,id:uid('row')}));
   DB.plans.push(copy);saveDB();router();
   toast('Plan duplicated');
@@ -1611,7 +1653,7 @@ function generateAIPlan(){
     remaining-=m;i++;guard++;
   }
   const plan={id:uid('plan'),name,date,location:'',startTime:'3:00',ampm:'PM',duration:minutes,color:'#00c9a7',
-    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:cat,groups:[],visibility:'club',dateCreated:nowStamp(),rows};
+    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:cat,groups:[],visibility:'club',dateCreated:nowStamp(),coachName:coachDisplayName(),rows};
   DB.plans.push(plan);saveDB();closeModal();
   navigate('plans/edit/'+plan.id);
   toast('AI plan generated — review and tweak as needed');
@@ -1787,6 +1829,7 @@ function saveBuilderDraft(){
     const real=DB.plans.find(p=>p.id===__sourceId);
     if(real) Object.assign(real,fields);
   } else {
+    fields.coachName=coachDisplayName(); // set once, at creation — never overwritten by later edits
     DB.plans.push(fields);
     builderDraft.__sourceId=builderDraft.id;
   }
