@@ -2574,60 +2574,82 @@ async function generatePracticePDF(id){
 // no separate fetch here) merged into one alphabetical list. stationsOnly
 // stays custom-only, since "stations" is a per-custom-skill flag with no
 // Dive Drills equivalent.
+// Split shell-vs-table on purpose: renderShell() (page load, and whenever
+// DD_SKILLS finishes loading) rebuilds the sorted base list and the whole
+// page including the search <input>. renderTable() (every keystroke) only
+// touches #skillListBody's innerHTML — filtering the already-sorted base
+// list with a plain includes(), no re-sort — so the search input itself
+// is never destroyed/recreated and never loses focus while typing.
 function renderSkillList(container, stationsOnly){
   let search='';
-  function draw(){
-    let customList=[...DB.skills];
-    if(stationsOnly)customList=customList.filter(d=>d.stations);
-    if(search)customList=customList.filter(d=>d.name.toLowerCase().includes(search.toLowerCase()));
+  let baseList=[];
 
-    let theadHtml,rowsHtml;
+  function buildBaseList(){
     if(stationsOnly){
-      customList.sort((a,b)=>a.name.localeCompare(b.name));
-      theadHtml=`<th>Name</th><th>Station</th><th style="text-align:right">Action</th>`;
-      rowsHtml = customList.length===0?`<tr class="empty-row"><td colspan="3">No skills found.</td></tr>`:
-        customList.map(d=>{const mine=isMine(d);return `<tr>
-          <td>${mine?`<a onclick="openSkillForm('${d.id}')" style="font-weight:700;color:var(--accent);">${esc(d.name)}</a>`:`<span style="font-weight:700;">${esc(d.name)}</span>`}</td>
-          <td>${esc(categoryName(d.categoryId))}</td>
-          <td><div class="row-actions">
-            ${mine?`<button class="icon-btn" onclick="openSkillForm('${d.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkill('${d.id}')">${ic('trash')}</button>`:''}
-          </div></td>
-        </tr>`;}).join('');
+      baseList=DB.skills.filter(d=>d.stations)
+        .map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),mine:isMine(d)}))
+        .sort((a,b)=>a.name.localeCompare(b.name));
     } else {
-      const customMatches=customList.map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),mine:isMine(d)}));
-      const ddMatches=DD_SKILLS.filter(s=>!search||s.name.toLowerCase().includes(search.toLowerCase()))
-        .map(s=>({kind:'dd',id:s.id,name:s.name,station:s.type,level:s.level}));
-      const combined=[...customMatches,...ddMatches].sort((a,b)=>a.name.localeCompare(b.name));
-      theadHtml=`<th>Name</th><th>Station</th><th>Level</th><th>Source</th><th style="text-align:right">Action</th>`;
-      rowsHtml = combined.length===0?`<tr class="empty-row"><td colspan="5">No skills found.</td></tr>`:
-        combined.map(m=>{
-          if(m.kind==='custom'){
-            return `<tr>
-              <td>${m.mine?`<a onclick="openSkillForm('${m.id}')" style="font-weight:700;color:var(--accent);">${esc(m.name)}</a>`:`<span style="font-weight:700;color:var(--accent);">${esc(m.name)}</span>`}</td>
-              <td>${esc(m.station||'')}</td>
-              <td></td>
-              <td><span class="badge badge-gold">&#9733; Custom</span></td>
-              <td><div class="row-actions">
-                ${m.mine?`<button class="icon-btn" onclick="openSkillForm('${m.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkill('${m.id}')">${ic('trash')}</button>`:''}
-              </div></td>
-            </tr>`;
-          }
-          return `<tr>
-            <td style="font-weight:700;">${esc(m.name)}</td>
-            <td>${esc(m.station||'')}</td>
-            <td>${m.level!=null?`<span class="badge badge-level">L${esc(String(m.level))}</span>`:''}</td>
-            <td><span class="badge badge-accent">DD</span></td>
-            <td></td>
-          </tr>`;
-        }).join('');
+      const customMatches=DB.skills.map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),mine:isMine(d)}));
+      const ddMatches=DD_SKILLS.map(s=>({kind:'dd',id:s.id,name:s.name,station:s.type,level:s.level}));
+      baseList=[...customMatches,...ddMatches].sort((a,b)=>a.name.localeCompare(b.name));
     }
+  }
+
+  function rowsHtmlFor(list){
+    if(stationsOnly){
+      return list.length===0?`<tr class="empty-row"><td colspan="3">No skills found.</td></tr>`:
+        list.map(d=>`<tr>
+          <td>${d.mine?`<a onclick="openSkillForm('${d.id}')" style="font-weight:700;color:var(--accent);">${esc(d.name)}</a>`:`<span style="font-weight:700;">${esc(d.name)}</span>`}</td>
+          <td>${esc(d.station||'')}</td>
+          <td><div class="row-actions">
+            ${d.mine?`<button class="icon-btn" onclick="openSkillForm('${d.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkill('${d.id}')">${ic('trash')}</button>`:''}
+          </div></td>
+        </tr>`).join('');
+    }
+    return list.length===0?`<tr class="empty-row"><td colspan="5">No skills found.</td></tr>`:
+      list.map(m=>{
+        if(m.kind==='custom'){
+          return `<tr>
+            <td>${m.mine?`<a onclick="openSkillForm('${m.id}')" style="font-weight:700;color:var(--accent);">${esc(m.name)}</a>`:`<span style="font-weight:700;color:var(--accent);">${esc(m.name)}</span>`}</td>
+            <td>${esc(m.station||'')}</td>
+            <td></td>
+            <td><span class="badge badge-gold">&#9733; Custom</span></td>
+            <td><div class="row-actions">
+              ${m.mine?`<button class="icon-btn" onclick="openSkillForm('${m.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkill('${m.id}')">${ic('trash')}</button>`:''}
+            </div></td>
+          </tr>`;
+        }
+        return `<tr>
+          <td style="font-weight:700;">${esc(m.name)}</td>
+          <td>${esc(m.station||'')}</td>
+          <td>${m.level!=null?`<span class="badge badge-level">L${esc(String(m.level))}</span>`:''}</td>
+          <td><span class="badge badge-accent">DD</span></td>
+          <td></td>
+        </tr>`;
+      }).join('');
+  }
+
+  function renderTable(){
+    const tbody=document.getElementById('skillListBody');
+    if(!tbody)return;
+    const q=search.trim().toLowerCase();
+    const filtered=q?baseList.filter(m=>m.name.toLowerCase().includes(q)):baseList;
+    tbody.innerHTML=rowsHtmlFor(filtered);
+  }
+
+  function renderShell(){
+    buildBaseList();
+    const theadHtml=stationsOnly
+      ?`<th>Name</th><th>Station</th><th style="text-align:right">Action</th>`
+      :`<th>Name</th><th>Station</th><th>Level</th><th>Source</th><th style="text-align:right">Action</th>`;
 
     container.innerHTML = pageHeader(stationsOnly?'Stations Skill List':'Skill List', `
       <button class="btn btn-primary" onclick="openSkillForm()">${ic('plus')} New Skill</button>
     `) +
     (stationsOnly?'':`<div style="margin:-10px 0 16px;"><a onclick="navigate('skill-blocks')">${ic('block')} Skill Block List</a> &nbsp;·&nbsp; <a onclick="navigate('stations')">Stations Skill List</a></div>`) +
-    `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name"></div></div>
-    <div class="tablewrap"><table><thead><tr>${theadHtml}</tr></thead><tbody>${rowsHtml}</tbody></table></div>` +
+    `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name" value="${escAttr(search)}"></div></div>
+    <div class="tablewrap"><table><thead><tr>${theadHtml}</tr></thead><tbody id="skillListBody"></tbody></table></div>` +
     (stationsOnly?'':`
       <div class="pp-divider"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -2647,11 +2669,15 @@ function renderSkillList(container, stationsOnly){
         </tr>`;}).join('')}
       </tbody></table></div>
     `);
-    document.getElementById('dr-search').value=search;
-    document.getElementById('dr-search').oninput=e=>{search=e.target.value;draw();};
+    document.getElementById('dr-search').oninput=e=>{search=e.target.value;renderTable();};
+    renderTable();
   }
-  window.__skillListDraw=draw; // loadDiveDrillsSkills() calls this to refresh once DD_SKILLS finishes loading
-  draw();
+
+  // loadDiveDrillsSkills() calls this once DD_SKILLS finishes loading —
+  // rebuilds the base list (now including DD results) and re-renders only
+  // the table, leaving the search input (and whatever's typed in it) alone.
+  window.__skillListDraw=()=>{buildBaseList();renderTable();};
+  renderShell();
 }
 function renderStationsList(container){renderSkillList(container,true);}
 function deleteSkill(id){confirmDelete('This will permanently delete this skill. Continue?',()=>{DB.skills=DB.skills.filter(d=>d.id!==id);saveDB();router();});}
