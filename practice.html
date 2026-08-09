@@ -1655,6 +1655,7 @@ function wireSearchAddField(id){
   if(!input)return;
   input.oninput=()=>drawSearchAddResults(id);
   input.onfocus=()=>drawSearchAddResults(id);
+  input.onkeydown=(e)=>searchAddKeydown(e,id);
   input.addEventListener('blur',()=>setTimeout(()=>{const r=document.getElementById(id+'_results');if(r)r.style.display='none';},150));
 }
 function drawSearchAddResults(id){
@@ -1670,10 +1671,37 @@ function drawSearchAddResults(id){
   }).slice(0,25);
   const exact=q && cfg.items.some(item=>cfg.getText(item).toLowerCase()===q);
   results.__matches=matches;
-  let html=matches.map((item,i)=>`<div class="searchadd-result" onclick="searchAddPick('${id}',${i})">${cfg.renderItem?cfg.renderItem(item):esc(cfg.getText(item))}</div>`).join('');
-  if(q && !exact) html+=`<div class="searchadd-result add-new" onclick="searchAddCreate('${id}')">+ Add "${esc(input.value.trim())}"</div>`;
+  // mousedown (not click) firing searchAddPick/searchAddCreate, with
+  // preventDefault, is deliberate: clicking these rows blurs the input
+  // first (its own blur handler schedules hiding this dropdown 150ms
+  // later), and on iOS Safari specifically a plain non-form element's
+  // click never fires at all on the tap that blurs an active input — it
+  // takes a second tap. mousedown fires before any of that, on the very
+  // first tap, and preventDefault stops the input from blurring at all.
+  let html=matches.map((item,i)=>`<div class="searchadd-result" onmousedown="event.preventDefault();searchAddPick('${id}',${i})">${cfg.renderItem?cfg.renderItem(item):esc(cfg.getText(item))}</div>`).join('');
+  if(q && !exact) html+=`<div class="searchadd-result add-new" onmousedown="event.preventDefault();searchAddCreate('${id}')">+ Add "${esc(input.value.trim())}"</div>`;
   results.innerHTML = html || '<div class="searchadd-result mutedtext" style="cursor:default;">No matches</div>';
   results.style.display='block';
+}
+// Enter key: pick the exact existing match if the typed text matches one
+// case-insensitively, otherwise create-and-add the typed text — same two
+// paths as clicking a result row, just from the keyboard.
+function searchAddKeydown(e,id){
+  if(e.key!=='Enter')return;
+  e.preventDefault();
+  const cfg=SEARCHADD[id];
+  const input=document.getElementById(id+'_input');
+  if(!cfg||!input)return;
+  const q=input.value.trim().toLowerCase();
+  if(!q)return;
+  const exactIdx=cfg.items.findIndex(item=>cfg.getText(item).toLowerCase()===q);
+  if(exactIdx!==-1){
+    const results=document.getElementById(id+'_results');
+    if(results)results.__matches=[cfg.items[exactIdx]];
+    searchAddPick(id,0);
+  } else {
+    searchAddCreate(id);
+  }
 }
 function searchAddPick(id,idx){
   const cfg=SEARCHADD[id];
