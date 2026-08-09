@@ -285,6 +285,29 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .rotation-row{border-left:3px solid var(--accent);}
 .rotation-group-label{font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;font-weight:700;}
 
+/* Skill rows: table on desktop, card list on mobile — same data, same
+   handlers, two renderings so nothing is cut off under 768px. */
+.skill-cards-mobile{display:none;}
+@media(max-width:767px){
+  .skilltable{display:none;}
+  .skill-cards-mobile{display:block;}
+}
+.skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;}
+.skill-card.rotation-row{border-left:3px solid var(--accent);}
+.skill-card-top{display:flex;align-items:center;gap:8px;}
+.skill-card-activity{flex:1;min-width:0;}
+.skill-card-activity input{width:100%;}
+.skill-card-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:.85rem;}
+.skill-card-row input,.skill-card-row select{flex:1;min-width:90px;}
+.skill-card-label{font-size:.68rem;text-transform:uppercase;color:var(--text-secondary);font-weight:700;flex-shrink:0;}
+.row-action-menu{position:relative;flex-shrink:0;}
+.row-action-menu summary{list-style:none;cursor:pointer;padding:4px 8px;font-size:1.15rem;color:var(--text-secondary);line-height:1;}
+.row-action-menu summary::-webkit-details-marker{display:none;}
+.row-action-menu[open] summary{color:var(--accent);}
+.row-action-menu-list{position:absolute;right:0;top:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-card);z-index:10;min-width:130px;overflow:hidden;}
+.row-action-menu-list button{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 12px;font-size:.82rem;color:var(--text-primary);cursor:pointer;}
+.row-action-menu-list button:hover{background:var(--bg-surface-2);}
+
 .builder-savebar{position:sticky;bottom:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;margin-top:8px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;box-shadow:var(--shadow-card);z-index:5;}
 .builder-savebar-right{display:flex;flex-wrap:wrap;gap:8px;}
 
@@ -352,7 +375,6 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .settings-section h4{background:var(--bg-surface-2);color:var(--text-secondary);margin:0;padding:12px 16px;font-size:.7rem;letter-spacing:.5px;text-transform:uppercase;font-weight:700;}
 .settings-section .inner{padding:6px 16px;}
 .color-swatch{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);padding:0;overflow:hidden;background:none;}
-.thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:pointer;}
 .toast{position:fixed;bottom:calc(var(--nav-bottom-height) + 14px);left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:11px 20px;border-radius:8px;font-size:.85rem;font-weight:600;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.45);}
 @media(min-width:768px){.toast{bottom:24px;}}
 .stat-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
@@ -1209,9 +1231,9 @@ const CFG = {
   notes:{key:'notes',title:'Note List',singular:'Note',newLabel:'New Note',hasStatus:true,
     fields:[{key:'text',label:'Note',type:'textarea'}],
     columns:[{label:'Note',render:i=>esc(i.text)}],emptyText:'No notes found.'},
-  categories:{key:'categories',title:'Category List',singular:'Category',newLabel:'New category',hasStatus:true,
-    fields:[{key:'name',label:'Category Name',type:'text'}],
-    columns:[{label:'Category Name',render:i=>esc(i.name)}],emptyText:'No categories found.'},
+  categories:{key:'categories',title:'Station List',singular:'Station',newLabel:'New Station',hasStatus:true,
+    fields:[{key:'name',label:'Station Name',type:'text'}],
+    columns:[{label:'Station Name',render:i=>esc(i.name)}],emptyText:'No stations found.'},
   groups:{key:'groups',title:'Club Groups',singular:'Group',newLabel:'New Group',
     fields:[{key:'name',label:'Group Name',type:'text',placeholder:'e.g. Sparks'}],
     columns:[{label:'Group Name',render:i=>esc(i.name)}],emptyText:'No groups found.'},
@@ -1351,7 +1373,7 @@ function renderPracticeDetails(container){
     {icon:'💬',title:'Quotes',count:DB.quotes.length,route:'quotes'},
     {icon:'🎯',title:'Practice Points',count:DB.practiceEmphasis.length+DB.competitionEmphasis.length,route:'practice-points'},
     {icon:'📝',title:'Notes',count:DB.notes.length,route:'notes'},
-    {icon:'📁',title:'Categories',count:DB.categories.length,route:'categories'},
+    {icon:'📁',title:'Stations',count:DB.categories.length,route:'categories'},
   ];
   container.innerHTML = `<div class="pagehead"><div><h1>Practice Details</h1><p class="mutedtext" style="margin:2px 0 0;">Manage the components used in your practice plans</p></div></div>` +
     `<div class="details-grid">${cards.map(c=>`
@@ -1554,8 +1576,8 @@ function openAIPlanModal(){
         <div class="field"><label>Date</label><input class="input" type="date" id="ai_date" value="${todayISO()}"></div>
         <div class="field"><label>Total Minutes</label><input class="input" type="number" id="ai_minutes" value="60"></div>
       </div>
-      <div class="field"><label>Focus Category (optional)</label>
-        <select class="input" id="ai_cat"><option value="">All Categories</option>${cats.map(c=>`<option value="${escAttr(c.name)}">${esc(c.name)}</option>`).join('')}</select>
+      <div class="field"><label>Focus Station (optional)</label>
+        <select class="input" id="ai_cat"><option value="">All Stations</option>${cats.map(c=>`<option value="${escAttr(c.name)}">${esc(c.name)}</option>`).join('')}</select>
       </div>`,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="generateAIPlan()">Generate</button>`
   });
@@ -1660,7 +1682,7 @@ function searchAddCreate(id){
   const item=cfg.onCreate(text);
   cfg.selected = cfg.multi ? [...(cfg.selected||[]), item] : [item];
   document.getElementById(id+'_results').style.display='none';
-  toast('Added to your library');
+  toast('Saved to your library');
   cfg.onChange();
 }
 function searchAddRemove(id,idx){
@@ -1852,11 +1874,11 @@ function renderPracticeBuilder(id,container){
           <div class="builder-subsection">
             <label class="builder-label">Practice Group</label>
             ${searchAddFieldHtml(buildGroupCfg())}
-            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:.78rem;">
+            ${DB.coach.isSuperUser?`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:.78rem;">
               <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="club" ${plan.visibility!=='private'&&plan.visibility!=='superuser'?'checked':''} ${dis}> Club</label>
               <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="private" ${plan.visibility==='private'?'checked':''} ${dis}> Private</label>
-              ${DB.coach.isSuperUser?`<label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="superuser" ${plan.visibility==='superuser'?'checked':''} ${dis}> Super User Only</label>`:''}
-            </div>
+              <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="superuser" ${plan.visibility==='superuser'?'checked':''} ${dis}> Super User Only</label>
+            </div>`:''}
           </div>
           <div class="builder-subsection">
             <label class="builder-label">Date &amp; Time</label>
@@ -1879,7 +1901,7 @@ function renderPracticeBuilder(id,container){
             <div class="donut" style="background:${d.donutBg}"><div class="donut-hole"><div class="lbl">${plan.duration?'Allocated':'Total Minutes'}</div><div class="val">${d.usedTotal}${plan.duration?' / '+d.total:''}</div></div></div>
           </div>
           <table class="legend-table">
-            <tr><td style="font-weight:700;">Category</td><td style="font-weight:700;">Mins</td><td style="font-weight:700;">%</td></tr>
+            <tr><td style="font-weight:700;">Station</td><td style="font-weight:700;">Mins</td><td style="font-weight:700;">%</td></tr>
             ${d.catNames.map(c=>`<tr><td><span class="legend-dot" style="background:${d.catColors[c]}"></span>${esc(c)}</td><td>${d.agg[c]}</td><td>${(d.agg[c]/d.total*100).toFixed(1)}%</td></tr>`).join('')}
             ${d.unallocated>0?`<tr><td><span class="legend-dot" style="background:#9aa5b1"></span>Unallocated</td><td>${d.unallocated}</td><td>${d.unallocatedPct.toFixed(1)}%</td></tr>`:''}
           </table>
@@ -1919,11 +1941,11 @@ function renderPracticeBuilder(id,container){
         </div>
         <div class="tablewrap skilltable">
           <table><thead><tr>
-            <th></th><th style="width:34px">#</th><th style="min-width:180px">Activity</th><th style="width:110px">Min</th><th>Time Slot</th><th>Category</th><th style="min-width:160px">Notes</th>
-            <th>Uploads</th><th>Stations</th><th style="text-align:right">Action</th>
+            <th></th><th style="width:34px">#</th><th style="min-width:180px">Activity</th><th style="width:110px">Min</th><th>Time Slot</th><th>Station</th><th style="min-width:160px">Notes</th>
+            <th>Stations</th><th style="text-align:right">Action</th>
           </tr></thead>
           <tbody id="planRowsBody">
-          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="10">No skills added yet. Search above, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</td></tr>`:
+          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="9">No skills added yet. Search above, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</td></tr>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<tr class="${r.rotationGroupId?'rotation-row':''}" draggable="${readOnly?'false':'true'}" data-idx="${idx}" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event,'${plan.id}')">
@@ -1941,7 +1963,6 @@ function renderPracticeBuilder(id,container){
                   ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
                 </select>`}</td>
                 <td><input value="${escAttr(r.notes)}" onchange="updatePlanRow('${plan.id}','${r.id}','notes',this.value)" ${dis}></td>
-                <td>${renderRowUpload(plan.id,r,readOnly)}</td>
                 <td style="text-align:center;"><label class="toggle" style="width:36px;height:20px;"><input type="checkbox" ${r.stations?'checked':''} onchange="updatePlanRow('${plan.id}','${r.id}','stations',this.checked)" ${dis}><span class="slider"></span></label></td>
                 <td><div class="row-actions">
                   ${readOnly?'':`<button class="icon-btn" title="Duplicate row" onclick="duplicatePlanRow('${plan.id}','${r.id}')">${ic('duplicate')}</button>
@@ -1951,6 +1972,53 @@ function renderPracticeBuilder(id,container){
             }).join('')}
           </tbody></table>
         </div>
+        <div class="skill-cards-mobile">
+          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search above, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</p>`:
+            plan.rows.map((r,idx)=>{
+              const t=times[idx];
+              return `<div class="skill-card ${r.rotationGroupId?'rotation-row':''}">
+                <div class="skill-card-top">
+                  <span class="drag-handle">${readOnly?'':ic('drag')}</span>
+                  <div class="skill-card-activity">
+                    ${r.rotationGroupId?`<div class="rotation-group-label">${ic('rotation')} ${esc(r.rotationName||'Rotation')}</div>`:''}
+                    ${r.ddSkillId
+                      ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from Dive Drills">🔒 DD</span>`
+                      : `<input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)" ${dis}>`}
+                  </div>
+                  ${readOnly?'':`<details class="row-action-menu">
+                    <summary>⋮</summary>
+                    <div class="row-action-menu-list">
+                      <button type="button" onclick="duplicatePlanRow('${plan.id}','${r.id}')">Duplicate</button>
+                      <button type="button" onclick="movePlanRowUp('${plan.id}','${r.id}')">Move Up</button>
+                      <button type="button" onclick="movePlanRowDown('${plan.id}','${r.id}')">Move Down</button>
+                      <button type="button" onclick="deletePlanRow('${plan.id}','${r.id}')">Delete</button>
+                    </div>
+                  </details>`}
+                </div>
+                <div class="skill-card-row">
+                  <span class="skill-card-label">Min</span>${minutesInputPairHtml('row_min_m_'+r.id, r.min, `updatePlanRow('${plan.id}','${r.id}','min',this.value)`, readOnly)}
+                  <span class="skill-card-label">Slot</span><span class="mutedtext">${fromMinutes(t.start)} - ${fromMinutes(t.end)}</span>
+                </div>
+                <div class="skill-card-row">
+                  <span class="skill-card-label">Station</span>
+                  ${r.ddSkillId
+                    ? `<span class="mutedtext">${esc(r.category||'')}${r.ddSkillLevel!=null?' · L'+esc(String(r.ddSkillLevel)):''}</span>`
+                    : `<select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
+                      <option value="">--</option>
+                      ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
+                    </select>`}
+                </div>
+                <div class="skill-card-row">
+                  <span class="skill-card-label">Notes</span><input value="${escAttr(r.notes)}" onchange="updatePlanRow('${plan.id}','${r.id}','notes',this.value)" ${dis}>
+                </div>
+                <div class="skill-card-row">
+                  <span class="skill-card-label">Stations</span>
+                  <label class="toggle" style="width:36px;height:20px;"><input type="checkbox" ${r.stations?'checked':''} onchange="updatePlanRow('${plan.id}','${r.id}','stations',this.checked)" ${dis}><span class="slider"></span></label>
+                </div>
+              </div>`;
+            }).join('')}
+        </div>
+        <p class="mutedtext" style="margin-top:10px;">${plan.rows.length} skill${plan.rows.length===1?'':'s'} · ${d.usedTotal} minute${d.usedTotal===1?'':'s'} total</p>
       </div>
 
       <div class="card builder-card">
@@ -1991,8 +2059,11 @@ function updateBuilderMeta(){
   plan.startTime=`${h12}:${String(mm).padStart(2,'0')}`;plan.ampm=ampm;
   plan.duration=document.getElementById('pb_duration').value;
   plan.color=document.getElementById('pb_color').value;
+  // Only super users get the visibility selector — for everyone else it's
+  // simply not in the DOM, so leave plan.visibility exactly as it is
+  // (defaults to 'club' from loadBuilderDraft) rather than forcing it.
   const vis=document.querySelector('input[name="pb_visibility"]:checked');
-  plan.visibility=vis?vis.value:'club';
+  if(vis) plan.visibility=vis.value;
   builderDirty=true;
   draw();
 }
@@ -2069,7 +2140,7 @@ function autoSaveSkillFromRow(row){
     status:'Enabled', dateCreated:nowStamp(), image:null,
   });
   saveDB();
-  toast('Skill saved to your library');
+  toast('Saved to your library');
 }
 function addPlanRow(planId){
   const plan=findPlanById(planId);
@@ -2086,6 +2157,22 @@ function duplicatePlanRow(planId,rowId){
 function deletePlanRow(planId,rowId){
   const plan=findPlanById(planId);
   plan.rows=plan.rows.filter(r=>r.id!==rowId);
+  builderDirty=true;window.__currentPlanDraw();
+}
+// Mobile card view's "⋮" action menu reorders rows with Move Up/Down
+// buttons instead of drag-and-drop, which doesn't work well on touch.
+function movePlanRowUp(planId,rowId){
+  const plan=findPlanById(planId);
+  const idx=plan.rows.findIndex(r=>r.id===rowId);
+  if(idx<=0)return;
+  [plan.rows[idx-1],plan.rows[idx]]=[plan.rows[idx],plan.rows[idx-1]];
+  builderDirty=true;window.__currentPlanDraw();
+}
+function movePlanRowDown(planId,rowId){
+  const plan=findPlanById(planId);
+  const idx=plan.rows.findIndex(r=>r.id===rowId);
+  if(idx===-1||idx>=plan.rows.length-1)return;
+  [plan.rows[idx],plan.rows[idx+1]]=[plan.rows[idx+1],plan.rows[idx]];
   builderDirty=true;window.__currentPlanDraw();
 }
 let dragIdx=null;
@@ -2105,7 +2192,7 @@ function addPlanRowFromLibrary(planId){
   openModal({
     title:'Add from Skill Library',
     wide:true,
-    bodyHtml:`<div class="tablewrap"><table><thead><tr><th>Category</th><th>Name</th><th>Min</th><th>Notes</th><th></th></tr></thead><tbody>
+    bodyHtml:`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Name</th><th>Min</th><th>Notes</th><th></th></tr></thead><tbody>
       ${pool.length===0?`<tr class="empty-row"><td colspan="5">No skills in your library yet.</td></tr>`:
       pool.map(d=>`<tr><td>${esc(categoryName(d.categoryId))}</td><td>${esc(d.name)}</td><td>${d.minutes}</td><td class="mutedtext">${esc(d.notes||'')}</td>
       <td><button class="btn btn-sm btn-primary" onclick="addSkillToPlan('${planId}','${d.id}')">Add</button></td></tr>`).join('')}
@@ -2121,70 +2208,82 @@ function addSkillToPlan(planId,skillId){
   window.__currentPlanDraw();
   toast(d.name+' added to plan');
 }
-function renderRowUpload(planId,row,readOnly){
-  if(row.image){
-    return `<img class="thumb" src="${row.image}" onclick="viewImage('${row.image.replace(/'/g,"\\'")}')">`;
-  }
-  if(readOnly)return '';
-  return `<label class="icon-btn" title="Upload" style="cursor:pointer;">${ic('upload')}<input type="file" accept="image/*" style="display:none" onchange="uploadRowImage(event,'${planId}','${row.id}')"></label>`;
-}
-function uploadRowImage(e,planId,rowId){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const plan=findPlanById(planId);const row=plan.rows.find(r=>r.id===rowId);
-    row.image=reader.result;builderDirty=true;window.__currentPlanDraw();
-  };
-  reader.readAsDataURL(file);
-}
-function viewImage(src){
-  openModal({title:'Image',bodyHtml:`<img src="${src}" style="max-width:100%;border-radius:8px;">`});
-}
+// Escapes a string for safe embedding inside a CSS string literal (used
+// only for the printed report's @page footer content, which is plain
+// text inside a <style> block — HTML-escaping via esc()/escAttr() would
+// leave literal "&quot;"/"&amp;" in the printed footer instead of
+// actually preventing the string from breaking out of its CSS quotes.
+function cssStr(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
 function printPlan(id){
   const plan=findPlanById(id);
   const times=computeRowTimes(plan);
+  const d=buildDonutData(plan);
+  const coachName=`${DB.coach.firstName||''} ${DB.coach.lastName||''}`.trim()||'Coach';
+  const groupName=plan.groups&&plan.groups[0]?plan.groups[0]:'';
   const w=window.open('','_blank');
-  const rowsHtml=plan.rows.map((r,i)=>`<tr>
-    <td>${i+1}</td><td>${esc(r.activity)}</td><td>${r.min}</td>
+  const rowsHtml=plan.rows.map((r,i)=>`<tr class="${i%2===1?'alt':''}">
+    <td>${esc(r.activity)}</td><td>${r.min}</td>
     <td>${fromMinutes(times[i].start)} - ${fromMinutes(times[i].end)}</td>
     <td>${esc(r.category||'')}</td><td>${esc(r.notes||'')}</td></tr>`).join('');
-  w.document.write(`<html><head><title>${esc(plan.name)}</title>
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(plan.name)}</title>
     <style>
-      body{font-family:Arial,sans-serif;padding:30px;color:#1c2733;}
-      h2{color:${plan.color||'#00c9a7'};margin-bottom:0;}
-      .meta{margin:16px 0;font-size:14px;}
-      .meta div{margin-bottom:4px;}
-      table{width:100%;border-collapse:collapse;margin-top:16px;}
-      th,td{border:1px solid #ccc;padding:8px;font-size:13px;text-align:left;}
-      th{background:${plan.color||'#00c9a7'};color:#fff;}
+      @page {
+        margin: 34px 36px 64px 36px;
+        @bottom-left { content: "Created by ${cssStr(coachName)}"; font-size:8.5px; color:#8a94a3; }
+        @bottom-center { content: "Upstate Diving"; font-size:8.5px; color:#8a94a3; }
+        @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size:8.5px; color:#8a94a3; }
+      }
+      *{box-sizing:border-box;}
+      body{font-family:-apple-system,Arial,sans-serif;color:#1c2733;margin:0;padding:0;background:#fff;}
+      .pdf-title{font-size:30px;font-weight:800;margin:0;}
+      .pdf-title .dive{color:#1c2733;}
+      .pdf-title .practice{color:#00c9a7;}
+      .pdf-subline{font-size:12px;color:#5a6472;margin-top:3px;}
+      .pdf-divider{height:2px;background:#00c9a7;border:none;margin:14px 0 20px;}
+      .pdf-section{background:#fcfcfc;border-radius:8px;padding:14px 16px;margin-bottom:16px;border-left:3px solid #00c9a7;}
+      .pdf-section h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#00a88c;margin:0 0 8px;font-weight:700;}
+      .pdf-cards{display:flex;flex-wrap:wrap;gap:10px;}
+      .pdf-card{flex:1;min-width:160px;background:#f9f9f9;border-radius:8px;padding:10px 12px;}
+      .pdf-card-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;color:#8a94a3;font-weight:700;margin-bottom:3px;}
+      .pdf-card-value{font-size:13px;color:#1c2733;}
+      table{width:100%;border-collapse:collapse;}
+      th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#8a94a3;font-weight:700;padding:7px 10px;border-bottom:1px solid #e4e7ec;}
+      td{padding:8px 10px;font-size:12px;border-bottom:1px solid #eef0f3;}
+      tr.alt td{background:#f9f9f9;}
+      .pdf-donut-wrap{display:flex;align-items:center;gap:18px;margin-bottom:12px;}
+      .pdf-donut{width:80px;height:80px;border-radius:50%;background:${d.donutBg};flex-shrink:0;position:relative;}
+      .pdf-donut::after{content:"";position:absolute;inset:14px;background:#fcfcfc;border-radius:50%;}
+      .pdf-summary{font-size:12px;color:#5a6472;margin-top:10px;}
     </style></head><body>
-    <h2>${esc(plan.name)}</h2>
-    <div class="meta">
-      <div><b>Date:</b> ${fmtDateLong(plan.date)}</div>
-      <div><b>Time:</b> ${plan.startTime} ${plan.ampm} ${plan.duration?'('+plan.duration+' min)':''}</div>
-      ${plan.location?`<div><b>Location:</b> ${esc(plan.location)}</div>`:''}
-      ${plan.announcements?`<div><b>Announcements:</b> ${esc(plan.announcements)}</div>`:''}
-      ${plan.quote?`<div><b>Quote of the Day:</b> "${esc(plan.quote)}"</div>`:''}
-      ${plan.practiceEmphasis?`<div><b>Practice Emphasis:</b> ${esc(plan.practiceEmphasis)}</div>`:''}
-      ${plan.competitionEmphasis?`<div><b>Competition Emphasis:</b> ${esc(plan.competitionEmphasis)}</div>`:''}
+    <div class="pdf-header">
+      <h1 class="pdf-title"><span class="dive">Dive</span><span class="practice">Practice</span></h1>
+      <div class="pdf-subline">Upstate Diving</div>
+      ${groupName?`<div class="pdf-subline">${esc(groupName)}</div>`:''}
+      <div class="pdf-subline">${fmtDateLong(plan.date)} · ${plan.startTime} ${plan.ampm}${plan.duration?' · '+plan.duration+' min':''}</div>
     </div>
-    <table><thead><tr><th>#</th><th>Activity</th><th>Min</th><th>Time Slot</th><th>Category</th><th>Notes</th></tr></thead>
-    <tbody>${rowsHtml||'<tr><td colspan="6">No skills added</td></tr>'}</tbody></table>
+    <hr class="pdf-divider">
+
+    <h2 style="font-size:18px;margin:0 0 14px;">${esc(plan.name)}</h2>
+
+    ${plan.location?`<div class="pdf-cards" style="margin-bottom:16px;"><div class="pdf-card"><div class="pdf-card-label">Location</div><div class="pdf-card-value">${esc(plan.location)}</div></div></div>`:''}
+
+    ${plan.announcements?`<div class="pdf-section"><h3>Announcements</h3><div style="font-size:12.5px;">${esc(plan.announcements)}</div></div>`:''}
+    ${plan.quote?`<div class="pdf-section"><h3>Quote of the Day</h3><div style="font-size:12.5px;font-style:italic;">"${esc(plan.quote)}"</div></div>`:''}
+    ${(plan.practiceEmphasis||plan.competitionEmphasis)?`<div class="pdf-section"><h3>Practice Points</h3>
+      ${plan.practiceEmphasis?`<div style="font-size:12.5px;margin-bottom:4px;"><b>Practice:</b> ${esc(plan.practiceEmphasis)}</div>`:''}
+      ${plan.competitionEmphasis?`<div style="font-size:12.5px;"><b>Competition:</b> ${esc(plan.competitionEmphasis)}</div>`:''}
+    </div>`:''}
+
+    <div class="pdf-section">
+      <h3>Skills</h3>
+      ${plan.rows.length?`<div class="pdf-donut-wrap"><div class="pdf-donut"></div><div class="pdf-summary" style="margin-top:0;">${d.usedTotal} minutes allocated${plan.duration?' of '+plan.duration+' planned':''}</div></div>`:''}
+      <table><thead><tr><th>Activity</th><th>Min</th><th>Timeslot</th><th>Station</th><th>Notes</th></tr></thead>
+      <tbody>${rowsHtml||'<tr><td colspan="5" style="color:#8a94a3;">No skills added</td></tr>'}</tbody></table>
+      <div class="pdf-summary">Total: ${plan.rows.length} skill${plan.rows.length===1?'':'s'} · ${d.usedTotal} minute${d.usedTotal===1?'':'s'}</div>
+    </div>
+
     <script>window.onload=()=>window.print();<\/script>
     </body></html>`);
-  w.document.close();
-}
-function printAllocation(id){
-  const plan=DB.plans.find(p=>p.id===id);
-  const agg={};plan.rows.forEach(r=>{const c=r.category||'Uncategorized';agg[c]=(agg[c]||0)+(parseInt(r.min)||0);});
-  const total=Object.values(agg).reduce((a,b)=>a+b,0)||1;
-  const w=window.open('','_blank');
-  w.document.write(`<html><head><title>Time Allocation - ${esc(plan.name)}</title>
-  <style>body{font-family:Arial;padding:24px;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:8px;}</style>
-  </head><body><h2>${esc(plan.name)} — Practice Time Allocation</h2>
-  <table><tr><th>Category</th><th>Minutes</th><th>%</th></tr>
-  ${Object.keys(agg).map(c=>`<tr><td>${esc(c)}</td><td>${agg[c]}</td><td>${(agg[c]/total*100).toFixed(1)}%</td></tr>`).join('')}
-  </table><script>window.onload=()=>window.print();<\/script></body></html>`);
   w.document.close();
 }
 
@@ -2202,19 +2301,18 @@ function renderSkillList(container, stationsOnly){
       <button class="btn btn-primary" onclick="openSkillForm()">${ic('plus')} New Skill</button>
     `) +
     (stationsOnly?'':`<div style="margin:-10px 0 16px;"><a onclick="navigate('skill-blocks')">${ic('block')} Skill Block List</a> &nbsp;·&nbsp; <a onclick="navigate('stations')">Stations Skill List</a></div>`) +
-    `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name, category, or notes"></div></div>
+    `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name, station, or notes"></div></div>
     <div class="tablewrap"><table><thead><tr>
       <th style="width:34px"><input type="checkbox" disabled></th>
-      <th>Category</th><th>Name</th><th>Minutes</th><th>Notes</th><th>Uploads</th><th>Stations</th><th>Status</th><th>Date Created</th><th style="text-align:right">Action</th>
+      <th>Station</th><th>Name</th><th>Minutes</th><th>Notes</th><th>Stations</th><th>Status</th><th>Date Created</th><th style="text-align:right">Action</th>
     </tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="10">No skills found.</td></tr>`:
+    ${list.length===0?`<tr class="empty-row"><td colspan="9">No skills found.</td></tr>`:
       list.map(d=>{const mine=isMine(d);return `<tr>
         <td><input type="checkbox"></td>
         <td>${esc(categoryName(d.categoryId))}</td>
         <td>${mine?`<a onclick="openSkillForm('${d.id}')">${esc(d.name)}</a>`:esc(d.name)}</td>
         <td>${d.minutes}</td>
         <td>${esc(d.notes||'')}</td>
-        <td>${d.image?`<img class="thumb" src="${d.image}" onclick="viewImage('${d.image.replace(/'/g,"\\'")}')">`:(mine?`<label class="icon-btn" style="cursor:pointer;">${ic('image')}<input type="file" accept="image/*" style="display:none" onchange="uploadSkillImage(event,'${d.id}')"></label>`:'')}</td>
         <td>${d.stations?`<span class="badge badge-accent">Yes</span>`:'<span class="mutedtext">—</span>'}</td>
         <td><span class="badge ${d.status==='Disabled'?'badge-secondary':'badge-accent'}" ${mine?`style="cursor:pointer" onclick="toggleSkillStatus('${d.id}')"`:''}>${d.status}</span></td>
         <td>${fmtDate(d.dateCreated)}</td>
@@ -2279,12 +2377,6 @@ function renderSkillList(container, stationsOnly){
 function renderStationsList(container){renderSkillList(container,true);}
 function toggleSkillStatus(id){const d=DB.skills.find(d=>d.id===id);d.status=d.status==='Disabled'?'Enabled':'Disabled';saveDB();router();}
 function deleteSkill(id){confirmDelete('This will permanently delete this skill. Continue?',()=>{DB.skills=DB.skills.filter(d=>d.id!==id);saveDB();router();});}
-function uploadSkillImage(e,id){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{DB.skills.find(d=>d.id===id).image=reader.result;saveDB();router();};
-  reader.readAsDataURL(file);
-}
 /* ============================= ROTATIONS ============================= */
 function openRotationForm(id){
   const t=id?DB.rotationTemplates.find(t=>t.id===id):null;
@@ -2346,7 +2438,7 @@ function openSkillForm(id){
     bodyHtml:`
       <div class="field"><label>Name</label><input class="input" id="d_name" value="${escAttr(d.name||'')}"></div>
       <div class="field-row">
-        <div class="field"><label>Category</label><select class="input" id="d_cat"><option value="">--</option>${cats.map(c=>`<option value="${c.id}" ${d.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Station</label><select class="input" id="d_cat"><option value="">--</option>${cats.map(c=>`<option value="${c.id}" ${d.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
         <div class="field"><label>Minutes</label>${minutesInputPairHtml('d_min', d.minutes||5)}</div>
       </div>
       <div class="field"><label>Notes</label><textarea class="input" id="d_notes" rows="2">${esc(d.notes||'')}</textarea></div>
@@ -2502,7 +2594,7 @@ function renderSettings(container,activeTab){
       <button class="${t==='planner'?'active':''}" onclick="renderSettings(document.getElementById('content'),'planner')">Planner</button>
       <button class="${t==='printout'?'active':''}" onclick="renderSettings(document.getElementById('content'),'printout')">Printout Format</button>
       <button class="${t==='groups'?'active':''}" onclick="renderSettings(document.getElementById('content'),'groups')">Club Groups</button>
-      <button class="${t==='categories'?'active':''}" onclick="renderSettings(document.getElementById('content'),'categories')">Categories</button>
+      <button class="${t==='categories'?'active':''}" onclick="renderSettings(document.getElementById('content'),'categories')">Stations</button>
       <button class="${t==='data'?'active':''}" onclick="renderSettings(document.getElementById('content'),'data')">Export &amp; Import</button>
     </div>
     <div id="settingsBody"></div>`;
@@ -2524,7 +2616,7 @@ function renderSettings(container,activeTab){
     body.appendChild(listHost);
     renderSimpleList(CFG.groups, listHost);
   } else if(t==='categories'){
-    body.innerHTML=`<p class="mutedtext" style="margin-top:0;">Skill categories are shared club-wide. You can only edit or delete categories you added yourself.</p>`;
+    body.innerHTML=`<p class="mutedtext" style="margin-top:0;">Stations are shared club-wide. You can only edit or delete stations you added yourself.</p>`;
     const listHost=document.createElement('div');
     body.appendChild(listHost);
     renderSimpleList(CFG.categories, listHost);
