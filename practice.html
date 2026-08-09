@@ -94,7 +94,9 @@ button{font-family:inherit;cursor:pointer;}
 .addbtn:hover{background:var(--bg-surface-2);}
 .addbtn .nav-icon{color:var(--accent);font-size:1.1rem;}
 .sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
-.user-info-nav{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.user-info-nav{display:flex;align-items:center;gap:10px;margin-bottom:10px;border-radius:8px;padding:6px;margin:-6px -6px 4px;transition:var(--transition);}
+.user-info-nav:hover{background:var(--bg-surface-2);}
+.user-info-nav:hover .user-name-nav{color:var(--accent);}
 .avatar-sm{width:34px;height:34px;border-radius:50%;background:var(--bg-surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--accent);flex-shrink:0;}
 .user-name-nav{font-size:.85rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-role-nav{font-size:.68rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -244,6 +246,15 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .grid-dash{display:grid;grid-template-columns:2.2fr 1fr;gap:20px;align-items:start;}
 @media(max-width:1000px){.grid-dash{grid-template-columns:1fr;}.field-row{grid-template-columns:1fr;}}
 
+.dashboard-backcard{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;font-weight:700;font-size:.85rem;color:var(--text-secondary);text-decoration:none;cursor:pointer;}
+.dashboard-backcard:hover{color:var(--accent);border-color:var(--accent);text-decoration:none;}
+@media(max-width:600px){
+  #content{padding-left:16px;padding-right:16px;}
+  .pagehead{align-items:flex-start;}
+  .feature-card-grid,.grid-dash{margin-left:0;margin-right:0;}
+  .feature-card,.card{padding:16px;}
+}
+
 .feature-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
 @media(max-width:600px){.feature-card-grid{grid-template-columns:1fr;}}
 .feature-card{background:var(--bg-surface);border:1.5px solid var(--accent);border-radius:var(--radius-md);padding:22px 20px;min-height:44px;box-shadow:var(--shadow-card);cursor:pointer;transition:var(--transition);}
@@ -274,7 +285,21 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .rotation-row{border-left:3px solid var(--accent);}
 .rotation-group-label{font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;font-weight:700;}
 
-.builder-savebar{position:sticky;bottom:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 16px;margin-top:8px;display:flex;justify-content:flex-end;gap:10px;box-shadow:var(--shadow-card);z-index:5;}
+.builder-savebar{position:sticky;bottom:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;margin-top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;box-shadow:var(--shadow-card);z-index:5;}
+
+/* Practice Builder — dense/compact layout, scoped so it never affects
+   other pages that reuse .card/.field/.input. */
+.builder-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+@media(max-width:900px){.builder-top-grid{grid-template-columns:1fr;}}
+.builder-compact .card.builder-card{padding:14px 16px;margin-bottom:14px;}
+.builder-compact h1{font-size:1.25rem;}
+.builder-compact .field{margin-bottom:10px;}
+.builder-compact .field label{font-size:.72rem;margin-bottom:4px;}
+.builder-compact .input,.builder-compact select.input,.builder-compact textarea.input{padding:7px 10px;font-size:.83rem;}
+.builder-compact .field-row{gap:10px;}
+.builder-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;display:block;}
+.builder-subsection{padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);}
+.builder-subsection:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
 
 .qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;}
 .qa-col h4{font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:0 0 10px;font-weight:700;}
@@ -465,6 +490,7 @@ function migrateIfNeeded(){
     if(!DB[k])DB[k]=[];
   });
   if(!DB.coach)DB.coach={firstName:'',lastName:'',username:'',email:'',timezone:'',isSuperUser:false};
+  if(!DB.coach.timezone)DB.coach.timezone='Eastern Time'; // Profile page no longer exposes this — default it instead
   // Plans created before the Practice Builder overhaul are missing the
   // new multi-select fields — default them so the Builder never chokes
   // on an older plan object.
@@ -529,6 +555,14 @@ let syncTimer = null, syncInFlight = false, syncQueued = false;
 let isOffline = false;
 let currentSyncStatus = 'idle';
 let pendingMigrationLocalDB = null;
+
+// Practice Builder draft state — a plan is only written into DB.plans (and
+// synced) when the coach taps Save Practice; until then it's a local-only
+// object here, and builderDirty gates the unsaved-changes nav guard below.
+let builderDraft = null;
+let builderDirty = false;
+let lastFullRoute = 'dashboard';
+let guardBypass = false;
 
 // Debug bar state (?debug=1) — see renderDebugBar() below.
 let debugLoadSource      = 'loading…';
@@ -1004,7 +1038,6 @@ const NAV = [
   {type:'link',route:'details',label:'Practice Details',icon:'details'},
   {type:'link',route:'skills',label:'Skills',icon:'skill'},
   {type:'link',route:'plans',label:'Practice Plans',icon:'plans'},
-  {type:'link',route:'settings',label:'Settings',icon:'settings'},
 ];
 const BOTTOM_NAV = [
   {route:'dashboard',label:'Dashboard',icon:'home'},
@@ -1037,12 +1070,13 @@ function renderSidebar(){
   });
   html+='</nav>';
   html+=`<div class="sidebar-footer">
-    <div class="user-info-nav">
+    <div class="user-info-nav" style="cursor:pointer;" onclick="navigate('profile')" title="View profile">
       <div class="avatar-sm">${(DB.coach.firstName[0]||'')+(DB.coach.lastName[0]||'')}</div>
-      <div style="min-width:0;">
+      <div style="min-width:0;flex:1;">
         <div class="user-name-nav">${esc(DB.coach.firstName)} ${esc(DB.coach.lastName)}</div>
         <div class="user-role-nav">Coach</div>
       </div>
+      <span class="nav-icon" style="color:var(--text-secondary);flex-shrink:0;">→</span>
     </div>
   </div>`;
   document.getElementById('sidebar').innerHTML=html;
@@ -1054,10 +1088,40 @@ function renderSidebar(){
 }
 
 
+// Unsaved-changes guard: fires whenever we're leaving the Practice Builder
+// (or switching which plan it's showing) while builderDirty is set. Lives
+// here rather than inside navigate() so it catches every way the route can
+// change — sidebar/bottom-nav clicks, programmatic navigate() calls, AND
+// the browser back/forward buttons, all of which land here via hashchange.
+function requireLeaveConfirmation(onLeave){
+  if(!builderDirty){ onLeave(); return; }
+  window.__guardOnLeave=onLeave;
+  openModal({
+    title:'Unsaved changes',
+    bodyHtml:`<p style="margin:0;">You have unsaved changes. Leave without saving?</p>`,
+    footHtml:`<button class="btn" onclick="window.__guardOnLeave();closeModal();">Leave</button><button class="btn btn-primary" onclick="closeModal()">Stay</button>`
+  });
+}
 function router(){
+  const full=currentRoute();
+  const prevRoot=lastFullRoute.split('/')[0];
+  if(prevRoot==='builder' && builderDirty && full!==lastFullRoute && !guardBypass){
+    // Revert the URL back to the builder route being left (replaceState
+    // doesn't fire hashchange, so this can't recurse), then ask.
+    history.replaceState(null,'','#/'+lastFullRoute);
+    requireLeaveConfirmation(()=>{
+      builderDirty=false;
+      guardBypass=true;
+      navigate(full);
+    });
+    return;
+  }
+  guardBypass=false;
+  if(prevRoot==='builder' && full.split('/')[0]!=='builder'){ builderDraft=null; }
+  lastFullRoute=full;
+
   renderSidebar();
   renderOfflineBanner();
-  const full=currentRoute();
   const parts=full.split('/');
   const root=parts[0];
   const content=document.getElementById('content');
@@ -1080,6 +1144,8 @@ function router(){
     categories:()=>renderSimpleList(CFG.categories),
     calendar:renderCalendarPage,
     settings:renderSettings,
+    profile:renderProfile,
+    'builder-settings':renderBuilderSettings,
   };
   if(root==='plans' && parts[1]==='edit'){
     navigate('builder/'+parts[2]);
@@ -1255,9 +1321,11 @@ function renderDashboard(container){
       <div class="card">
         <h3 style="font-size:.95rem;margin-bottom:10px;">Upcoming Practice Plans</h3>
         <div id="dashUpcoming"></div>
-        <div style="margin-top:10px;"><a onclick="navigate('plans')">View all plans &rarr;</a></div>
       </div>
-    </div>`;
+    </div>
+    <a class="card dashboard-backcard" href="dashboard.html">
+      <span class="nav-icon">←</span><span>Dive Drills</span>
+    </a>`;
   mountMiniMonthCalendar(document.getElementById('dashCalHost'));
   const upcoming=[...DB.plans].sort((a,b)=>a.date.localeCompare(b.date)).filter(p=>p.date>=todayISO()).slice(0,5);
   const upEl=document.getElementById('dashUpcoming');
@@ -1282,6 +1350,7 @@ function renderPracticeDetails(container){
     {icon:'💬',title:'Quotes',count:DB.quotes.length,route:'quotes'},
     {icon:'🎯',title:'Practice Points',count:DB.practiceEmphasis.length+DB.competitionEmphasis.length,route:'practice-points'},
     {icon:'📝',title:'Notes',count:DB.notes.length,route:'notes'},
+    {icon:'📁',title:'Categories',count:DB.categories.length,route:'categories'},
   ];
   container.innerHTML = `<div class="pagehead"><div><h1>Practice Details</h1><p class="mutedtext" style="margin:2px 0 0;">Manage the components used in your practice plans</p></div></div>` +
     `<div class="details-grid">${cards.map(c=>`
@@ -1445,12 +1514,19 @@ function renderPlanList(container){
   }
   draw();
 }
+// "Start a new practice" everywhere (Practice Plans list, calendar day
+// click, Builder's own New Practice button) lands on a blank Builder draft
+// — nothing is written to DB.plans until Save Practice is tapped.
 function createPlan(dateOverride){
-  const n=DB.plans.length+1;
-  const plan={id:uid('plan'),name:'Practice '+n,date:dateOverride||todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
-    announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',groups:[],visibility:'club',dateCreated:nowStamp(),rows:[]};
-  DB.plans.push(plan);saveDB();
-  navigate('plans/edit/'+plan.id);
+  requireLeaveConfirmation(()=>{
+    loadBuilderDraft(null);
+    if(dateOverride) builderDraft.date=dateOverride;
+    if(currentRoute().split('/')[0]==='builder'){
+      if(window.__currentPlanDraw) window.__currentPlanDraw();
+    } else {
+      navigate('builder');
+    }
+  });
 }
 function duplicatePlan(id){
   const p=DB.plans.find(p=>p.id===id);
@@ -1593,24 +1669,109 @@ function searchAddRemove(id,idx){
 }
 
 /* ============================= PRACTICE BUILDER ============================= */
+// A plan is only written into DB.plans (and synced) when the coach taps
+// Save Practice — everything below operates on builderDraft, a local copy
+// (or a blank shape for a brand-new plan) that never touches DB.plans
+// until saveBuilderDraft() runs. findPlanById() lets the row-editing
+// helpers (updatePlanRow, addSkillToPlan, etc. — shared with the Skills
+// page's "Add to Plan" buttons via currentOpenPlanId) resolve either the
+// active draft or a real saved plan without knowing which one it's on.
+function findPlanById(id){
+  if(builderDraft && builderDraft.id===id) return builderDraft;
+  return DB.plans.find(p=>p.id===id);
+}
+function loadBuilderDraft(id){
+  if(id){
+    const existing=DB.plans.find(p=>p.id===id);
+    if(!existing) return false;
+    builderDraft=JSON.parse(JSON.stringify(existing));
+    builderDraft.__sourceId=id;
+  } else {
+    const n=DB.plans.length+1;
+    builderDraft={id:uid('plan'),name:'Practice '+n,date:todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:'',color:'#00c9a7',
+      announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',groups:[],visibility:'club',
+      announcementList:[],practicePoints:[],notes:'',dateCreated:nowStamp(),rows:[],__sourceId:null};
+  }
+  builderDirty=false;
+  currentOpenPlanId=builderDraft.id;
+  return true;
+}
+function saveBuilderDraft(){
+  if(!builderDraft)return;
+  const {__sourceId,...fields}=builderDraft;
+  if(__sourceId){
+    const real=DB.plans.find(p=>p.id===__sourceId);
+    if(real) Object.assign(real,fields);
+  } else {
+    DB.plans.push(fields);
+    builderDraft.__sourceId=builderDraft.id;
+  }
+  saveDB();
+  builderDirty=false;
+  toast('Saved ✓');
+  if(window.__currentPlanDraw) window.__currentPlanDraw();
+}
+function deleteBuilderPlan(){
+  if(!builderDraft)return;
+  if(!builderDraft.__sourceId){
+    builderDraft=null;builderDirty=false;
+    navigate('dashboard');
+    return;
+  }
+  const id=builderDraft.__sourceId;
+  confirmDelete('This will permanently delete this practice plan. Continue?',()=>{
+    DB.plans=DB.plans.filter(p=>p.id!==id);saveDB();
+    builderDraft=null;builderDirty=false;
+    navigate('plans');
+  });
+}
+// Total = the greater of the planned duration or minutes actually used, so
+// the donut always represents the whole practice — any gap between what's
+// scheduled and what's allocated renders as a gray "Unallocated" slice.
+function buildDonutData(plan){
+  const agg={};
+  plan.rows.forEach(r=>{const c=r.category||'Uncategorized';agg[c]=(agg[c]||0)+(parseInt(r.min)||0);});
+  const catNames=Object.keys(agg).filter(c=>agg[c]>0);
+  const usedTotal=catNames.reduce((s,c)=>s+agg[c],0);
+  const durationTotal=parseInt(plan.duration)||0;
+  const denom=Math.max(durationTotal,usedTotal)||1;
+  const catColors={};
+  let prevColor=null;
+  catNames.forEach((c,i)=>{ catColors[c]=chartSliceColor(i,prevColor); prevColor=catColors[c]; });
+  let gradParts=[];let acc=0;
+  catNames.forEach(c=>{
+    const pct=agg[c]/denom*100;
+    gradParts.push(`${catColors[c]} ${acc}% ${acc+pct}%`);
+    acc+=pct;
+  });
+  let unallocated=Math.max(denom-usedTotal,0);
+  let unallocatedPct=0;
+  if(catNames.length===0){
+    unallocatedPct=100;unallocated=denom;
+    gradParts.push(`#9aa5b1 0% 100%`);
+  } else if(unallocated>0){
+    unallocatedPct=unallocated/denom*100;
+    gradParts.push(`#9aa5b1 ${acc}% ${acc+unallocatedPct}%`);
+  }
+  return {agg,catNames,catColors,total:denom,usedTotal,unallocated,unallocatedPct,donutBg:`conic-gradient(${gradParts.join(',')})`};
+}
 function renderPracticeBuilder(id,container){
-  if(!id){ createPlan(); return; } // "starting fresh" — createPlan() makes a plan and navigates to builder/:id
-  const plan=DB.plans.find(p=>p.id===id);
-  if(!plan){container.innerHTML='<p>Plan not found.</p>';return;}
-  currentOpenPlanId=id;
+  const wantSource=id||null;
+  if(!builderDraft || builderDraft.__sourceId!==wantSource){
+    if(!loadBuilderDraft(id)){container.innerHTML='<p>Plan not found.</p>';return;}
+  }
+  const plan=builderDraft;
+  currentOpenPlanId=plan.id;
   const cats=getEnabledCategories();
   const readOnly=!isMine(plan);
   const dis=readOnly?'disabled':'';
-  let ppFilter='all'; // practice points toggle: all|practice|competition
-
-  function totalMinutesUsed(){return plan.rows.reduce((s,r)=>s+(parseInt(r.min)||0),0);}
 
   function buildGroupCfg(){
     const cfg={id:'sab_group',multi:false,disabled:readOnly,placeholder:'Search or add a group…',
       items:DB.groups,getText:g=>g.name,
       selected:(plan.groups&&plan.groups[0])?[{name:plan.groups[0]}]:[],
       onCreate:text=>{const item={id:uid('groups'),name:text,dateCreated:nowStamp()};DB.groups.push(item);saveDB();return item;}};
-    cfg.onChange=()=>{plan.groups=cfg.selected[0]?[cfg.selected[0].name]:[];saveDB();draw();};
+    cfg.onChange=()=>{plan.groups=cfg.selected[0]?[cfg.selected[0].name]:[];builderDirty=true;draw();};
     return cfg;
   }
   function buildLocationCfg(){
@@ -1618,7 +1779,7 @@ function renderPracticeBuilder(id,container){
       items:DB.locations,getText:l=>l.name,
       selected:plan.location?[{name:plan.location}]:[],
       onCreate:text=>{const item={id:uid('locations'),name:text,dateCreated:nowStamp()};DB.locations.push(item);saveDB();return item;}};
-    cfg.onChange=()=>{plan.location=cfg.selected[0]?cfg.selected[0].name:'';saveDB();draw();};
+    cfg.onChange=()=>{plan.location=cfg.selected[0]?cfg.selected[0].name:'';builderDirty=true;draw();};
     return cfg;
   }
   function buildAnnouncementsCfg(){
@@ -1629,7 +1790,7 @@ function renderPracticeBuilder(id,container){
     cfg.onChange=()=>{
       plan.announcementList=cfg.selected.map(s=>s.text);
       plan.announcements=plan.announcementList.join('; ');
-      saveDB();draw();
+      builderDirty=true;draw();
     };
     return cfg;
   }
@@ -1638,25 +1799,23 @@ function renderPracticeBuilder(id,container){
       items:DB.quotes,getText:q=>q.text,
       selected:plan.quote?[{text:plan.quote}]:[],
       onCreate:text=>{const item={id:uid('quotes'),text,dateCreated:nowStamp()};DB.quotes.push(item);saveDB();return item;}};
-    cfg.onChange=()=>{plan.quote=cfg.selected[0]?cfg.selected[0].text:'';saveDB();draw();};
+    cfg.onChange=()=>{plan.quote=cfg.selected[0]?cfg.selected[0].text:'';builderDirty=true;draw();};
     return cfg;
   }
   function buildPracticePointsCfg(){
-    const merged=[
+    const items=[
       ...DB.practiceEmphasis.map(x=>({text:x.text,kind:'practice'})),
       ...DB.competitionEmphasis.map(x=>({text:x.text,kind:'competition'})),
     ];
-    const items = ppFilter==='all'?merged:merged.filter(m=>m.kind===ppFilter);
     const cfg={id:'sab_points',multi:true,disabled:readOnly,placeholder:'Search or add a practice point…',
       items,getText:i=>i.text,
       renderItem:i=>`${esc(i.text)} <span class="searchadd-badge ${i.kind}">${i.kind==='practice'?'Practice':'Competition'}</span>`,
       selected:(plan.practicePoints||[]),
       onCreate:text=>{
-        const kind = ppFilter==='competition' ? 'competition' : 'practice';
-        const item={id:uid(kind==='practice'?'practiceEmphasis':'competitionEmphasis'),text,dateCreated:nowStamp()};
-        (kind==='practice'?DB.practiceEmphasis:DB.competitionEmphasis).push(item);
+        const item={id:uid('practiceEmphasis'),text,dateCreated:nowStamp()};
+        DB.practiceEmphasis.push(item);
         saveDB();
-        return {text,kind};
+        return {text,kind:'practice'};
       }};
     cfg.onChange=()=>{
       plan.practicePoints=cfg.selected;
@@ -1664,119 +1823,90 @@ function renderPracticeBuilder(id,container){
       const firstComp=cfg.selected.find(s=>s.kind==='competition');
       plan.practiceEmphasis=firstPractice?firstPractice.text:'';
       plan.competitionEmphasis=firstComp?firstComp.text:'';
-      saveDB();draw();
+      builderDirty=true;draw();
     };
     return cfg;
   }
 
   function draw(){
     const times=computeRowTimes(plan);
-    const used=totalMinutesUsed();
-    const remaining=(parseInt(plan.duration)||0)-used;
-    const agg={};
-    plan.rows.forEach(r=>{const c=r.category||'Uncategorized';agg[c]=(agg[c]||0)+(parseInt(r.min)||0);});
-    // Categories with 0 total minutes are omitted from the chart and
-    // legend entirely rather than drawn as zero-width slices.
-    const catNames=Object.keys(agg).filter(c=>agg[c]>0);
-    const total=catNames.reduce((s,c)=>s+agg[c],0)||1;
-    const catColors={};
-    let prevColor=null;
-    catNames.forEach((c,i)=>{ catColors[c]=chartSliceColor(i,prevColor); prevColor=catColors[c]; });
-    let gradParts=[];let acc=0;
-    catNames.forEach(c=>{
-      const pct=agg[c]/total*100;
-      gradParts.push(`${catColors[c]} ${acc}% ${acc+pct}%`);
-      acc+=pct;
-    });
-    const donutBg = catNames.length? `conic-gradient(${gradParts.join(',')})` : 'var(--bg-surface-2)';
+    const d=buildDonutData(plan);
 
     container.innerHTML = `
+      <div class="builder-compact">
       <div class="crumb"><a onclick="navigate('plans')">‹ Practice Plans</a></div>
       <div class="pagehead">
         <div><h1>Practice Builder</h1><p class="mutedtext" style="margin:2px 0 0;">${esc(plan.name)}${readOnly?' <span class="badge badge-secondary" style="vertical-align:middle;">🔒 Read-only — not your plan</span>':''}</p></div>
         <div class="btn-group">
-          <button class="btn" onclick="printPlan('${plan.id}')">${ic('printer')} Print</button>
-          <button class="btn" onclick="createPlan()">${ic('plus')} New Practice</button>
-          ${readOnly?'':`<button class="btn btn-danger" onclick="deletePlan('${plan.id}')">${ic('trash')} Delete</button>`}
+          <button class="icon-btn" title="Builder Settings" onclick="navigate('builder-settings')">⚙️</button>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">1. Practice Name</h3>
-        <input class="input" id="pb_name" value="${escAttr(plan.name)}" ${dis}>
-      </div>
-
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">2. Practice Group</h3>
-        ${searchAddFieldHtml(buildGroupCfg())}
-        <div class="field" style="margin-top:14px;"><label>Visibility</label>
-          <div style="display:flex;gap:16px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="pb_visibility" value="club" ${plan.visibility!=='private'&&plan.visibility!=='superuser'?'checked':''} ${dis}> Club</label>
-            <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="pb_visibility" value="private" ${plan.visibility==='private'?'checked':''} ${dis}> Private</label>
-            ${DB.coach.isSuperUser?`<label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="pb_visibility" value="superuser" ${plan.visibility==='superuser'?'checked':''} ${dis}> Super User Only</label>`:''}
+      <div class="builder-top-grid">
+        <div class="card builder-card">
+          <div class="builder-subsection">
+            <label class="builder-label">Practice Name</label>
+            <input class="input" id="pb_name" value="${escAttr(plan.name)}" ${dis}>
+          </div>
+          <div class="builder-subsection">
+            <label class="builder-label">Practice Group</label>
+            ${searchAddFieldHtml(buildGroupCfg())}
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:.78rem;">
+              <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="club" ${plan.visibility!=='private'&&plan.visibility!=='superuser'?'checked':''} ${dis}> Club</label>
+              <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="private" ${plan.visibility==='private'?'checked':''} ${dis}> Private</label>
+              ${DB.coach.isSuperUser?`<label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="pb_visibility" value="superuser" ${plan.visibility==='superuser'?'checked':''} ${dis}> Super User Only</label>`:''}
+            </div>
+          </div>
+          <div class="builder-subsection">
+            <label class="builder-label">Date &amp; Time</label>
+            <div class="field"><input class="input" type="date" id="pb_date" value="${plan.date}" ${dis}></div>
+            <div class="field-row">
+              <div class="field"><input class="input" type="time" id="pb_start" value="${to12input(plan.startTime,plan.ampm)}" ${dis}></div>
+              <div class="field"><input class="input" type="number" id="pb_duration" placeholder="Duration (min)" value="${esc(plan.duration)}" ${dis}></div>
+            </div>
+            <input class="color-swatch" type="color" id="pb_color" value="${plan.color||'#00c9a7'}" ${dis}>
+          </div>
+          <div class="builder-subsection" style="border-bottom:none;margin-bottom:0;padding-bottom:0;">
+            <label class="builder-label">Location</label>
+            ${searchAddFieldHtml(buildLocationCfg())}
           </div>
         </div>
-      </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">3. Date &amp; Time</h3>
-        <div class="field"><label>Date</label><input class="input" type="date" id="pb_date" value="${plan.date}" ${dis}></div>
-        <div class="field-row">
-          <div class="field"><label>Start Time</label><input class="input" type="time" id="pb_start" value="${to12input(plan.startTime,plan.ampm)}" ${dis}></div>
-          <div class="field"><label>Duration (Mins)</label><input class="input" type="number" id="pb_duration" value="${esc(plan.duration)}" ${dis}></div>
+        <div class="card builder-card">
+          <label class="builder-label">Time Allocation</label>
+          <div class="donut-wrap">
+            <div class="donut" style="background:${d.donutBg}"><div class="donut-hole"><div class="lbl">${plan.duration?'Allocated':'Total Minutes'}</div><div class="val">${d.usedTotal}${plan.duration?' / '+d.total:''}</div></div></div>
+          </div>
+          <table class="legend-table">
+            <tr><td style="font-weight:700;">Category</td><td style="font-weight:700;">Mins</td><td style="font-weight:700;">%</td></tr>
+            ${d.catNames.map(c=>`<tr><td><span class="legend-dot" style="background:${d.catColors[c]}"></span>${esc(c)}</td><td>${d.agg[c]}</td><td>${(d.agg[c]/d.total*100).toFixed(1)}%</td></tr>`).join('')}
+            ${d.unallocated>0?`<tr><td><span class="legend-dot" style="background:#9aa5b1"></span>Unallocated</td><td>${d.unallocated}</td><td>${d.unallocatedPct.toFixed(1)}%</td></tr>`:''}
+          </table>
         </div>
-        <div class="field"><label>Calendar Color</label><input class="color-swatch" type="color" id="pb_color" value="${plan.color||'#00c9a7'}" ${dis}></div>
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">4. Location</h3>
-        ${searchAddFieldHtml(buildLocationCfg())}
-      </div>
-
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">5. Announcements</h3>
+      <div class="card builder-card">
+        <label class="builder-label">Announcements</label>
         ${searchAddFieldHtml(buildAnnouncementsCfg())}
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">6. Quote of the Day</h3>
+      <div class="card builder-card">
+        <label class="builder-label">Quote of the Day</label>
         ${searchAddFieldHtml(buildQuoteCfg())}
         ${readOnly?'':`<button class="btn btn-sm" style="margin-top:8px;" onclick="pickRandomQuote()">🎲 Random</button>`}
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">7. Practice Points</h3>
-        <div class="toggle-row" style="border:none;padding:0 0 10px;gap:8px;">
-          <select class="input" id="pb_ppfilter" style="max-width:200px;">
-            <option value="all" ${ppFilter==='all'?'selected':''}>All</option>
-            <option value="practice" ${ppFilter==='practice'?'selected':''}>Practice only</option>
-            <option value="competition" ${ppFilter==='competition'?'selected':''}>Competition only</option>
-          </select>
-        </div>
+      <div class="card builder-card">
+        <label class="builder-label">Practice Points</label>
         ${searchAddFieldHtml(buildPracticePointsCfg())}
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">8. Skills &amp; Rotations</h3>
-        <div class="donut-wrap">
-          <div class="donut" style="background:${donutBg}"><div class="donut-hole"><div class="lbl">Total Minutes</div><div class="val">${used}</div></div></div>
-        </div>
-        <table class="legend-table">
-          <tr><td style="font-weight:700;">Category</td><td style="font-weight:700;">Mins</td><td style="font-weight:700;">%</td></tr>
-          ${catNames.length===0?'<tr><td colspan="3" class="mutedtext">You haven&#39;t added any skills yet</td></tr>':
-            catNames.map(c=>`<tr><td><span class="legend-dot" style="background:${catColors[c]}"></span>${esc(c)}</td><td>${agg[c]}</td><td>${(agg[c]/total*100).toFixed(1)}%</td></tr>`).join('')}
-        </table>
-        ${plan.duration?`<p class="mutedtext" style="margin:6px 0 0;">${remaining>=0?remaining+' min remaining of '+plan.duration:Math.abs(remaining)+' min over '+plan.duration+' min budget'}</p>`:''}
-
-        <div class="field" style="margin-top:16px;"><label>Search Skills</label>
+      <div class="card builder-card">
+        <label class="builder-label">Skills &amp; Rotations</label>
+        <div class="field" style="margin-top:10px;">
           <div class="searchadd-wrap">
             <input class="input" id="bskill_input" placeholder="Search skills by name…" ${dis}>
             <div class="searchadd-results" id="bskill_results" style="display:none;"></div>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Filter Categories</label>
-            <select class="input" id="pb_filtercat" ${dis}><option value="">All Categories</option>${cats.map(c=>`<option value="${escAttr(c.name)}" ${plan.filterCategory===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
           </div>
         </div>
         <div style="margin:6px 0 12px;display:flex;align-items:center;justify-content:flex-end;">
@@ -1822,27 +1952,45 @@ function renderPracticeBuilder(id,container){
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <h3 style="font-size:.95rem;margin-bottom:10px;">9. Practice Notes</h3>
+      <div class="card builder-card">
+        <label class="builder-label">Practice Notes</label>
         <textarea class="input" id="pb_notes" rows="4" placeholder="Free-form notes for this practice…" ${dis}>${esc(plan.notes||'')}</textarea>
       </div>
 
       <div class="builder-savebar">
-        ${readOnly?'':`<button class="btn btn-primary" onclick="saveBuilderMeta('${plan.id}');toast('Saved ✓')">Save Practice</button>`}
+        <button class="btn" onclick="printPlan('${plan.id}')">${ic('printer')} Print</button>
+        <button class="btn" onclick="createPlan()">${ic('plus')} New Practice</button>
+        ${readOnly?'':`<button class="btn btn-danger" onclick="deleteBuilderPlan()">${ic('trash')} Delete</button>`}
+        ${readOnly?'':`<button class="btn btn-primary" onclick="saveBuilderDraft()">💾 Save Practice</button>`}
+      </div>
       </div>
     `;
     ['sab_group','sab_loc','sab_ann','sab_quote','sab_points'].forEach(wireSearchAddField);
-    document.getElementById('pb_ppfilter').onchange=e=>{ppFilter=e.target.value;draw();};
     document.getElementById('bskill_input').oninput=()=>drawBuilderSkillSearch(plan.id);
-    ['pb_name','pb_date','pb_start','pb_duration','pb_color','pb_filtercat'].forEach(fid=>{
+    ['pb_name','pb_date','pb_start','pb_duration','pb_color'].forEach(fid=>{
       const el=document.getElementById(fid);
-      if(el)el.addEventListener('change',()=>{saveBuilderMeta(plan.id);});
+      if(el)el.addEventListener('change',updateBuilderMeta);
     });
-    document.querySelectorAll('input[name="pb_visibility"]').forEach(el=>el.addEventListener('change',()=>{saveBuilderMeta(plan.id);}));
+    document.querySelectorAll('input[name="pb_visibility"]').forEach(el=>el.addEventListener('change',updateBuilderMeta));
     const notesEl=document.getElementById('pb_notes');
-    if(notesEl)notesEl.addEventListener('input',()=>{plan.notes=notesEl.value;saveDB();});
+    if(notesEl)notesEl.addEventListener('input',()=>{plan.notes=notesEl.value;builderDirty=true;});
   }
   window.__currentPlanDraw = draw;
+  draw();
+}
+function updateBuilderMeta(){
+  const plan=builderDraft;if(!plan)return;
+  plan.name=document.getElementById('pb_name').value||plan.name;
+  plan.date=document.getElementById('pb_date').value||plan.date;
+  const timeVal=document.getElementById('pb_start').value||'00:00';
+  let [hh,mm]=timeVal.split(':').map(Number);
+  const ampm=hh>=12?'PM':'AM';let h12=hh%12;if(h12===0)h12=12;
+  plan.startTime=`${h12}:${String(mm).padStart(2,'0')}`;plan.ampm=ampm;
+  plan.duration=document.getElementById('pb_duration').value;
+  plan.color=document.getElementById('pb_color').value;
+  const vis=document.querySelector('input[name="pb_visibility"]:checked');
+  plan.visibility=vis?vis.value:'club';
+  builderDirty=true;
   draw();
 }
 function pickRandomQuote(){
@@ -1865,21 +2013,6 @@ function drawBuilderSkillSearch(planId){
     </div>`).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
   host.style.display='block';
 }
-function saveBuilderMeta(id){
-  const plan=DB.plans.find(p=>p.id===id);if(!plan)return;
-  plan.name=document.getElementById('pb_name').value||plan.name;
-  plan.date=document.getElementById('pb_date').value||plan.date;
-  const timeVal=document.getElementById('pb_start').value||'00:00';
-  let [hh,mm]=timeVal.split(':').map(Number);
-  const ampm=hh>=12?'PM':'AM';let h12=hh%12;if(h12===0)h12=12;
-  plan.startTime=`${h12}:${String(mm).padStart(2,'0')}`;plan.ampm=ampm;
-  plan.duration=document.getElementById('pb_duration').value;
-  plan.color=document.getElementById('pb_color').value;
-  plan.filterCategory=document.getElementById('pb_filtercat').value;
-  const vis=document.querySelector('input[name="pb_visibility"]:checked');
-  plan.visibility=vis?vis.value:'club';
-  saveDB();
-}
 function openRotationPickerModal(planId){
   openModal({
     title:'Add Rotation',
@@ -1894,7 +2027,7 @@ function openRotationPickerModal(planId){
   });
 }
 function addRotationToPlan(planId,templateId){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   const tmpl=DB.rotationTemplates.find(t=>t.id===templateId);
   if(!plan||!tmpl)return;
   const groupId=uid('rotgrp');
@@ -1902,16 +2035,16 @@ function addRotationToPlan(planId,templateId){
     const skill = st.skillId ? DB.skills.find(d=>d.id===st.skillId) : null;
     plan.rows.push({id:uid('row'),activity:st.name||(skill?skill.name:'Station'),min:parseInt(st.minutes)||5,category:skill?categoryName(skill.categoryId):'',notes:'',image:null,stations:false,rotationGroupId:groupId,rotationName:tmpl.name});
   });
-  saveDB();closeModal();
+  builderDirty=true;closeModal();
   if(window.__currentPlanDraw)window.__currentPlanDraw();
   toast(tmpl.name+' rotation added to plan');
 }
 function updatePlanRow(planId,rowId,field,value){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   const row=plan.rows.find(r=>r.id===rowId);
   row[field]= field==='min'? (parseInt(value)||0) : value;
   if(field==='activity' && !row.ddSkillId) autoSaveSkillFromRow(row);
-  saveDB();
+  builderDirty=true;
   window.__currentPlanDraw();
 }
 // A coach typing a custom activity name into a plan row (not a
@@ -1919,7 +2052,8 @@ function updatePlanRow(planId,rowId,field,value){
 // row.ddSkillId) gets auto-saved into DB.skills so it's reusable from
 // the Skill Directory in future plans. Matches by name (trimmed,
 // case-insensitive) so re-typing the same activity across plans never
-// creates a duplicate library entry.
+// creates a duplicate library entry. This is a real shared library
+// record, unlike the plan-row edit above, so it saves immediately.
 function autoSaveSkillFromRow(row){
   const name=(row.activity||'').trim();
   if(!name)return;
@@ -1931,24 +2065,25 @@ function autoSaveSkillFromRow(row){
     minutes:row.min||5, notes:row.notes||'', stations:!!row.stations,
     status:'Enabled', dateCreated:nowStamp(), image:null,
   });
+  saveDB();
   toast('Skill saved to your library');
 }
 function addPlanRow(planId){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   plan.rows.push({id:uid('row'),activity:'',min:5,category:plan.filterCategory||'',notes:'',image:null,stations:false});
-  saveDB();window.__currentPlanDraw();
+  builderDirty=true;window.__currentPlanDraw();
 }
 function duplicatePlanRow(planId,rowId){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   const row=plan.rows.find(r=>r.id===rowId);
   const idx=plan.rows.indexOf(row);
   plan.rows.splice(idx+1,0,{...row,id:uid('row')});
-  saveDB();window.__currentPlanDraw();
+  builderDirty=true;window.__currentPlanDraw();
 }
 function deletePlanRow(planId,rowId){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   plan.rows=plan.rows.filter(r=>r.id!==rowId);
-  saveDB();window.__currentPlanDraw();
+  builderDirty=true;window.__currentPlanDraw();
 }
 let dragIdx=null;
 function rowDragStart(e){dragIdx=parseInt(e.currentTarget.dataset.idx);}
@@ -1956,13 +2091,13 @@ function rowDragOver(e){e.preventDefault();}
 function rowDrop(e,planId){
   e.preventDefault();
   const dropIdx=parseInt(e.currentTarget.dataset.idx);
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   const [moved]=plan.rows.splice(dragIdx,1);
   plan.rows.splice(dropIdx,0,moved);
-  saveDB();window.__currentPlanDraw();
+  builderDirty=true;window.__currentPlanDraw();
 }
 function addPlanRowFromLibrary(planId){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   const pool=DB.skills.filter(d=>d.status!=='Disabled' && (!plan.filterCategory || categoryName(d.categoryId)===plan.filterCategory));
   openModal({
     title:'Add from Skill Library',
@@ -1976,10 +2111,10 @@ function addPlanRowFromLibrary(planId){
   });
 }
 function addSkillToPlan(planId,skillId){
-  const plan=DB.plans.find(p=>p.id===planId);
+  const plan=findPlanById(planId);
   const d=DB.skills.find(d=>d.id===skillId);
   plan.rows.push({id:uid('row'),activity:d.name,min:d.minutes,category:categoryName(d.categoryId),notes:d.notes||'',image:d.image||null,stations:d.stations});
-  saveDB();
+  builderDirty=true;
   window.__currentPlanDraw();
   toast(d.name+' added to plan');
 }
@@ -1994,8 +2129,8 @@ function uploadRowImage(e,planId,rowId){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=()=>{
-    const plan=DB.plans.find(p=>p.id===planId);const row=plan.rows.find(r=>r.id===rowId);
-    row.image=reader.result;saveDB();window.__currentPlanDraw();
+    const plan=findPlanById(planId);const row=plan.rows.find(r=>r.id===rowId);
+    row.image=reader.result;builderDirty=true;window.__currentPlanDraw();
   };
   reader.readAsDataURL(file);
 }
@@ -2003,7 +2138,7 @@ function viewImage(src){
   openModal({title:'Image',bodyHtml:`<img src="${src}" style="max-width:100%;border-radius:8px;">`});
 }
 function printPlan(id){
-  const plan=DB.plans.find(p=>p.id===id);
+  const plan=findPlanById(id);
   const times=computeRowTimes(plan);
   const w=window.open('','_blank');
   const rowsHtml=plan.rows.map((r,i)=>`<tr>
@@ -2305,12 +2440,12 @@ function buildDDSkillCard(skill){
 }
 
 function addDDSkillToPlan(skillId){
-  const plan=currentOpenPlanId?DB.plans.find(p=>p.id===currentOpenPlanId):null;
+  const plan=currentOpenPlanId?findPlanById(currentOpenPlanId):null;
   if(!plan){toast('Open or create a practice plan first');return;}
   const skill=DD_SKILLS.find(s=>s.id===skillId);
   if(!skill)return;
   plan.rows.push({id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:skill.description||'',image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level});
-  saveDB();
+  builderDirty=true;
   toast(skill.name+' added to '+plan.name);
   if(window.__currentPlanDraw)window.__currentPlanDraw();
 }
@@ -2480,6 +2615,72 @@ function resetAllData(){
   confirmDelete('This will erase everything and restore the sample data. This cannot be undone. Continue?',()=>{
     DB=seedData();saveDB();navigate('dashboard');router();
   });
+}
+
+/* ============================= PROFILE ============================= */
+function renderProfile(container){
+  container.innerHTML = `<div class="crumb"><a onclick="navigate('dashboard')">‹ Dashboard</a></div>` +
+    pageHeader('My Profile') +
+    `<div class="card" style="max-width:640px;">
+      <div class="field-row">
+        <div class="field"><label>First Name *</label><input class="input" id="pr_first" value="${escAttr(DB.coach.firstName)}"></div>
+        <div class="field"><label>Last Name *</label><input class="input" id="pr_last" value="${escAttr(DB.coach.lastName)}"></div>
+      </div>
+      <div class="field"><label>Username *</label><input class="input" id="pr_username" value="${escAttr(DB.coach.username)}"></div>
+      <div class="field"><label>Email</label><input class="input" value="${escAttr(DB.coach.email)}" disabled style="opacity:.6;"></div>
+      <button class="btn btn-primary" onclick="saveProfile()">Save changes</button>
+    </div>`;
+}
+function saveProfile(){
+  DB.coach.firstName=document.getElementById('pr_first').value.trim()||DB.coach.firstName;
+  DB.coach.lastName=document.getElementById('pr_last').value.trim();
+  DB.coach.username=document.getElementById('pr_username').value.trim();
+  saveDB();router();toast('Profile saved');
+}
+
+/* ============================= BUILDER SETTINGS ============================= */
+function renderBuilderSettings(container){
+  const p=DB.prefs;
+  container.innerHTML = `<div class="crumb"><a onclick="navigate('builder')">‹ Practice Builder</a></div>` +
+    pageHeader('Builder Settings') +
+    `<div class="settings-section">
+      <h4>General</h4>
+      <div class="inner">
+        <div class="toggle-row"><span>Skill Edit / Save Prompt Pop Up</span><label class="toggle"><input type="checkbox" id="pref_prompt" ${p.skillEditPrompt?'checked':''}><span class="slider"></span></label></div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>Default Duration &amp; Start Time</h4>
+      <div class="inner">
+        <div class="field" style="padding-top:14px;"><label>Default Duration (mins)</label><input class="input" id="pref_duration" value="${escAttr(p.defaultDuration||'')}" placeholder="e.g. 90"></div>
+        <div class="field"><label>Default Start Time</label><input class="input" id="pref_starttime" value="${escAttr(p.defaultStartTime||'')}" placeholder="e.g. 3:00 PM"></div>
+        <div class="field"><label>Time Format in Printout</label>
+          <select class="input" id="pref_timeformat">
+            <option value="12" ${p.timeFormat==='12'?'selected':''}>12 Hours</option>
+            <option value="24" ${p.timeFormat==='24'?'selected':''}>24 Hours</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>Print Format</h4>
+      <div class="inner">
+        <div class="toggle-row"><span>Include Images</span><label class="toggle"><input type="checkbox" id="pref_images" ${p.includeImages?'checked':''}><span class="slider"></span></label></div>
+        <div class="toggle-row"><span>Include Videos</span><label class="toggle"><input type="checkbox" id="pref_videos" ${p.includeVideos?'checked':''}><span class="slider"></span></label></div>
+        <div class="toggle-row"><span>Use each plan's calendar color on printed plans</span><label class="toggle"><input type="checkbox" id="pref_printcolor" ${p.includeColorsPrint?'checked':''}><span class="slider"></span></label></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveBuilderSettings()">Save changes</button>`;
+}
+function saveBuilderSettings(){
+  DB.prefs.skillEditPrompt=document.getElementById('pref_prompt').checked;
+  DB.prefs.defaultDuration=document.getElementById('pref_duration').value;
+  DB.prefs.defaultStartTime=document.getElementById('pref_starttime').value;
+  DB.prefs.timeFormat=document.getElementById('pref_timeformat').value;
+  DB.prefs.includeImages=document.getElementById('pref_images').checked;
+  DB.prefs.includeVideos=document.getElementById('pref_videos').checked;
+  DB.prefs.includeColorsPrint=document.getElementById('pref_printcolor').checked;
+  saveDB();toast('Preferences saved');
 }
 
 /* ============================= INIT ============================= */
