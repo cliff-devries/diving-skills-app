@@ -2356,17 +2356,32 @@ function addSkillToPlan(planId,skillId){
    mid-content across a page break — see that module's header comment
    for the full rationale.
    ============================================= */
-const PDF_COLORS = { accent:'#00c9a7', textPrimary:'#1a1a1a', textSecondary:'#666666', rowAlt:'#f5f5f5', border:'#e0e0e0' };
+// Default (non-RIT) PDF palette/org name — buildPdfTheme() below returns
+// this as-is for every group except RIT, and an RIT-orange-branded
+// variant of the same shape when plan.group/groups includes 'RIT'. Every
+// pdf* function takes that theme object instead of a hardcoded palette,
+// so RIT plans get fully re-themed and every other group is byte-for-byte
+// unchanged from before.
+const PDF_COLORS = { accent:'#00c9a7', textPrimary:'#1a1a1a', textSecondary:'#666666', rowAlt:'#f5f5f5', border:'#e0e0e0', org:'Upstate Diving', orgShort:'Upstate Diving', isRIT:false };
+function buildPdfTheme(plan){
+  const isRIT = plan.group==='RIT' || (Array.isArray(plan.groups) && plan.groups.includes('RIT'));
+  if(!isRIT) return PDF_COLORS;
+  return { accent:'#F76900', textPrimary:'#1a1a1a', textSecondary:'#666666', rowAlt:'#FFF5EE', border:'#e0e0e0', org:'Rochester Institute of Technology', orgShort:'RIT Diving', isRIT:true };
+}
 // Standard "stroke-dasharray ring segments" SVG donut, built straight from
 // the same buildDonutData() the on-screen Builder donut uses — per-station
 // colored slices plus a gray Unallocated slice, so the PDF always matches
-// what the coach sees while editing.
-function pdfDonutSvgHtml(d, size){
+// what the coach sees while editing. catColors defaults to d.catColors but
+// callers pass a themed override (see pdfRightColumnHtml) so RIT plans get
+// RIT Orange as the primary slice without touching the shared palette
+// every other category color still comes from.
+function pdfDonutSvgHtml(d, size, catColors){
+  catColors=catColors||d.catColors;
   const strokeWidth=size*0.22;
   const r=(size-strokeWidth)/2;
   const cx=size/2, cy=size/2;
   const circumference=2*Math.PI*r;
-  const slices=d.catNames.map(name=>({pct:d.agg[name]/d.total*100,color:d.catColors[name]}));
+  const slices=d.catNames.map(name=>({pct:d.agg[name]/d.total*100,color:catColors[name]}));
   if(d.unallocated>0 || d.catNames.length===0) slices.push({pct:d.unallocatedPct,color:'#9aa5b1'});
   let offsetAcc=0;
   const circles=slices.map(s=>{
@@ -2378,23 +2393,27 @@ function pdfDonutSvgHtml(d, size){
   }).join('');
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${circles}</svg>`;
 }
-function pdfDonutLegendHtml(d){
-  const c=PDF_COLORS;
+function pdfDonutLegendHtml(d, theme, catColors){
+  const c=theme;
+  catColors=catColors||d.catColors;
   const dot=color=>`<span style="width:7px;height:7px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>`;
-  const rows=d.catNames.map(name=>`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot(d.catColors[name])}<span>${esc(name)}: ${d.agg[name]}m</span></div>`);
+  const rows=d.catNames.map(name=>`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot(catColors[name])}<span>${esc(name)}: ${d.agg[name]}m</span></div>`);
   if(d.unallocated>0 || d.catNames.length===0){
     rows.push(`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot('#9aa5b1')}<span>Unallocated: ${d.unallocated}m</span></div>`);
   }
   return rows.join('');
 }
 
-function pdfHeaderBlockHtml(plan, groupName){
-  const c=PDF_COLORS;
+function pdfHeaderBlockHtml(plan, groupName, theme){
+  const c=theme;
+  const subline2 = c.isRIT
+    ? `<div style="font-size:14px;color:#333333;margin-top:3px;">${esc(c.orgShort)}</div>`
+    : (groupName?`<div style="font-size:14px;color:#333333;margin-top:3px;">${esc(groupName)}</div>`:'');
   return `
     <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
       <div style="font-size:32px;font-weight:800;"><span style="color:${c.textPrimary};">Dive</span><span style="color:${c.accent};">Practice</span></div>
-      <div style="font-size:18px;font-weight:700;color:${c.textPrimary};margin-top:8px;">Upstate Diving</div>
-      ${groupName?`<div style="font-size:14px;color:#333333;margin-top:3px;">${esc(groupName)}</div>`:''}
+      <div style="font-size:18px;font-weight:700;color:${c.textPrimary};margin-top:8px;">${esc(c.org)}</div>
+      ${subline2}
       <div style="font-size:12px;color:${c.textSecondary};margin-top:3px;">${fmtDateLong(plan.date)} · ${plan.startTime} ${plan.ampm}${plan.duration?' · '+plan.duration+' min':''}${plan.location?' · '+esc(plan.location):''}</div>
       <div style="height:2px;background:${c.accent};margin-top:12px;"></div>
       <div style="font-size:18px;font-weight:700;color:${c.textPrimary};margin-top:14px;">${esc(plan.name)}</div>
@@ -2403,8 +2422,8 @@ function pdfHeaderBlockHtml(plan, groupName){
 // LEFT column of the middle section — Announcements / Quote / Practice
 // Points stacked vertically. Each sub-section only renders if the plan
 // actually has that content, so an empty plan just gives a shorter column.
-function pdfLeftColumnHtml(plan){
-  const c=PDF_COLORS;
+function pdfLeftColumnHtml(plan, theme){
+  const c=theme;
   const parts=[];
   if(plan.announcementList && plan.announcementList.length){
     parts.push(`
@@ -2435,21 +2454,29 @@ function pdfLeftColumnHtml(plan){
 }
 // RIGHT column of the middle section — the donut chart, standalone under
 // its own "Practice Skills Breakdown" header (no longer crammed next to
-// the Skills & Rotations table header below).
-function pdfRightColumnHtml(d){
-  const c=PDF_COLORS;
+// the Skills & Rotations table header below). For RIT, whichever category
+// currently uses the shared palette's teal slot (PALETTE[0], the default
+// "first" color) is swapped to RIT Orange as the primary slice — every
+// other category keeps its normal palette color for distinguishability.
+function pdfRightColumnHtml(d, theme){
+  const c=theme;
+  let catColors=d.catColors;
+  if(c.isRIT){
+    catColors={};
+    Object.keys(d.catColors).forEach(k=>{ catColors[k]=d.catColors[k]===PALETTE[0]?c.accent:d.catColors[k]; });
+  }
   return `
     <div style="text-align:center;">
       <div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.4px;color:${c.accent};font-weight:700;margin-bottom:10px;">Practice Skills Breakdown</div>
-      <div style="display:flex;justify-content:center;">${pdfDonutSvgHtml(d,120)}</div>
-      <div style="margin-top:8px;display:inline-block;text-align:left;">${pdfDonutLegendHtml(d)}</div>
+      <div style="display:flex;justify-content:center;">${pdfDonutSvgHtml(d,120,catColors)}</div>
+      <div style="margin-top:8px;display:inline-block;text-align:left;">${pdfDonutLegendHtml(d,theme,catColors)}</div>
     </div>`;
 }
-function pdfMiddleSectionBlockHtml(plan, d){
+function pdfMiddleSectionBlockHtml(plan, d, theme){
   return `
     <div style="font-family:Helvetica,Arial,sans-serif;display:flex;gap:16px;align-items:stretch;">
-      <div style="flex:1;">${pdfLeftColumnHtml(plan)}</div>
-      <div style="flex:1;">${pdfRightColumnHtml(d)}</div>
+      <div style="flex:1;">${pdfLeftColumnHtml(plan,theme)}</div>
+      <div style="flex:1;">${pdfRightColumnHtml(d,theme)}</div>
     </div>`;
 }
 // Skills are split into row-chunks (see buildPdfSkillsChunks below) rather
@@ -2458,9 +2485,12 @@ function pdfMiddleSectionBlockHtml(plan, d){
 // Each chunk is its own html2canvas capture, so it goes through the same
 // per-block "does this fit in what's left of the current page" check as
 // every other section, and skills start filling page 1 immediately.
-const PDF_SKILLS_TH=`text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:#ffffff;font-weight:700;padding:8px 10px;background:${PDF_COLORS.accent};`;
-function pdfSkillsChunkHtml(rows, times, rowOffset, opts){
-  const c=PDF_COLORS;
+function pdfSkillsThStyle(theme){
+  return `text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:#ffffff;font-weight:700;padding:8px 10px;background:${theme.accent};`;
+}
+function pdfSkillsChunkHtml(rows, times, rowOffset, opts, theme){
+  const c=theme;
+  const th=pdfSkillsThStyle(theme);
   const rowsHtml=rows.map((r,i)=>{
     const idx=rowOffset+i;
     const bg=idx%2===1?c.rowAlt:'#ffffff';
@@ -2479,7 +2509,7 @@ function pdfSkillsChunkHtml(rows, times, rowOffset, opts){
       <div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.4px;color:${c.accent};font-weight:700;margin-bottom:10px;">${headerLabel}</div>
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr>
-          <th style="${PDF_SKILLS_TH}">Activity</th><th style="${PDF_SKILLS_TH}">Station</th><th style="${PDF_SKILLS_TH}text-align:center;">Min</th><th style="${PDF_SKILLS_TH}">Timeslot</th><th style="${PDF_SKILLS_TH}">Notes</th>
+          <th style="${th}">Activity</th><th style="${th}">Station</th><th style="${th}text-align:center;">Min</th><th style="${th}">Timeslot</th><th style="${th}">Notes</th>
         </tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
@@ -2488,8 +2518,8 @@ function pdfSkillsChunkHtml(rows, times, rowOffset, opts){
       </div>`:''}
     </div>`;
 }
-function pdfSkillsEmptyHtml(){
-  const c=PDF_COLORS;
+function pdfSkillsEmptyHtml(theme){
+  const c=theme;
   return `
     <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff;border-left:3px solid ${c.accent};border-radius:8px;padding:12px 16px;">
       <div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.4px;color:${c.accent};font-weight:700;margin-bottom:10px;">Skills &amp; Rotations</div>
@@ -2506,9 +2536,9 @@ function pdfSkillsEmptyHtml(){
 // because it's sharing page 1 with those opening sections. Later chunks
 // go through the normal fit check like every other block, so a run of
 // skills long enough to need a 4th, 5th... page still paginates correctly.
-function buildPdfSkillsChunks(plan, times, d){
+function buildPdfSkillsChunks(plan, times, d, theme){
   const FIRST_CHUNK_SIZE=15, CHUNK_SIZE=25;
-  if(plan.rows.length===0) return [{html:pdfSkillsEmptyHtml(),forceCurrentPage:true}];
+  if(plan.rows.length===0) return [{html:pdfSkillsEmptyHtml(theme),forceCurrentPage:true}];
   const chunks=[];
   let i=0, isFirst=true;
   while(i<plan.rows.length){
@@ -2520,7 +2550,7 @@ function buildPdfSkillsChunks(plan, times, d){
         isLastChunk:i+size>=plan.rows.length,
         totalRows:plan.rows.length,
         totalMinutes:d.usedTotal,
-      }),
+      },theme),
       forceCurrentPage:isFirst,
     });
     i+=size;
@@ -2528,8 +2558,8 @@ function buildPdfSkillsChunks(plan, times, d){
   }
   return chunks;
 }
-function pdfNotesBlockHtml(plan){
-  const c=PDF_COLORS;
+function pdfNotesBlockHtml(plan, theme){
+  const c=theme;
   if(!plan.notes) return '';
   return `
     <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff;border-left:3px solid ${c.accent};border-radius:8px;padding:10px 14px;">
@@ -2538,6 +2568,13 @@ function pdfNotesBlockHtml(plan){
     </div>`;
 }
 
+// Only used for jsPDF's setDrawColor(), which needs separate r/g/b ints
+// rather than a CSS hex string — everything else uses theme.accent as a
+// plain hex string directly in the html2canvas-rendered markup.
+function hexToRgb(hex){
+  const n=parseInt(hex.replace('#',''),16);
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
 async function _capturePdfBlock(html, blockWidthPx){
   const container=document.createElement('div');
   container.style.cssText=`position:fixed;left:-99999px;top:0;width:${blockWidthPx}px;background:#ffffff`;
@@ -2586,6 +2623,7 @@ async function generatePracticePDF(id){
   try{
     const times=computeRowTimes(plan);
     const d=buildDonutData(plan);
+    const theme=buildPdfTheme(plan);
     const coachName=`${DB.coach.firstName||''} ${DB.coach.lastName||''}`.trim()||'Coach';
     const groupName=plan.groups&&plan.groups[0]?plan.groups[0]:'';
 
@@ -2605,10 +2643,10 @@ async function generatePracticePDF(id){
     // chunk only) skips that check so skills always start right under the
     // opening sections on page 1 instead of being pre-emptively bumped.
     const rawBlocks=[
-      pdfHeaderBlockHtml(plan,groupName),
-      pdfMiddleSectionBlockHtml(plan,d),
-      ...buildPdfSkillsChunks(plan,times,d),
-      pdfNotesBlockHtml(plan),
+      pdfHeaderBlockHtml(plan,groupName,theme),
+      pdfMiddleSectionBlockHtml(plan,d,theme),
+      ...buildPdfSkillsChunks(plan,times,d,theme),
+      pdfNotesBlockHtml(plan,theme),
     ];
     const blocks=rawBlocks
       .map(b=>typeof b==='string'?{html:b,forceCurrentPage:false}:b)
@@ -2638,17 +2676,18 @@ async function generatePracticePDF(id){
       firstBlockOnPage=false;
     }
 
+    const accentRgb=hexToRgb(theme.accent);
     const totalPages=doc.internal.getNumberOfPages();
     for(let i=1;i<=totalPages;i++){
       doc.setPage(i);
-      doc.setDrawColor(0,201,167);
+      doc.setDrawColor(accentRgb[0],accentRgb[1],accentRgb[2]);
       doc.setLineWidth(1);
       doc.line(margin,pageHeight-46,pageWidth-margin,pageHeight-46);
       doc.setFont('helvetica','normal');
       doc.setFontSize(9.5);
       doc.setTextColor(102,102,102);
       doc.text(`Created by ${coachName}`,margin,pageHeight-32);
-      doc.text('Upstate Diving',pageWidth/2,pageHeight-32,{align:'center'});
+      doc.text(theme.orgShort,pageWidth/2,pageHeight-32,{align:'center'});
       doc.text('© 2026 DivePractice v1.0',pageWidth-margin,pageHeight-32,{align:'right'});
       doc.text(`Page ${i} of ${totalPages}`,pageWidth/2,pageHeight-18,{align:'center'});
     }
