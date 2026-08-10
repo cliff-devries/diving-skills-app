@@ -2452,33 +2452,70 @@ function pdfMiddleSectionBlockHtml(plan, d){
       <div style="flex:1;">${pdfRightColumnHtml(d)}</div>
     </div>`;
 }
-function pdfSkillsBlockHtml(plan, times, d){
+// Skills are split into row-chunks (see buildPdfSkillsChunks below) rather
+// than captured as one giant table image — a 40-row table used to get
+// pushed to page 2 as a single atomic block, leaving page 1 mostly empty.
+// Each chunk is its own html2canvas capture, so it goes through the same
+// per-block "does this fit in what's left of the current page" check as
+// every other section, and skills start filling page 1 immediately.
+const PDF_SKILLS_TH=`text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:#ffffff;font-weight:700;padding:8px 10px;background:${PDF_COLORS.accent};`;
+function pdfSkillsChunkHtml(rows, times, rowOffset, opts){
   const c=PDF_COLORS;
-  const rowsHtml=plan.rows.map((r,i)=>{
-    const bg=i%2===1?c.rowAlt:'#ffffff';
+  const rowsHtml=rows.map((r,i)=>{
+    const idx=rowOffset+i;
+    const bg=idx%2===1?c.rowAlt:'#ffffff';
     const leftBorder=r.rotationGroupId?'border-left:3px solid #5b8dee;':'';
     return `<tr style="background:${bg};">
       <td style="padding:8px 10px;font-size:14px;color:${c.textPrimary};border-bottom:1px solid ${c.border};${leftBorder}">${esc(r.activity)}</td>
       <td style="padding:8px 10px;font-size:14px;color:${c.textPrimary};border-bottom:1px solid ${c.border};">${esc(r.category||'')}</td>
       <td style="padding:8px 10px;font-size:14px;color:${c.textPrimary};border-bottom:1px solid ${c.border};text-align:center;">${r.min}</td>
-      <td style="padding:8px 10px;font-size:14px;color:${c.textPrimary};border-bottom:1px solid ${c.border};white-space:nowrap;">${fromMinutes(times[i].start)} - ${fromMinutes(times[i].end)}</td>
+      <td style="padding:8px 10px;font-size:14px;color:${c.textPrimary};border-bottom:1px solid ${c.border};white-space:nowrap;">${fromMinutes(times[idx].start)} - ${fromMinutes(times[idx].end)}</td>
       <td style="padding:8px 10px;font-size:14px;color:${c.textPrimary};border-bottom:1px solid ${c.border};">${esc(r.notes||'')}</td>
     </tr>`;
   }).join('');
-  const th=`text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:#ffffff;font-weight:700;padding:8px 10px;background:${c.accent};`;
+  const headerLabel=opts.isFirstChunk?'Skills &amp; Rotations':'Skills &amp; Rotations (continued)';
+  return `
+    <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff;border-left:3px solid ${c.accent};border-radius:8px;padding:12px 16px;">
+      <div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.4px;color:${c.accent};font-weight:700;margin-bottom:10px;">${headerLabel}</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+          <th style="${PDF_SKILLS_TH}">Activity</th><th style="${PDF_SKILLS_TH}">Station</th><th style="${PDF_SKILLS_TH}text-align:center;">Min</th><th style="${PDF_SKILLS_TH}">Timeslot</th><th style="${PDF_SKILLS_TH}">Notes</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      ${opts.isLastChunk?`<div style="text-align:left;font-size:12px;color:${c.textSecondary};margin-top:8px;font-style:italic;">
+        Total: ${opts.totalRows} skill${opts.totalRows===1?'':'s'} &middot; ${opts.totalMinutes} minute${opts.totalMinutes===1?'':'s'}
+      </div>`:''}
+    </div>`;
+}
+function pdfSkillsEmptyHtml(){
+  const c=PDF_COLORS;
   return `
     <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff;border-left:3px solid ${c.accent};border-radius:8px;padding:12px 16px;">
       <div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.4px;color:${c.accent};font-weight:700;margin-bottom:10px;">Skills &amp; Rotations</div>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr>
-          <th style="${th}">Activity</th><th style="${th}">Station</th><th style="${th}text-align:center;">Min</th><th style="${th}">Timeslot</th><th style="${th}">Notes</th>
-        </tr></thead>
-        <tbody>${rowsHtml || `<tr><td colspan="5" style="padding:10px;color:${c.textSecondary};font-size:14px;">No skills added</td></tr>`}</tbody>
-      </table>
-      <div style="text-align:left;font-size:12px;color:${c.textSecondary};margin-top:8px;font-style:italic;">
-        Total: ${plan.rows.length} skill${plan.rows.length===1?'':'s'} &middot; ${d.usedTotal} minute${d.usedTotal===1?'':'s'}
-      </div>
+      <div style="padding:10px;color:${c.textSecondary};font-size:14px;">No skills added</div>
+      <div style="text-align:left;font-size:12px;color:${c.textSecondary};margin-top:8px;font-style:italic;">Total: 0 skills &middot; 0 minutes</div>
     </div>`;
+}
+// ~15 rows/page is an approximation (per-row height varies with wrapped
+// notes text) — real correctness still comes from generatePracticePDF()'s
+// existing per-block fit check below, which bumps a chunk to the next
+// page outright if it turns out too tall for what's left. This just keeps
+// chunks a reasonable, readable size instead of one giant table.
+function buildPdfSkillsChunks(plan, times, d){
+  const CHUNK_SIZE=15;
+  if(plan.rows.length===0) return [pdfSkillsEmptyHtml()];
+  const chunks=[];
+  for(let i=0;i<plan.rows.length;i+=CHUNK_SIZE){
+    const rows=plan.rows.slice(i,i+CHUNK_SIZE);
+    chunks.push(pdfSkillsChunkHtml(rows,times,i,{
+      isFirstChunk:i===0,
+      isLastChunk:i+CHUNK_SIZE>=plan.rows.length,
+      totalRows:plan.rows.length,
+      totalMinutes:d.usedTotal,
+    }));
+  }
+  return chunks;
 }
 function pdfNotesBlockHtml(plan){
   const c=PDF_COLORS;
@@ -2554,7 +2591,7 @@ async function generatePracticePDF(id){
     const blockHtmls=[
       pdfHeaderBlockHtml(plan,groupName),
       pdfMiddleSectionBlockHtml(plan,d),
-      pdfSkillsBlockHtml(plan,times,d),
+      ...buildPdfSkillsChunks(plan,times,d),
       pdfNotesBlockHtml(plan),
     ].filter(Boolean);
 
