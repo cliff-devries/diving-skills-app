@@ -2497,23 +2497,34 @@ function pdfSkillsEmptyHtml(){
       <div style="text-align:left;font-size:12px;color:${c.textSecondary};margin-top:8px;font-style:italic;">Total: 0 skills &middot; 0 minutes</div>
     </div>`;
 }
-// ~15 rows/page is an approximation (per-row height varies with wrapped
-// notes text) — real correctness still comes from generatePracticePDF()'s
-// existing per-block fit check below, which bumps a chunk to the next
-// page outright if it turns out too tall for what's left. This just keeps
-// chunks a reasonable, readable size instead of one giant table.
+// The FIRST chunk always lands right under the (compact) opening sections
+// on page 1 — forceCurrentPage:true tells generatePracticePDF() to skip
+// its normal "does this fit in what's left of the page" pre-check for
+// that one chunk, so skills are never pre-emptively bumped to page 2 just
+// because the opening sections used up some of page 1's height. It's
+// smaller (15 rows) than later full-page chunks (25 rows) precisely
+// because it's sharing page 1 with those opening sections. Later chunks
+// go through the normal fit check like every other block, so a run of
+// skills long enough to need a 4th, 5th... page still paginates correctly.
 function buildPdfSkillsChunks(plan, times, d){
-  const CHUNK_SIZE=15;
-  if(plan.rows.length===0) return [pdfSkillsEmptyHtml()];
+  const FIRST_CHUNK_SIZE=15, CHUNK_SIZE=25;
+  if(plan.rows.length===0) return [{html:pdfSkillsEmptyHtml(),forceCurrentPage:true}];
   const chunks=[];
-  for(let i=0;i<plan.rows.length;i+=CHUNK_SIZE){
-    const rows=plan.rows.slice(i,i+CHUNK_SIZE);
-    chunks.push(pdfSkillsChunkHtml(rows,times,i,{
-      isFirstChunk:i===0,
-      isLastChunk:i+CHUNK_SIZE>=plan.rows.length,
-      totalRows:plan.rows.length,
-      totalMinutes:d.usedTotal,
-    }));
+  let i=0, isFirst=true;
+  while(i<plan.rows.length){
+    const size=isFirst?FIRST_CHUNK_SIZE:CHUNK_SIZE;
+    const rows=plan.rows.slice(i,i+size);
+    chunks.push({
+      html:pdfSkillsChunkHtml(rows,times,i,{
+        isFirstChunk:isFirst,
+        isLastChunk:i+size>=plan.rows.length,
+        totalRows:plan.rows.length,
+        totalMinutes:d.usedTotal,
+      }),
+      forceCurrentPage:isFirst,
+    });
+    i+=size;
+    isFirst=false;
   }
   return chunks;
 }
@@ -2588,22 +2599,30 @@ async function generatePracticePDF(id){
     const contentWidth=pageWidth-margin*2;
     const blockWidthPx=900; // fixed "device" width — keeps scaling consistent across every block
 
-    const blockHtmls=[
+    // Plain HTML-string blocks (header/middle-section/notes) always go
+    // through the normal fit check; skills chunks come pre-wrapped as
+    // {html, forceCurrentPage} — forceCurrentPage:true (the first skills
+    // chunk only) skips that check so skills always start right under the
+    // opening sections on page 1 instead of being pre-emptively bumped.
+    const rawBlocks=[
       pdfHeaderBlockHtml(plan,groupName),
       pdfMiddleSectionBlockHtml(plan,d),
       ...buildPdfSkillsChunks(plan,times,d),
       pdfNotesBlockHtml(plan),
-    ].filter(Boolean);
+    ];
+    const blocks=rawBlocks
+      .map(b=>typeof b==='string'?{html:b,forceCurrentPage:false}:b)
+      .filter(b=>b.html);
 
     let y=margin;
     let firstBlockOnPage=true;
-    for(const html of blockHtmls){
-      const canvas=await _capturePdfBlock(html,blockWidthPx);
+    for(const block of blocks){
+      const canvas=await _capturePdfBlock(block.html,blockWidthPx);
       const pxPerPt=canvas.width/contentWidth;
       const blockHeightPt=canvas.height/pxPerPt;
       const pageContentHeightPt=pageHeight-margin*2-footerReserve;
 
-      if(!firstBlockOnPage && y+blockHeightPt>pageHeight-margin-footerReserve){
+      if(!block.forceCurrentPage && !firstBlockOnPage && y+blockHeightPt>pageHeight-margin-footerReserve){
         doc.addPage();
         y=margin;
         firstBlockOnPage=true;
