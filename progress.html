@@ -311,7 +311,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=31"></script>
+<script src="js/supabase.js?v=32"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=9"></script>
@@ -615,7 +615,10 @@
   // INVITE PARENT — family account model, no separate diver invite
   // =============================================
   async function inviteParent(diverId) {
+    // parent_email on purpose — never the diver's own `email` field, since
+    // the invite has to reach the parent, not the diver's own inbox.
     const parentEmail = targetDiver?.parent_email;
+    console.log('[inviteParent] diverId:', diverId, 'parentEmail (profiles.parent_email):', parentEmail);
     if (!parentEmail) {
       App.showToast('No parent email on file. Please edit the diver profile to add a parent email first.', 'error');
       return;
@@ -624,10 +627,12 @@
     const btn = document.getElementById('invite-parent-btn');
     App.setBtnLoading(btn, true);
     try {
-      const result     = await SupabaseDB.generateInvite(diverId, 'parent');
+      const result = await SupabaseDB.generateInvite(diverId, 'parent');
+      console.log('[inviteParent] generateInvite result:', result);
       const inviteLink = `${window.location.origin}/invite.html?token=${result.token}`;
       const diverName  = App.formatNameWithNickname(targetDiver) || targetDiver.full_name || 'your diver';
 
+      console.log('[inviteParent] emailing invite to:', parentEmail);
       await SupabaseDB.emailParentInvite({
         parentEmail,
         diverName,
@@ -639,6 +644,7 @@
       App.showToast(`Invite sent to ${parentEmail}`);
       renderProfileHeader();
     } catch (err) {
+      console.error('[inviteParent] failed for diverId:', diverId, 'error:', err);
       App.showToast(err.message, 'error');
       App.setBtnLoading(btn, false);
     }

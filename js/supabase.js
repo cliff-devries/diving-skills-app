@@ -244,11 +244,15 @@ const SupabaseDB = {
   // Coach generates (or regenerates) a parent invite for a diver on their
   // roster. Returns { token, expires_at }.
   async generateInvite(diverId, inviteType) {
+    console.log('[SupabaseDB.generateInvite] p_diver_id:', diverId, 'p_invite_type:', inviteType);
     const { data, error } = await this.db.rpc('generate_profile_invite', {
       p_diver_id:    diverId,
       p_invite_type: inviteType,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[SupabaseDB.generateInvite] RPC error:', error);
+      throw new Error(error.message);
+    }
     return data?.[0] ?? null;
   },
 
