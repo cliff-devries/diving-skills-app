@@ -417,6 +417,50 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .empty-state-icon{font-size:2.2rem;margin-bottom:10px;opacity:.5;}
 
 .pp-divider{border-top:1px solid var(--border);margin:36px 0 24px;}
+
+/* ============ SHARED PLAN VIEW (#/view/:id) — light theme, no app chrome ============ */
+body.view-mode #sidebar,body.view-mode #bottomNav,body.view-mode .pp-mobile-backbar,body.view-mode #debugBar,body.view-mode #statusBanner{display:none!important;}
+body.view-mode #mainWrap{margin-left:0!important;}
+body.view-mode #content{padding:0;max-width:none;}
+.view-page{background:#f4f5f7;min-height:100vh;padding:20px 16px 60px;}
+.view-shell{max-width:680px;margin:0 auto;}
+.view-back{margin-bottom:14px;}
+.view-back a{color:#666666;font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;}
+.view-back a:hover{color:#1a1a1a;}
+.view-card{background:#ffffff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 20px;margin-bottom:14px;}
+.view-brand{font-size:1.05rem;font-weight:800;}
+.view-org{font-size:.78rem;color:#666666;margin-top:2px;font-weight:600;}
+.view-plan-name{font-size:1.5rem;font-weight:800;color:#1a1a1a;margin-top:10px;}
+.view-badges{margin-top:8px;}
+.view-pill{display:inline-block;color:#ffffff;font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:14px;text-transform:uppercase;letter-spacing:.3px;}
+.view-meta-line{font-size:.85rem;color:#666666;margin-top:8px;}
+.view-divider{height:2px;border-radius:2px;margin-top:14px;}
+.view-chips-row{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;-webkit-overflow-scrolling:touch;}
+.view-chip{background:#ffffff;border-radius:20px;padding:8px 14px;font-size:.8rem;font-weight:600;color:#1a1a1a;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06);flex-shrink:0;}
+.view-section-header{font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:10px;}
+.view-body-text{font-size:.92rem;color:#1a1a1a;line-height:1.6;}
+.view-quote-card{border:1px solid #eeeeee;text-align:center;padding:24px 20px;box-shadow:none;}
+.view-quote-mark{font-size:2.2rem;color:#cccccc;line-height:1;font-family:Georgia,serif;}
+.view-quote-text{font-size:1rem;font-style:italic;color:#333333;margin-top:6px;}
+.view-badge-sm{display:inline-block;font-size:.62rem;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:8px;margin-left:4px;}
+.view-badge-practice{background:rgba(0,201,167,.12);color:#00a88c;}
+.view-badge-comp{background:rgba(245,166,35,.15);color:#c97f00;}
+.view-badge-dd{background:rgba(0,201,167,.12);color:#00a88c;}
+.view-skill-count{font-size:.82rem;color:#666666;font-style:italic;margin-bottom:14px;}
+.view-skill-list{display:flex;flex-direction:column;gap:10px;}
+.view-skill-card{background:#fafafa;border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.view-skill-rotation{border-left:3px solid #f5a623;}
+.view-rotation-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.3px;font-weight:700;color:#c97f00;margin-bottom:4px;}
+.view-skill-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.view-pill-sm{display:inline-block;color:#ffffff;font-size:.64rem;font-weight:700;padding:3px 9px;border-radius:10px;letter-spacing:.3px;}
+.view-pill-gray{background:#9aa5b1;}
+.view-skill-name{font-size:1.05rem;font-weight:700;color:#1a1a1a;margin-top:8px;}
+.view-skill-meta{font-size:.82rem;color:#666666;margin-top:4px;}
+.view-skill-notes{font-size:.82rem;color:#444444;margin-top:6px;}
+.view-footer{text-align:center;font-size:.72rem;color:#999999;line-height:1.6;margin-top:20px;}
+.view-skel{background:linear-gradient(90deg,#eeeeee 25%,#f5f5f5 37%,#eeeeee 63%);background-size:400% 100%;animation:view-skel-shimmer 1.4s ease infinite;}
+@keyframes view-skel-shimmer{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+@media(min-width:768px){.view-page{padding:40px 20px 80px;}}
 </style>
 </head>
 <body>
@@ -1181,11 +1225,26 @@ function router(){
   // above, or loadBuilderDraft() starting a different plan, replaces it.
   lastFullRoute=full;
 
-  renderSidebar();
-  renderOfflineBanner();
   const parts=full.split('/');
   const root=parts[0];
   const content=document.getElementById('content');
+
+  // #/view/:id is reachable by any logged-in user, not just coaches (see
+  // the role gate in initPracticePlanner()) — no sidebar/bottom nav, and
+  // renderPlanViewPage() doesn't assume DB is even loaded, so this has to
+  // short-circuit before renderSidebar() (which reads DB.coach directly
+  // and would throw for a parent/diver viewer with no DB at all).
+  if(root==='view'){
+    document.body.classList.add('view-mode');
+    content.innerHTML='';
+    renderPlanViewPage(parts[1],content);
+    window.scrollTo(0,0);
+    return;
+  }
+  document.body.classList.remove('view-mode');
+
+  renderSidebar();
+  renderOfflineBanner();
   content.innerHTML='';
   const map={
     dashboard:renderDashboard,
@@ -1837,6 +1896,24 @@ function saveBuilderDraft(){
   toast('Saved ✓');
   if(window.__currentPlanDraw) window.__currentPlanDraw();
 }
+// The share link points at #/view/:id, which reads the plan straight from
+// DB.plans (or, for a non-coach viewer, a direct Supabase fetch) — not
+// this in-memory draft — so there's nothing to actually share until the
+// plan has been saved at least once.
+function sharePracticePlan(){
+  if(!builderDraft || !builderDraft.__sourceId){
+    toast('Save this practice first, then share it');
+    return;
+  }
+  const url=window.location.origin+'/practice.html#/view/'+builderDraft.id;
+  const done=()=>toast('Link copied to clipboard!');
+  const fail=()=>toast('Could not copy — link: '+url);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(fail);
+  } else {
+    fail();
+  }
+}
 function deleteBuilderPlan(){
   if(!builderDraft)return;
   if(!builderDraft.__sourceId){
@@ -2142,6 +2219,7 @@ function renderPracticeBuilder(id,container){
         <div>${readOnly?'':`<button class="btn btn-danger" onclick="deleteBuilderPlan()">${ic('trash')} Delete</button>`}</div>
         <div class="builder-savebar-right">
           <button class="btn" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')">${ic('printer')} Print</button>
+          <button class="btn" onclick="sharePracticePlan()">🔗 Share</button>
           <button class="btn" onclick="createPlan()">${ic('plus')} New Practice</button>
           ${readOnly?'':`<button class="btn btn-primary" onclick="saveBuilderDraft()">💾 Save Practice</button>`}
         </div>
@@ -2705,6 +2783,164 @@ async function generatePracticePDF(id){
   }
 }
 
+/* =============================================
+   SHARED PLAN VIEW (#/view/:id) — read-only, light theme, no sidebar/
+   bottom nav. Reachable by ANY logged-in user (coach, parent, or diver),
+   not just coaches — see the role gate in initPracticePlanner() below,
+   which skips the whole coach-oriented DB/sync bootstrap for a non-coach
+   landing directly on this route and lets this section fetch just the
+   one plan it needs. Reuses buildPdfTheme()/buildDonutData()/
+   pdfDonutSvgHtml()/pdfDonutLegendHtml() from the PDF code above so the
+   RIT branding and donut are identical between the two.
+   ============================================= */
+// Coaches: DB.plans is already synced locally, so this is instant and
+// always current. Parents/divers (and a coach who hasn't synced this
+// plan yet): DB may not even be loaded, so fall back to a direct,
+// narrow Supabase RPC that returns just this one row — see
+// supabase-migration-v47.sql. That function requires only a signed-in
+// session, no coach role or roster membership, matching "any logged-in
+// coach, parent, or diver can view shared plans."
+async function fetchSharedPracticePlan(planId){
+  const sb=window.supabaseClient;
+  const { data, error } = await sb.rpc('get_shared_practice_plan', { p_plan_id: planId });
+  if(error) throw new Error(error.message);
+  const row = data && data[0];
+  return row ? fromSnakeRow(row, {key:'plans'}) : null;
+}
+function planViewSkeletonHtml(){
+  return `<div class="view-page"><div class="view-shell">
+    <div class="view-back"><a onclick="history.back()">← Back</a></div>
+    <div class="view-card view-skel" style="height:150px;"></div>
+    <div class="view-card view-skel" style="height:56px;"></div>
+    <div class="view-card view-skel" style="height:220px;"></div>
+  </div></div>`;
+}
+function planViewNotFoundHtml(){
+  return `<div class="view-page"><div class="view-shell">
+    <div class="view-back"><a onclick="history.back()">← Back</a></div>
+    <div class="view-card" style="text-align:center;padding:44px 20px;">
+      <div style="font-size:2rem;margin-bottom:10px;">🔍</div>
+      <div style="font-weight:700;font-size:1.05rem;color:#1a1a1a;margin-bottom:6px;">Practice plan not found</div>
+      <div style="color:#666666;font-size:.88rem;">Practice plan not found or no longer available.</div>
+    </div>
+  </div></div>`;
+}
+function buildPlanViewHtml(plan){
+  const theme=buildPdfTheme(plan);
+  const c=theme;
+  const times=computeRowTimes(plan);
+  const d=buildDonutData(plan);
+  let catColors=d.catColors;
+  if(c.isRIT){
+    catColors={};
+    Object.keys(d.catColors).forEach(k=>{ catColors[k]=d.catColors[k]===PALETTE[0]?c.accent:d.catColors[k]; });
+  }
+  const groupName=plan.groups&&plan.groups[0]?plan.groups[0]:'';
+  const updatedStamp=plan.dateCreated?fmtDateLong(String(plan.dateCreated).slice(0,10)):'';
+
+  const headerCard=`
+    <div class="view-card">
+      <div class="view-brand"><span style="color:#1a1a1a;">Dive</span><span style="color:${c.accent};">Practice</span></div>
+      ${c.isRIT?`<div class="view-org">Rochester Institute of Technology</div>`:''}
+      <div class="view-plan-name">${esc(plan.name)}</div>
+      ${groupName?`<div class="view-badges"><span class="view-pill" style="background:${c.accent};">${esc(groupName)}</span></div>`:''}
+      <div class="view-meta-line">${fmtDateLong(plan.date)} &middot; ${esc(plan.startTime||'')} ${esc(plan.ampm||'')}${plan.duration?' &middot; '+esc(String(plan.duration))+' min':''}</div>
+      ${plan.location?`<div class="view-meta-line">📍 ${esc(plan.location)}</div>`:''}
+      <div class="view-divider" style="background:${c.accent};"></div>
+    </div>`;
+
+  const infoRow=`
+    <div class="view-chips-row">
+      <div class="view-chip">📅 ${esc(fmtDate(plan.date))}</div>
+      ${plan.duration?`<div class="view-chip">⏱ ${esc(String(plan.duration))} min</div>`:''}
+      ${plan.location?`<div class="view-chip">📍 ${esc(plan.location)}</div>`:''}
+    </div>`;
+
+  const announcementsCard=(plan.announcementList&&plan.announcementList.length)?`
+    <div class="view-card" style="border-left:3px solid ${c.accent};">
+      <div class="view-section-header" style="color:${c.accent};">📢 Announcements</div>
+      <div class="view-body-text">${plan.announcementList.map(a=>`&bull;&nbsp;${esc(a)}`).join('<br>')}</div>
+    </div>`:'';
+
+  const quoteCard=plan.quote?`
+    <div class="view-card view-quote-card">
+      <div class="view-quote-mark">&ldquo;</div>
+      <div class="view-quote-text">${esc(plan.quote)}</div>
+    </div>`:'';
+
+  const pointsCard=(plan.practicePoints&&plan.practicePoints.length)?`
+    <div class="view-card" style="border-left:3px solid ${c.accent};">
+      <div class="view-section-header" style="color:${c.accent};">🎯 Practice Points</div>
+      <div class="view-body-text">
+        ${plan.practicePoints.map(p=>`<div style="margin-top:4px;">&bull;&nbsp;${esc(p.text)} <span class="view-badge-sm ${p.kind==='competition'?'view-badge-comp':'view-badge-practice'}">${p.kind==='competition'?'Competition':'Practice'}</span></div>`).join('')}
+      </div>
+    </div>`:'';
+
+  const skillCardsHtml=plan.rows.map((r,i)=>{
+    const t=times[i];
+    const isRotation=!!r.rotationGroupId;
+    return `<div class="view-skill-card ${isRotation?'view-skill-rotation':''}">
+      <div class="view-skill-top">
+        ${r.category?`<span class="view-pill-sm" style="background:${c.accent};">${esc(r.category.toUpperCase())}</span>`:'<span></span>'}
+        <span class="view-pill-sm view-pill-gray">${fromMinutes(t.start)}</span>
+      </div>
+      ${isRotation?`<div class="view-rotation-label">🔁 ROTATION${r.rotationName?' &middot; '+esc(r.rotationName):''}</div>`:''}
+      <div class="view-skill-name">${esc(r.activity)}${r.ddSkillId?' <span class="view-badge-sm view-badge-dd">DD</span>':''}</div>
+      <div class="view-skill-meta">⏱ ${esc(String(r.min))} min &nbsp; 🕐 ${fromMinutes(t.start)}-${fromMinutes(t.end)}</div>
+      ${r.notes?`<div class="view-skill-notes">📝 ${esc(r.notes)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const skillsSection=`
+    <div class="view-card">
+      <div class="view-section-header" style="color:${c.accent};">🏊 Skills &amp; Rotations</div>
+      <div class="view-skill-count">${plan.rows.length} skill${plan.rows.length===1?'':'s'} &middot; ${d.usedTotal} minute${d.usedTotal===1?'':'s'} total</div>
+      ${plan.rows.length?`<div class="view-skill-list">${skillCardsHtml}</div>`:`<div class="view-body-text" style="color:#666666;">No skills added yet.</div>`}
+    </div>`;
+
+  const donutSection=`
+    <div class="view-card" style="text-align:center;">
+      <div class="view-section-header" style="color:${c.accent};text-align:center;">Time Breakdown</div>
+      <div style="display:flex;justify-content:center;margin-top:10px;">${pdfDonutSvgHtml(d,140,catColors)}</div>
+      <div style="margin-top:10px;display:inline-block;text-align:left;">${pdfDonutLegendHtml(d,theme,catColors)}</div>
+    </div>`;
+
+  const notesCard=plan.notes?`
+    <div class="view-card" style="border-left:3px solid ${c.accent};">
+      <div class="view-section-header" style="color:${c.accent};">📝 Practice Notes</div>
+      <div class="view-body-text" style="white-space:pre-wrap;">${esc(plan.notes)}</div>
+    </div>`:'';
+
+  const footer=`
+    <div class="view-footer">
+      <div>Created by ${esc(plan.coachName||'Coach')}</div>
+      <div>${c.isRIT?'RIT Diving':'Upstate Diving'} &middot; DivePractice</div>
+      ${updatedStamp?`<div>Last updated ${updatedStamp}</div>`:''}
+    </div>`;
+
+  return `<div class="view-page"><div class="view-shell">
+    <div class="view-back"><a onclick="history.back()">← Back</a></div>
+    ${headerCard}${infoRow}${announcementsCard}${quoteCard}${pointsCard}${skillsSection}${donutSection}${notesCard}${footer}
+  </div></div>`;
+}
+async function renderPlanViewPage(planId, container){
+  container.innerHTML=planViewSkeletonHtml();
+  let plan=(DB && DB.plans) ? DB.plans.find(p=>p.id===planId) : null;
+  if(!plan){
+    try{
+      plan=await fetchSharedPracticePlan(planId);
+    }catch(err){
+      console.error('[renderPlanViewPage] failed to load plan:',planId,err);
+      plan=null;
+    }
+  }
+  if(!plan || !Array.isArray(plan.rows)){
+    container.innerHTML=planViewNotFoundHtml();
+    return;
+  }
+  container.innerHTML=buildPlanViewHtml(plan);
+}
+
 /* ============================= SKILL DIRECTORY ============================= */
 // Unified list (stationsOnly===false): DB.skills (Custom) + DD_SKILLS
 // (Dive Drills, already cached by loadDiveDrillsSkills() — reused as-is,
@@ -3202,8 +3438,19 @@ function saveBuilderSettings(){
   const user = await Auth.init(true);
   if(!user)return; // Auth.init() already redirected to index.html
 
-  if(user.role!=='coach'){
+  const isViewRoute = currentRoute().split('/')[0]==='view';
+
+  if(user.role!=='coach' && !isViewRoute){
     window.location.href='dashboard.html';
+    return;
+  }
+
+  if(user.role!=='coach' && isViewRoute){
+    // Parent/diver opened a shared plan link — skip the coach-oriented
+    // DB/sync bootstrap entirely (wrong RLS assumptions, wrong DB.coach
+    // context for a non-coach). router()'s #/view/:id branch and
+    // renderPlanViewPage() already handle DB not being loaded at all.
+    router();
     return;
   }
 
