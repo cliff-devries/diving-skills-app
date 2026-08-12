@@ -335,8 +335,12 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .row-action-menu-list button{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 12px;font-size:.82rem;color:var(--text-primary);cursor:pointer;}
 .row-action-menu-list button:hover{background:var(--bg-surface-2);}
 
-.builder-savebar{position:sticky;bottom:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;margin-top:8px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;box-shadow:var(--shadow-card);z-index:5;}
-.builder-savebar-right{display:flex;flex-wrap:wrap;gap:8px;}
+.builder-savebar{position:fixed;left:0;right:0;bottom:var(--nav-bottom-height);background:var(--bg-surface);border-top:1px solid var(--border);padding:8px 12px;display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:6px;box-shadow:0 -4px 14px rgba(0,0,0,.25);z-index:60;}
+@media(min-width:768px){.builder-savebar{left:var(--nav-width);bottom:0;padding:10px 20px;}}
+.builder-savebar-right{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;}
+.builder-savebar .btn{white-space:nowrap;}
+@media(max-width:420px){.builder-savebar .btn-label{display:none;}.builder-savebar .btn{padding:8px;}}
+.builder-compact{padding-bottom:80px;}
 
 /* Practice Builder — dense/compact layout, scoped so it never affects
    other pages that reuse .card/.field/.input. */
@@ -701,12 +705,17 @@ function toIntOrNull(v){
 }
 
 function toSnakeRow(record, cfg, coachId){
-  const row = {coach_id:coachId};
+  // coachId is always re-derived from the syncing coach (the coachId
+  // param above), never trusted from the record — otherwise pushing a
+  // record fetched as someone else's (e.g. a duplicated club plan) would
+  // carry a stale foreign coach_id straight into the RLS check. The one
+  // deliberate exception: a super user reassigning a plan's Coach field
+  // (Fix 4) sets plan.coachId to the target coach explicitly, and that
+  // must survive the push — RLS's own super-user bypass (migration v48)
+  // is what actually authorizes writing a foreign coach_id here.
+  const reassign = cfg.key==='plans' && DB.coach.isSuperUser && record.coachId;
+  const row = {coach_id: reassign ? record.coachId : coachId};
   Object.keys(record).forEach(k=>{
-    // coachId is always re-derived from the syncing coach (the coachId
-    // param above), never trusted from the record — otherwise pushing a
-    // record fetched as someone else's (e.g. a duplicated club plan)
-    // would carry a stale foreign coach_id straight into the RLS check.
     if(k==='coachId') return;
     if(k==='dateCreated'){ row.created_at = record[k]; return; }
     row[camelToSnake(k)] = record[k];
@@ -1061,7 +1070,7 @@ function toast(msg){
 // session that hasn't round-tripped through Supabase (which is where
 // coachId gets populated, via fromSnakeRow) — always treat that as
 // yours, never someone else's.
-function isMine(rec){return rec.coachId===SYNC_COACH_ID||rec.coachId===undefined;}
+function isMine(rec){return DB.coach.isSuperUser||rec.coachId===SYNC_COACH_ID||rec.coachId===undefined;}
 
 /* ============================= MINUTES INPUT PAIR ============================= */
 // A native number spinner plus an adjacent synced text input for the
@@ -1175,6 +1184,7 @@ function renderSidebar(){
       </div>
       <span class="nav-icon" style="color:var(--text-secondary);flex-shrink:0;">→</span>
     </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="Auth.logout()">Sign Out</button>
   </div>`;
   document.getElementById('sidebar').innerHTML=html;
 
@@ -1356,14 +1366,12 @@ function renderSimpleList(cfg,container){
     container.innerHTML = pageHeader(cfg.title, `<button class="btn btn-primary" onclick="openSimpleForm(CFG.${cfg.key})">${ic('plus')}${cfg.newLabel}</button>`) +
       `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" placeholder="Search" id="sl-search"></div></div>
       <div class="tablewrap"><table><thead><tr>
-        <th style="width:34px"><input type="checkbox" disabled></th>
         ${cfg.columns.map(c=>`<th>${c.label}</th>`).join('')}
         ${cfg.hasStatus?'<th>Status</th>':''}
         <th>Date Created</th><th style="text-align:right">Action</th>
       </tr></thead><tbody>
-      ${filtered.length===0?`<tr class="empty-row"><td colspan="${cfg.columns.length+3+(cfg.hasStatus?1:0)}">${cfg.emptyText}</td></tr>`:
+      ${filtered.length===0?`<tr class="empty-row"><td colspan="${cfg.columns.length+2+(cfg.hasStatus?1:0)}">${cfg.emptyText}</td></tr>`:
         filtered.map(item=>`<tr>
-          <td><input type="checkbox"></td>
           ${cfg.columns.map(c=>`<td>${c.render(item)}</td>`).join('')}
           ${cfg.hasStatus?`<td><span class="badge ${item.status==='Disabled'?'badge-secondary':'badge-accent'}" style="cursor:pointer" onclick="toggleStatus('${cfg.key}','${item.id}')">${item.status||'Enabled'}</span></td>`:''}
           <td>${fmtDate(item.dateCreated)}</td>
@@ -1782,7 +1790,7 @@ function drawSearchAddResults(id){
   // takes a second tap. mousedown fires before any of that, on the very
   // first tap, and preventDefault stops the input from blurring at all.
   let html=matches.map((item,i)=>`<div class="searchadd-result" onmousedown="event.preventDefault();searchAddPick('${id}',${i})">${cfg.renderItem?cfg.renderItem(item):esc(cfg.getText(item))}</div>`).join('');
-  if(q && !exact) html+=`<div class="searchadd-result add-new" onmousedown="event.preventDefault();searchAddCreate('${id}')">+ Add "${esc(input.value.trim())}"</div>`;
+  if(q && !exact && !cfg.noCreate) html+=`<div class="searchadd-result add-new" onmousedown="event.preventDefault();searchAddCreate('${id}')">+ Add "${esc(input.value.trim())}"</div>`;
   results.innerHTML = html || '<div class="searchadd-result mutedtext" style="cursor:default;">No matches</div>';
   results.style.display='block';
 }
@@ -1802,7 +1810,7 @@ function searchAddKeydown(e,id){
     const results=document.getElementById(id+'_results');
     if(results)results.__matches=[cfg.items[exactIdx]];
     searchAddPick(id,0);
-  } else {
+  } else if(!cfg.noCreate){
     searchAddCreate(id);
   }
 }
@@ -1966,7 +1974,6 @@ function renderPracticeBuilder(id,container){
   applyPendingSkillToAdd();
   const plan=builderDraft;
   currentOpenPlanId=plan.id;
-  const cats=getEnabledCategories();
   const readOnly=!isMine(plan);
   const dis=readOnly?'disabled':'';
 
@@ -1976,6 +1983,21 @@ function renderPracticeBuilder(id,container){
       selected:(plan.groups&&plan.groups[0])?[{name:plan.groups[0]}]:[],
       onCreate:text=>{const item={id:uid('groups'),name:text,dateCreated:nowStamp()};DB.groups.push(item);saveDB();return item;}};
     cfg.onChange=()=>{plan.groups=cfg.selected[0]?[cfg.selected[0].name]:[];builderDirty=true;draw();};
+    return cfg;
+  }
+  function buildCoachCfg(){
+    if(ACTIVE_COACHES===null) loadActiveCoaches();
+    const items=ACTIVE_COACHES||[];
+    const cfg={id:'sab_coach',multi:false,disabled:readOnly,noCreate:true,
+      placeholder:activeCoachesLoading?'Loading coaches…':'Search coaches…',
+      items,getText:c=>c.fullName,
+      selected:plan.coachId?items.filter(c=>c.id===plan.coachId).map(c=>({fullName:c.fullName})):(plan.coachName?[{fullName:plan.coachName}]:[])};
+    cfg.onChange=()=>{
+      const picked=cfg.selected[0];
+      const match=items.find(c=>c.fullName===(picked&&picked.fullName));
+      if(match){plan.coachId=match.id;plan.coachName=match.fullName;}
+      builderDirty=true;draw();
+    };
     return cfg;
   }
   function buildLocationCfg(){
@@ -2033,6 +2055,7 @@ function renderPracticeBuilder(id,container){
   }
 
   function draw(){
+    const cats=getEnabledCategories(); // recomputed every redraw so newly-added stations show up without a full page nav
     const times=computeRowTimes(plan);
     let d;
     try{
@@ -2061,6 +2084,10 @@ function renderPracticeBuilder(id,container){
             <label class="builder-label">Practice Name</label>
             <input class="input" id="pb_name" value="${escAttr(plan.name)}" ${dis}>
           </div>
+          ${DB.coach.isSuperUser?`<div class="builder-subsection">
+            <label class="builder-label">Coach</label>
+            ${searchAddFieldHtml(buildCoachCfg())}
+          </div>`:''}
           <div class="builder-subsection">
             <label class="builder-label">Practice Group</label>
             ${searchAddFieldHtml(buildGroupCfg())}
@@ -2216,17 +2243,16 @@ function renderPracticeBuilder(id,container){
       </div>
 
       <div class="builder-savebar">
-        <div>${readOnly?'':`<button class="btn btn-danger" onclick="deleteBuilderPlan()">${ic('trash')} Delete</button>`}</div>
+        <div>${readOnly?'':`<button class="btn btn-sm btn-danger" onclick="deleteBuilderPlan()" title="Delete">${ic('trash')}<span class="btn-label"> Delete</span></button>`}</div>
         <div class="builder-savebar-right">
-          <button class="btn" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')">${ic('printer')} Print</button>
-          <button class="btn" onclick="sharePracticePlan()">🔗 Share</button>
-          <button class="btn" onclick="createPlan()">${ic('plus')} New Practice</button>
-          ${readOnly?'':`<button class="btn btn-primary" onclick="saveBuilderDraft()">💾 Save Practice</button>`}
+          <button class="btn btn-sm" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')" title="Print">${ic('printer')}<span class="btn-label"> Print</span></button>
+          <button class="btn btn-sm" onclick="sharePracticePlan()" title="Share">🔗<span class="btn-label"> Share</span></button>
+          ${readOnly?'':`<button class="btn btn-sm btn-primary" onclick="saveBuilderDraft()" title="Save Practice">💾<span class="btn-label"> Save</span></button>`}
         </div>
       </div>
       </div>
     `;
-    ['sab_group','sab_loc','sab_ann','sab_quote','sab_points'].forEach(wireSearchAddField);
+    [DB.coach.isSuperUser?'sab_coach':null,'sab_group','sab_loc','sab_ann','sab_quote','sab_points'].filter(Boolean).forEach(wireSearchAddField);
     document.getElementById('bskill_input').oninput=()=>drawBuilderSkillSearch(plan.id);
     ['pb_name','pb_date','pb_start','pb_duration','pb_color'].forEach(fid=>{
       const el=document.getElementById(fid);
@@ -2475,9 +2501,9 @@ function pdfDonutLegendHtml(d, theme, catColors){
   const c=theme;
   catColors=catColors||d.catColors;
   const dot=color=>`<span style="width:7px;height:7px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>`;
-  const rows=d.catNames.map(name=>`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot(catColors[name])}<span>${esc(name)}: ${d.agg[name]}m</span></div>`);
+  const rows=d.catNames.map(name=>`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot(catColors[name])}<span>${esc(name)}: ${d.agg[name]} min</span></div>`);
   if(d.unallocated>0 || d.catNames.length===0){
-    rows.push(`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot('#9aa5b1')}<span>Unallocated: ${d.unallocated}m</span></div>`);
+    rows.push(`<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:${c.textPrimary};margin-top:2px;white-space:nowrap;">${dot('#9aa5b1')}<span>Unallocated: ${d.unallocated} min</span></div>`);
   }
   return rows.join('');
 }
@@ -3138,6 +3164,21 @@ function saveSkillForm(id){
   saveDB();closeModal();router();toast('Skill saved');
 }
 
+/* ============================= ACTIVE COACHES (super-user Coach field, Fix 4) ============================= */
+let ACTIVE_COACHES=null;   // null = not yet fetched; array once loaded — reused across Builder sessions
+let activeCoachesLoading=false;
+function loadActiveCoaches(){
+  if(ACTIVE_COACHES!==null||activeCoachesLoading)return;
+  activeCoachesLoading=true;
+  window.supabaseClient.from('profiles').select('id,full_name')
+    .eq('role','coach').eq('status','active').order('last_name')
+    .then(({data,error})=>{
+      activeCoachesLoading=false;
+      ACTIVE_COACHES=error?[]:(data||[]).map(c=>({id:c.id,fullName:c.full_name||'Coach'}));
+      if(currentRoute().split('/')[0]==='builder' && window.__currentPlanDraw)window.__currentPlanDraw();
+    });
+}
+
 /* ============================= DIVE DRILLS SKILLS (read-only, Supabase) ============================= */
 let DD_SKILLS=[];          // cached Dive Drills skills, fetched once from Supabase — reused by both
                             // the unified Skill List and Practice Builder's inline search
@@ -3374,6 +3415,7 @@ function renderProfile(container){
       <div class="field"><label>Username *</label><input class="input" id="pr_username" value="${escAttr(DB.coach.username)}"></div>
       <div class="field"><label>Email</label><input class="input" value="${escAttr(DB.coach.email)}" disabled style="opacity:.6;"></div>
       <button class="btn btn-primary" onclick="saveProfile()">Save changes</button>
+      <button class="btn btn-danger" style="margin-top:10px;margin-left:8px;" onclick="Auth.logout()">Sign Out</button>
     </div>`;
 }
 function saveProfile(){
