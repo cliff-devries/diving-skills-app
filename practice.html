@@ -322,6 +322,11 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;transition:transform .15s ease;}
 .skill-card.rotation-row{border-left:3px solid var(--accent);}
 .skill-card.touch-dragging{transition:none;opacity:.85;box-shadow:0 8px 20px rgba(0,0,0,.35);position:relative;z-index:20;}
+/* Inline skill search — rendered after the last skill row/card (not fixed
+   above the list) so it always sits where the next skill will land. The
+   teal tint + left border distinguish it from a skill row. scroll-margin
+   keeps it clear of the fixed .builder-savebar when scrollIntoView runs. */
+.skill-search-inline{width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border-radius:var(--radius-md);background:var(--accent-dim);border:1px solid var(--border);border-left:3px solid var(--accent);scroll-margin-bottom:90px;}
 .skill-card-top{display:flex;align-items:center;gap:8px;}
 .skill-card-activity{flex:1;min-width:0;}
 .skill-card-activity input{width:100%;}
@@ -2143,12 +2148,6 @@ function renderPracticeBuilder(id,container){
 
       <div class="card builder-card">
         <label class="builder-label">Skills &amp; Rotations</label>
-        <div class="field" style="margin-top:10px;">
-          <div class="searchadd-wrap">
-            <input class="input" id="bskill_input" placeholder="Search skills by name…" ${dis}>
-            <div class="searchadd-results" id="bskill_results" style="display:none;"></div>
-          </div>
-        </div>
         <div style="margin:6px 0 12px;display:flex;align-items:center;justify-content:flex-end;">
           ${readOnly?'':`<div class="btn-group">
             <button class="btn btn-sm" onclick="addPlanRowFromLibrary('${plan.id}')">${ic('plus')} Add from Skill Library</button>
@@ -2162,7 +2161,7 @@ function renderPracticeBuilder(id,container){
             <th>Stations</th><th style="text-align:right">Action</th>
           </tr></thead>
           <tbody id="planRowsBody">
-          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="9">No skills added yet. Search above, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</td></tr>`:
+          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="9">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</td></tr>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<tr class="${r.rotationGroupId?'rotation-row':''}" draggable="${readOnly?'false':'true'}" data-idx="${idx}" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event,'${plan.id}')">
@@ -2190,7 +2189,7 @@ function renderPracticeBuilder(id,container){
           </tbody></table>
         </div>
         <div class="skill-cards-mobile">
-          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search above, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</p>`:
+          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</p>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<div class="skill-card ${r.rotationGroupId?'rotation-row':''}">
@@ -2234,6 +2233,12 @@ function renderPracticeBuilder(id,container){
                 </div>
               </div>`;
             }).join('')}
+        </div>
+        <div class="skill-search-inline" id="skillSearchInline">
+          <div class="searchadd-wrap">
+            <input class="input" id="bskill_input" placeholder="Search and add a skill..." autocomplete="off" ${dis}>
+            <div class="searchadd-results" id="bskill_results" style="display:none;"></div>
+          </div>
         </div>
         <p class="mutedtext" style="margin-top:10px;">${plan.rows.length} skill${plan.rows.length===1?'':'s'} · ${d.usedTotal} minute${d.usedTotal===1?'':'s'} total</p>
       </div>
@@ -2323,9 +2328,16 @@ function pickBuilderSkillSearchResult(planId,idx){
   if(!m)return;
   if(m.kind==='dd') addDDSkillToPlan(m.id);
   else addSkillToPlan(planId,m.id);
-  const input=document.getElementById('bskill_input');
-  if(input)input.value='';
-  host.style.display='none';
+  // addSkillToPlan/addDDSkillToPlan already redrew the row list, so the
+  // search bar is now a fresh element sitting at its new bottom-of-list
+  // position (already empty/closed by construction) — grab it post-redraw
+  // rather than the detached node captured above, then bring it on screen
+  // (scroll-margin-bottom on .skill-search-inline keeps it clear of the
+  // fixed .builder-savebar) and refocus it for the next skill.
+  const freshWrap=document.getElementById('skillSearchInline');
+  const freshInput=document.getElementById('bskill_input');
+  if(freshWrap)freshWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(freshInput)freshInput.focus();
 }
 function openRotationPickerModal(planId){
   openModal({
@@ -3269,7 +3281,13 @@ function addDDSkillToPlan(skillId){
     builderDirty=true;
     if(window.__currentPlanDraw)window.__currentPlanDraw();
     toast('Skill added to Practice Builder');
-    navigate(builderDraft.__sourceId?'builder/'+builderDraft.__sourceId:'builder');
+    const targetRoute=builderDraft.__sourceId?'builder/'+builderDraft.__sourceId:'builder';
+    // Only navigate if we're not already there (e.g. called from the
+    // Skills page) — navigating to the route we're already on would
+    // trigger a second, redundant full re-render via router(), which
+    // would clobber pickBuilderSkillSearchResult()'s scroll/focus on the
+    // fresh search bar since hashchange fires asynchronously right after.
+    if(currentRoute()!==targetRoute) navigate(targetRoute);
   } else {
     pendingSkillToAdd={type:'dd',id:skill.id};
     toast('Skill added to Practice Builder');
