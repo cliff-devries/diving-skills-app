@@ -319,8 +319,9 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .plan-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .plan-card-row{font-size:.82rem;margin-top:6px;}
 .plan-card-actions{display:flex;gap:6px;margin-top:10px;justify-content:flex-end;}
-.skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;}
+.skill-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;transition:transform .15s ease;}
 .skill-card.rotation-row{border-left:3px solid var(--accent);}
+.skill-card.touch-dragging{transition:none;opacity:.85;box-shadow:0 8px 20px rgba(0,0,0,.35);position:relative;z-index:20;}
 .skill-card-top{display:flex;align-items:center;gap:8px;}
 .skill-card-activity{flex:1;min-width:0;}
 .skill-card-activity input{width:100%;}
@@ -399,7 +400,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 @media(max-width:760px){.plan-grid{grid-template-columns:1fr;}}
 .skilltable input,.skilltable select{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.82rem;width:100%;background:var(--bg-surface-2);color:var(--text-primary);}
 .skill-card input,.skill-card select{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.82rem;background:var(--bg-surface-2);color:var(--text-primary);}
-.drag-handle{cursor:grab;color:var(--text-secondary);}
+.drag-handle{cursor:grab;color:var(--text-secondary);touch-action:none;}
 .tabbar{display:flex;gap:22px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto;}
 .tabbar button{background:none;border:none;padding:10px 2px;font-size:.9rem;color:var(--text-secondary);border-bottom:2px solid transparent;font-weight:600;white-space:nowrap;}
 .tabbar button.active{color:var(--accent);border-color:var(--accent);}
@@ -2194,7 +2195,7 @@ function renderPracticeBuilder(id,container){
               const t=times[idx];
               return `<div class="skill-card ${r.rotationGroupId?'rotation-row':''}">
                 <div class="skill-card-top">
-                  <span class="drag-handle">${readOnly?'':ic('drag')}</span>
+                  <span class="drag-handle" ${readOnly?'':`ontouchstart="rowTouchStart(event,${idx},'${plan.id}')" ontouchmove="rowTouchMove(event)" ontouchend="rowTouchEnd()" ontouchcancel="rowTouchEnd()"`}>${readOnly?'':ic('drag')}</span>
                   <div class="skill-card-activity">
                     ${r.rotationGroupId?`<div class="rotation-group-label">${ic('rotation')} ${esc(r.rotationName||'Rotation')}</div>`:''}
                     ${r.ddSkillId
@@ -2398,8 +2399,10 @@ function deletePlanRow(planId,rowId){
   plan.rows=plan.rows.filter(r=>r.id!==rowId);
   builderDirty=true;window.__currentPlanDraw();
 }
-// Mobile card view's "⋮" action menu reorders rows with Move Up/Down
-// buttons instead of drag-and-drop, which doesn't work well on touch.
+// Mobile card view's "⋮" action menu offers Move Up/Down as a reliable
+// fallback to touch-drag (rowTouchStart/Move/End below) — HTML5's native
+// dragstart/dragover/drop (desktop, further down) isn't supported by iOS
+// Safari on touch devices at all.
 function movePlanRowUp(planId,rowId){
   const plan=findPlanById(planId);
   const idx=plan.rows.findIndex(r=>r.id===rowId);
@@ -2424,6 +2427,53 @@ function rowDrop(e,planId){
   const [moved]=plan.rows.splice(dragIdx,1);
   plan.rows.splice(dropIdx,0,moved);
   builderDirty=true;window.__currentPlanDraw();
+}
+// Touch drag for the mobile skill-card list (rowDragStart/Over/Drop above
+// are HTML5 drag events, which iOS Safari never fires for touch input).
+// Cards are captured once at touchstart and only shifted with a CSS
+// transform while dragging — the DOM isn't rebuilt mid-gesture, so touch
+// events (which stay targeted at their original element for the whole
+// gesture) keep firing correctly. The underlying plan.rows array is only
+// spliced once, in rowTouchEnd, followed by a single real redraw.
+let touchDrag=null;
+function rowTouchStart(e,idx,planId){
+  const card=e.currentTarget.closest('.skill-card');
+  const cards=[...card.parentElement.querySelectorAll(':scope > .skill-card')];
+  touchDrag={cards,fromIdx:idx,hoverIdx:idx,startY:e.touches[0].clientY,
+    cardH:card.getBoundingClientRect().height,planId};
+  card.classList.add('touch-dragging');
+  e.preventDefault();
+}
+function rowTouchMove(e){
+  if(!touchDrag)return;
+  e.preventDefault();
+  const {cards,fromIdx,cardH}=touchDrag;
+  const dy=e.touches[0].clientY-touchDrag.startY;
+  cards[fromIdx].style.transform=`translateY(${dy}px) scale(1.03)`;
+  const hoverIdx=Math.max(0,Math.min(cards.length-1,fromIdx+Math.round(dy/cardH)));
+  if(hoverIdx!==touchDrag.hoverIdx){
+    cards.forEach((c,i)=>{
+      if(i===fromIdx)return;
+      let shift=0;
+      if(fromIdx<hoverIdx && i>fromIdx && i<=hoverIdx) shift=-1;
+      else if(fromIdx>hoverIdx && i>=hoverIdx && i<fromIdx) shift=1;
+      c.style.transform=shift?`translateY(${shift*cardH}px)`:'';
+    });
+    touchDrag.hoverIdx=hoverIdx;
+  }
+}
+function rowTouchEnd(){
+  if(!touchDrag)return;
+  const {cards,fromIdx,hoverIdx,planId}=touchDrag;
+  cards.forEach(c=>{c.style.transform='';c.classList.remove('touch-dragging');});
+  touchDrag=null;
+  if(fromIdx!==hoverIdx){
+    const plan=findPlanById(planId);
+    const [moved]=plan.rows.splice(fromIdx,1);
+    plan.rows.splice(hoverIdx,0,moved);
+    builderDirty=true;
+  }
+  if(window.__currentPlanDraw)window.__currentPlanDraw();
 }
 function addPlanRowFromLibrary(planId){
   const plan=findPlanById(planId);
