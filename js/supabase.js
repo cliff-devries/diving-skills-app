@@ -287,6 +287,17 @@ const SupabaseDB = {
     return body;
   },
 
+  // Club-wide (not roster-scoped) list of active divers eligible for a
+  // parent invite: has a parent email on file, not already linked to a
+  // parent, and not already invited as one. Backs the "Invite All
+  // Parents" button on roster.html — see migration v49 for why this has
+  // to be a SECURITY DEFINER RPC rather than a plain client-side query.
+  async getUninvitedDiversWithParentEmail() {
+    const { data, error } = await this.db.rpc('get_uninvited_divers_with_parent_email');
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
   // =============================================
   // ROSTER
   // =============================================

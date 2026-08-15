@@ -65,6 +65,7 @@
         </div>
         <div class="flex gap-2">
           <button class="btn btn-ghost" id="update-aqua-btn" hidden onclick="updateAquaAges()">Update AQUA Ages</button>
+          <button class="btn btn-ghost" onclick="openInviteAllModal()">✉️ Invite All Parents</button>
           <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">+ Add Diver</button>
         </div>
       </div>
@@ -225,11 +226,20 @@
 </div>
 
 
+<!-- =============================================
+     INVITE ALL PARENTS MODAL — inner body is swapped between confirm /
+     progress / summary states by JS (renderInviteAllConfirm/Progress/
+     Summary) rather than three separate modal elements.
+============================================= -->
+<div class="modal-overlay" id="invite-all-modal">
+  <div class="modal" style="max-width:480px" id="invite-all-modal-body"></div>
+</div>
+
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=32"></script>
+<script src="js/supabase.js?v=33"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=9"></script>
 
@@ -257,6 +267,18 @@
     }
 
     await loadRoster();
+
+    // Feature: restore scroll position when returning from a diver's
+    // profile page (progress.html) via its "← Roster" link — the
+    // sessionStorage key is only ever set right before navigating to a
+    // diver's profile (see renderDiverRow()'s onclick), and checking
+    // document.referrer too guards against restoring a stale position if
+    // the coach arrived here some other way in between.
+    const savedScrollY = sessionStorage.getItem('rosterScrollY');
+    if (savedScrollY && document.referrer.includes('progress.html')) {
+      window.scrollTo({ top: parseInt(savedScrollY, 10), behavior: 'instant' });
+    }
+    sessionStorage.removeItem('rosterScrollY');
 
     const toastData = sessionStorage.getItem('roster-toast');
     if (toastData) {
@@ -335,6 +357,128 @@
     return String(new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear());
   }
 
+  // Called right before following a diver-row link to progress.html —
+  // read back in initRosterPage() so the roster scrolls to the same spot
+  // when the coach returns via "← Roster".
+  function saveRosterScrollPosition() {
+    sessionStorage.setItem('rosterScrollY', window.scrollY);
+  }
+
+  // =============================================
+  // INVITE ALL PARENTS — bulk-send parent invites to every eligible
+  // active diver (has a parent email, not yet linked/invited). Modal
+  // body is swapped between three states (confirm → progress → summary)
+  // rather than juggling three separate modal elements.
+  // =============================================
+  let inviteAllEligible = [];
+
+  async function openInviteAllModal() {
+    renderInviteAllLoading();
+    App.openModal('invite-all-modal');
+    try {
+      inviteAllEligible = await SupabaseDB.getUninvitedDiversWithParentEmail();
+      renderInviteAllConfirm();
+    } catch (err) {
+      App.closeModal('invite-all-modal');
+      App.showToast(err.message, 'error');
+    }
+  }
+
+  function renderInviteAllLoading() {
+    document.getElementById('invite-all-modal-body').innerHTML = `
+      <div class="modal-header">
+        <h2 class="modal-title">Invite All Parents</h2>
+        <button class="modal-close" onclick="App.closeModal('invite-all-modal')">✕</button>
+      </div>
+      <div style="text-align:center;padding:24px 0">
+        <div class="loading-spinner loading-spinner-lg" style="margin:0 auto"></div>
+      </div>
+    `;
+  }
+
+  function renderInviteAllConfirm() {
+    const count = inviteAllEligible.length;
+    document.getElementById('invite-all-modal-body').innerHTML = `
+      <div class="modal-header">
+        <h2 class="modal-title">Invite All Parents</h2>
+        <button class="modal-close" onclick="App.closeModal('invite-all-modal')">✕</button>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        This will send parent invite emails to all divers who have a parent email on file
+        but have not yet been invited. Continue?
+      </p>
+      <p class="text-sm mb-4"><strong>${count}</strong> parent${count === 1 ? '' : 's'} will be invited.</p>
+      <div class="flex gap-3 justify-end">
+        <button class="btn btn-ghost" onclick="App.closeModal('invite-all-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="runInviteAllParents()" ${count === 0 ? 'disabled' : ''}>Send Invites</button>
+      </div>
+    `;
+  }
+
+  function renderInviteAllProgress(done, total) {
+    // No close button while sending — the spec calls for this to be
+    // uninterruptible mid-send (App.openModal/closeModal has no backdrop-
+    // click-to-close wiring either, so omitting the button is sufficient).
+    document.getElementById('invite-all-modal-body').innerHTML = `
+      <div class="modal-header"><h2 class="modal-title">Invite All Parents</h2></div>
+      <div style="text-align:center;padding:20px 0">
+        <div class="loading-spinner loading-spinner-lg" style="margin:0 auto 14px"></div>
+        <p class="text-secondary text-sm">Sending invites... (${done} of ${total})</p>
+      </div>
+    `;
+  }
+
+  function renderInviteAllSummary(sent, skipped, failed) {
+    document.getElementById('invite-all-modal-body').innerHTML = `
+      <div class="modal-header"><h2 class="modal-title">Invite All Parents</h2></div>
+      <p class="text-sm mb-2">✅ Done! ${sent} invite${sent === 1 ? '' : 's'} sent successfully</p>
+      <p class="text-secondary text-sm mb-2">ℹ️ ${skipped} diver${skipped === 1 ? '' : 's'} skipped (already invited or no email on file)</p>
+      ${failed > 0 ? `<p class="text-sm mb-2" style="color:var(--danger)">⚠️ ${failed} invite${failed === 1 ? '' : 's'} failed — check console for details</p>` : ''}
+      <div class="flex justify-end mt-4">
+        <button class="btn btn-primary" onclick="App.closeModal('invite-all-modal'); loadRoster();">Close</button>
+      </div>
+    `;
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function runInviteAllParents() {
+    const eligible    = inviteAllEligible;
+    const total       = eligible.length;
+    const totalActive = roster.filter(r => r.diver.status === 'active').length;
+    let sent   = 0;
+    let failed = 0;
+
+    renderInviteAllProgress(0, total);
+
+    for (let i = 0; i < eligible.length; i++) {
+      const diver = eligible[i];
+      try {
+        const result      = await SupabaseDB.generateInvite(diver.id, 'parent');
+        const inviteLink  = `${window.location.origin}/invite.html?token=${result.token}`;
+        const diverName   = App.formatNameWithNickname(diver) || diver.full_name || 'your diver';
+        await SupabaseDB.emailParentInvite({
+          parentEmail: diver.parent_email,
+          diverName,
+          inviteLink,
+          coachName: currentUser.full_name || 'Your coach',
+        });
+        sent++;
+      } catch (err) {
+        console.error('[runInviteAllParents] failed for diver:', diver.id, err);
+        failed++;
+      }
+      renderInviteAllProgress(i + 1, total);
+      // Sequential with a short delay between sends, not Promise.all — stays
+      // well within Brevo's rate limits instead of firing a burst of
+      // simultaneous requests.
+      if (i < eligible.length - 1) await sleep(500);
+    }
+
+    const skipped = Math.max(0, totalActive - total);
+    renderInviteAllSummary(sent, skipped, failed);
+  }
+
   async function updateAquaAges() {
     const btn = document.getElementById('update-aqua-btn');
     App.setBtnLoading(btn, true);
@@ -385,7 +529,7 @@
     const aquaGroup     = calcAquaAge(diver.date_of_birth);
 
     return `
-      <a class="diver-row" href="progress.html?diver=${diver.id}" id="diver-row-${diver.id}" style="flex-wrap:wrap">
+      <a class="diver-row" href="progress.html?diver=${diver.id}" id="diver-row-${diver.id}" style="flex-wrap:wrap" onclick="saveRosterScrollPosition()">
         <div class="avatar avatar-md">${Auth.getInitials(diver.full_name)}</div>
         <div class="list-item-content">
           <div class="list-item-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
