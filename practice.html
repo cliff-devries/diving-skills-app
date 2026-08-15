@@ -2310,7 +2310,7 @@ function drawBuilderSkillSearch(planId){
   // Same name can exist at multiple stations (e.g. "Reverse 2 Somersault"
   // on both 1m Springboard and Trampoline) — station + level distinguish
   // them so a coach isn't picking blind between identically-named rows.
-  host.innerHTML = matches.length ? matches.map((m,i)=>{
+  const resultsHtml = matches.length ? matches.map((m,i)=>{
     const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
     const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
     const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
@@ -2320,6 +2320,11 @@ function drawBuilderSkillSearch(planId){
       <span style="flex-shrink:0;white-space:nowrap;">${kindBadge}${stationsFlagBadge}</span>
     </div>`;
   }).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
+  // Always offered, regardless of whether matches exist — a coach may
+  // legitimately want a new skill even when a similarly-named one is
+  // already in the list (e.g. same name, different station).
+  const createHtml=`<div class="searchadd-result add-new" onmousedown="event.preventDefault();pickBuilderSkillCreateNew('${planId}')">+ Add "${esc(input.value.trim())}" as new skill</div>`;
+  host.innerHTML = resultsHtml + createHtml;
   host.style.display='block';
 }
 function pickBuilderSkillSearchResult(planId,idx){
@@ -2328,12 +2333,43 @@ function pickBuilderSkillSearchResult(planId,idx){
   if(!m)return;
   if(m.kind==='dd') addDDSkillToPlan(m.id);
   else addSkillToPlan(planId,m.id);
-  // addSkillToPlan/addDDSkillToPlan already redrew the row list, so the
-  // search bar is now a fresh element sitting at its new bottom-of-list
-  // position (already empty/closed by construction) — grab it post-redraw
-  // rather than the detached node captured above, then bring it on screen
-  // (scroll-margin-bottom on .skill-search-inline keeps it clear of the
-  // fixed .builder-savebar) and refocus it for the next skill.
+  focusFreshBuilderSkillSearch();
+}
+// Creates a brand-new custom skill (empty station, 5 min default,
+// Enabled) straight from whatever the coach typed, saves it to the
+// shared skill library (DB.skills + Supabase — same pattern as
+// saveSkillForm's "New Skill" path), and adds it to the plan in one
+// step. addSkillToPlan() isn't reused here since it fires its own toast
+// ("X added to plan") — this flow needs the single combined message the
+// UX spec calls for instead of two toasts stacking on screen.
+function createAndAddSkillToPlan(planId,name){
+  const trimmed=(name||'').trim();
+  if(!trimmed)return;
+  const plan=findPlanById(planId);
+  if(!plan)return;
+  const skill={id:uid('skill'),name:trimmed,categoryId:'',notes:'',stations:false,dateCreated:nowStamp(),image:null,minutes:5,status:'Enabled'};
+  DB.skills.push(skill);
+  plan.rows.push({id:uid('row'),activity:skill.name,min:5,category:'',notes:'',image:null,stations:false});
+  builderDirty=true;
+  saveDB();
+  window.__currentPlanDraw();
+  toast('New skill added to plan and saved to your library');
+  focusFreshBuilderSkillSearch();
+}
+function pickBuilderSkillCreateNew(planId){
+  const input=document.getElementById('bskill_input');
+  if(!input)return;
+  createAndAddSkillToPlan(planId,input.value);
+}
+// Shared by both the existing-skill pick and the create-new-skill flow:
+// each redraws the row list first (addSkillToPlan/addDDSkillToPlan/
+// createAndAddSkillToPlan all end in window.__currentPlanDraw()), so the
+// search bar is now a fresh element sitting at its new bottom-of-list
+// position (already empty/closed by construction) — grab it post-redraw
+// rather than any node captured before the redraw, then bring it on
+// screen (scroll-margin-bottom on .skill-search-inline keeps it clear of
+// the fixed .builder-savebar) and refocus it for the next skill.
+function focusFreshBuilderSkillSearch(){
   const freshWrap=document.getElementById('skillSearchInline');
   const freshInput=document.getElementById('bskill_input');
   if(freshWrap)freshWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
