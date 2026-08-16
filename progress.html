@@ -319,6 +319,26 @@
 </div>
 
 
+<!-- =============================================
+     RESEND PARENT ACCESS MODAL (coach only) — password reset email for
+     an already-linked parent, shown instead of Invite Parent once a
+     parent account exists.
+============================================= -->
+<div class="modal-overlay" id="resend-access-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Resend Access</h2>
+      <button class="modal-close" onclick="App.closeModal('resend-access-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4" id="resend-access-desc"></p>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('resend-access-modal')">Cancel</button>
+      <button class="btn btn-primary" id="resend-access-confirm-btn" onclick="confirmResendAccess()">Send Reset Email</button>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -502,9 +522,9 @@
             </div>
           ` : ''}
           ${isCoach ? `
-            ${!linkedParent
+            ${!linkedParent || !linkedParent.id
               ? `<button class="btn btn-ghost btn-sm" id="invite-parent-btn" onclick="inviteParent('${diver.id}')">✉ Invite Parent</button>`
-              : `<span style="font-size:.75rem;color:#10b981;white-space:nowrap">Parent Linked ✅</span>`
+              : `<button class="btn btn-ghost btn-sm" id="resend-access-btn" onclick="openResendAccessModal()">🔑 Resend Access</button>`
             }
             <button class="btn btn-secondary btn-sm" onclick="openEditProfileModal()">Edit</button>
           ` : ''}
@@ -679,6 +699,45 @@
     } catch (err) {
       console.error('[inviteParent] failed for diverId:', diverId, 'error:', err);
       App.showToast(err.message, 'error');
+      App.setBtnLoading(btn, false);
+    }
+  }
+
+  // =============================================
+  // RESEND ACCESS — password reset email for a parent who's already
+  // linked (shown instead of Invite Parent once linkedParent exists).
+  // =============================================
+  let resendAccessEmail = null;
+
+  function openResendAccessModal() {
+    // linkedParent.email is the parent's actual auth email; parent_email
+    // on the diver's own profile is only a fallback for the (rare) case
+    // a parent got linked without that field ever being synced.
+    resendAccessEmail = linkedParent?.email || targetDiver?.parent_email || null;
+    if (!resendAccessEmail) {
+      App.showToast('No email on file for this parent.', 'error');
+      return;
+    }
+    document.getElementById('resend-access-desc').textContent =
+      `Send password reset email to ${resendAccessEmail}?`;
+    App.openModal('resend-access-modal');
+  }
+
+  async function confirmResendAccess() {
+    const btn = document.getElementById('resend-access-confirm-btn');
+    App.setBtnLoading(btn, true);
+    try {
+      const { error } = await window.supabaseClient.auth.resetPasswordForEmail(
+        resendAccessEmail,
+        { redirectTo: window.location.origin + '/welcome.html' }
+      );
+      if (error) throw error;
+      App.closeModal('resend-access-modal');
+      App.showToast(`✅ Password reset email sent to ${resendAccessEmail}`);
+    } catch (err) {
+      console.error('[confirmResendAccess] failed for email:', resendAccessEmail, 'error:', err);
+      App.showToast('⚠️ Failed to send reset email — please try again', 'error');
+    } finally {
       App.setBtnLoading(btn, false);
     }
   }
