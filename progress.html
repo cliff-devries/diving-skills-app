@@ -69,6 +69,18 @@
       gap: 6px;
       align-items: flex-end;
     }
+    /* Previous/Next diver nav — always side by side, in the same header
+       slot the old "← Roster" link used to occupy. Wrapped in its own
+       row so the pair stays together even though .profile-header-actions
+       itself stacks its children in a column on desktop. */
+    .diver-nav-pair { display: flex; gap: 6px; }
+    .diver-nav-btn { flex: 1; justify-content: center; white-space: nowrap; }
+    .btn.btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+    .diver-nav-short { display: none; }
+    @media (max-width: 380px) {
+      .diver-nav-full  { display: none; }
+      .diver-nav-short { display: inline; }
+    }
     .profile-stats-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -328,6 +340,8 @@
   let linkedParent    = null;
   let activeLevel     = 0;
   let editModalCoaches = [];
+  let prevDiverId      = null; // coach view only — alphabetical (last, first) neighbor among active divers
+  let nextDiverId      = null;
 
   // Display order for skill-type groups within each level.
   const SECTION_ORDER = [
@@ -358,12 +372,16 @@
 
     const isCoach = user.role === 'coach' || user.role === 'super_user';
 
-    const [skills, cMap, attempts, coachData, parentData] = await Promise.all([
+    const [skills, cMap, attempts, coachData, parentData, allDivers] = await Promise.all([
       Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
       SupabaseDB.getAllTestAttempts(targetDiverId),
       SupabaseDB.getDiverCoach(targetDiverId),
       isCoach ? SupabaseDB.getLinkedParent(targetDiverId) : Promise.resolve(null),
+      // Powers the Previous/Next diver nav (coach view only) — fetched
+      // once here and reused for every renderProfileHeader() call for
+      // the rest of this page load, never re-fetched.
+      isCoach ? SupabaseDB.getAllDivers() : Promise.resolve([]),
     ]);
 
     diverCoach   = coachData;
@@ -376,6 +394,13 @@
     attempts.forEach(a => {
       (attemptsBySkill[a.skill_id] ??= []).push(a);
     });
+
+    if (isCoach) {
+      const sortedActive = allDivers.filter(d => d.status === 'active').sort(App.compareNames);
+      const idx = sortedActive.findIndex(d => d.id === targetDiverId);
+      prevDiverId = idx > 0 ? sortedActive[idx - 1].id : null;
+      nextDiverId = idx !== -1 && idx < sortedActive.length - 1 ? sortedActive[idx + 1].id : null;
+    }
 
     renderProfileHeader();
     updateStats(skills, completionMap);
@@ -411,7 +436,6 @@
   function renderProfileHeader() {
     const diver       = targetDiver || {};
     const isCoach     = currentUser.role === 'coach' || currentUser.role === 'super_user';
-    const hasBackLink = currentUser.role === 'coach' || currentUser.role === 'parent';
 
     const coachName   = diver.assigned_coach_name || (diverCoach ? diverCoach.full_name : null) || '—';
     const age         = calcAge(diver.date_of_birth);
@@ -467,7 +491,16 @@
           ` : ''}
         </div>
         <div class="profile-header-actions">
-          ${hasBackLink ? '<a href="roster.html" class="btn btn-ghost btn-sm">← Roster</a>' : ''}
+          ${isCoach ? `
+            <div class="diver-nav-pair">
+              ${prevDiverId
+                ? `<a href="progress.html?diver=${prevDiverId}" class="btn btn-secondary btn-sm diver-nav-btn" style="border-color:var(--accent)" title="Previous diver"><span class="diver-nav-full">← Previous</span><span class="diver-nav-short">←</span></a>`
+                : `<span class="btn btn-secondary btn-sm diver-nav-btn btn-disabled" style="border-color:var(--accent)" title="No previous diver" aria-disabled="true"><span class="diver-nav-full">← Previous</span><span class="diver-nav-short">←</span></span>`}
+              ${nextDiverId
+                ? `<a href="progress.html?diver=${nextDiverId}" class="btn btn-secondary btn-sm diver-nav-btn" style="border-color:var(--accent)" title="Next diver"><span class="diver-nav-full">Next →</span><span class="diver-nav-short">→</span></a>`
+                : `<span class="btn btn-secondary btn-sm diver-nav-btn btn-disabled" style="border-color:var(--accent)" title="No next diver" aria-disabled="true"><span class="diver-nav-full">Next →</span><span class="diver-nav-short">→</span></span>`}
+            </div>
+          ` : ''}
           ${isCoach ? `
             ${!linkedParent
               ? `<button class="btn btn-ghost btn-sm" id="invite-parent-btn" onclick="inviteParent('${diver.id}')">✉ Invite Parent</button>`
