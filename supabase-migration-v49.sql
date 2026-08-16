@@ -31,9 +31,13 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
+  -- Table alias required here (not just style): RETURNS TABLE (id UUID, ...)
+  -- above declares an implicit `id` OUT-parameter variable in scope for
+  -- the whole function body, which collides with a bare `id` column
+  -- reference and raises "column reference 'id' is ambiguous".
   IF NOT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role IN ('coach', 'super_user') AND status = 'active'
+    SELECT 1 FROM public.profiles prof
+    WHERE prof.id = auth.uid() AND prof.role IN ('coach', 'super_user') AND prof.status = 'active'
   ) THEN
     RAISE EXCEPTION 'Only active coaches can do this';
   END IF;
