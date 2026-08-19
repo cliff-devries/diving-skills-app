@@ -862,6 +862,26 @@ async function fetchAllFromSupabase(coachId){
 
 async function diffAndPush(cfg, current, prev, coachId){
   const sb = window.supabaseClient;
+  // dive_practice_plans is club-wide READABLE (RLS lets any active coach
+  // see every plan) but only the owning coach — or a super user, per
+  // migration v48's RLS bypass — may WRITE a given row. DB.plans (and
+  // its last-synced snapshot) hold every club-visible plan, not just
+  // this coach's own; without this filter, a plan owned by someone else
+  // that happens to differ from the snapshot for any reason (another
+  // coach's own edit landing in a later reload, a stale local snapshot,
+  // etc.) would get diffed in below and rejected by RLS — this coach's
+  // sync should never even attempt to touch it. isMine() (not a bare
+  // coachId===DB.coach.id check — DB.coach has no id field, SYNC_COACH_ID
+  // is the actual identifier) already encodes exactly the right rule:
+  // own plans, or ANY plan for a super user, or a brand-new plan that
+  // hasn't round-tripped through Supabase yet (coachId still undefined —
+  // see isMine()'s own comment). Scoped to plans only, per spec — every
+  // other SYNC_CFG table has no equivalent "owned by someone else but
+  // still club-visible" case to guard against.
+  if(cfg.key==='plans'){
+    current = current.filter(isMine);
+    prev = prev.filter(isMine);
+  }
   const prevById = new Map(prev.map(r=>[r.id,r]));
   const curIds = new Set(current.map(r=>r.id));
 
