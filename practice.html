@@ -558,16 +558,14 @@ function seedData(){
   const competitionEmphasis=[{id:uid('ce'),text:'Takeoff power & height',dateCreated:nowStamp()}];
   const notes=[{id:uid('note'),text:'Remember to log dryland reps for strength staff.',status:'Enabled',dateCreated:nowStamp()}];
   const groups=DEFAULT_GROUPS.map(name=>({id:uid('grp'),name,dateCreated:nowStamp()}));
-  const plans=[{
-    id:uid('plan'),name:'Practice 1',date:todayISO(),location:'',startTime:'12:00',ampm:'AM',duration:5,color:'#00c9a7',
-    announcements:'Big 1st day',quote:'Work hard, have fun.',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',
-    announcementList:['Big 1st day'],practicePoints:[],notes:'',
-    groups:[],visibility:'club',dateCreated:nowStamp(),
-    rows:[{id:uid('row'),activity:'Front  Jump Tuck',min:5,category:'1m Platform',notes:'fast tuck',image:null,stations:false}]
-  }];
+  // Deliberately no seed plans — the Builder is draft-based (nothing
+  // persists until the coach explicitly clicks Save Practice), and a
+  // silently auto-created "Practice 1" here would violate that the same
+  // way an accidental auto-save would: it'd get pushed to Supabase on
+  // the very first load with no coach action behind it at all.
   return {
     coach:{firstName:'Cliff',lastName:'Devries',username:'cwdatl@rit.edu',email:'cwdatl@rit.edu',timezone:'',isSuperUser:false},
-    categories:cats,skills,skillBlocks:[],locations,announcements,quotes,practiceEmphasis,competitionEmphasis,notes,groups,plans,
+    categories:cats,skills,skillBlocks:[],locations,announcements,quotes,practiceEmphasis,competitionEmphasis,notes,groups,plans:[],
     rotationTemplates:[],
     prefs:{defaultDuration:'',defaultStartTime:'',timeFormat:'12',skillEditPrompt:false,includeImages:true,includeVideos:false,includeColorsPrint:true},
     lastBackupAt:null,
@@ -872,6 +870,15 @@ async function diffAndPush(cfg, current, prev, coachId){
     return !p || JSON.stringify(r)!==JSON.stringify(p);
   });
   const toDelete = prev.filter(r=>!curIds.has(r.id)).map(r=>r.id);
+
+  if(toUpsert.length || toDelete.length){
+    // Exactly what a given sync is about to push, and why (upsert = new
+    // or changed since lastSyncedSnapshot, delete = removed locally) —
+    // the diagnostic requested for tracking down surprise auto-inserts
+    // like the seed-plan bug this was added for.
+    console.log(`[practice] sync: ${cfg.table} — upserting ${toUpsert.length}, deleting ${toDelete.length}`,
+      {upsert: toUpsert.map(r=>({id:r.id, name:r.name||r.text})), delete: toDelete});
+  }
 
   if(toUpsert.length){
     const rows = toUpsert.map(r=>toSnakeRow(r, cfg, coachId));
@@ -3717,7 +3724,18 @@ function finishInit(user){
   DB.coach.email     = user.email || DB.coach.email;
   DB.coach.username  = user.email || DB.coach.username;
   DB.coach.isSuperUser = !!user.is_super_user;
-  saveDB();
+  // localStorage only — NOT saveDB()/scheduleSync(). DB.coach is never
+  // synced to Supabase in the first place (see fetchAllFromSupabase's
+  // comment: overwritten from Auth on every load), so there is nothing
+  // here that needs a cloud push. Calling the full saveDB() on every
+  // single page load was the bug: it diffs and pushes EVERY SYNC_CFG
+  // key (including plans), not just the coach fields that actually
+  // changed — any pending-but-unsynced plan sitting in DB (e.g. from a
+  // previous failed sync) got silently re-INSERTed on every load as a
+  // side effect of this unrelated coach-name refresh. Anywhere real
+  // pending data needs pushing, loadDB() already calls scheduleSync()
+  // itself (the pending-edits/groups-backfill/seed branches above).
+  persistLocalOnly();
 
   loadDiveDrillsSkills();
   renderOfflineBanner();
