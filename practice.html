@@ -663,6 +663,74 @@ let isOffline = false;
 let currentSyncStatus = 'idle';
 let pendingMigrationLocalDB = null;
 
+// ============================================================
+// OFFLINE DETECTION
+// navigator.onLine is unreliable (can report true on a dead connection —
+// captive portals, VPN drops — or false on some mobile browsers with a
+// perfectly working one), and a thrown Supabase error alone doesn't tell
+// you WHY it failed — an RLS/auth/validation error (403/401/400) throws
+// exactly the same way a real network failure does, but isn't offline at
+// all. Every catch block that used to set isOffline=true unconditionally
+// now runs through these two checks first.
+// ============================================================
+
+// True only for errors that look like the browser's fetch actually
+// couldn't reach the network — not for Supabase/PostgREST errors, which
+// have a message describing what the server rejected, not a fetch
+// failure. Chrome/Edge throw "TypeError: Failed to fetch", Firefox
+// "TypeError: NetworkError when attempting to fetch resource", Safari
+// "TypeError: Load failed" — all real TypeErrors, so that alone already
+// covers most cases; the message check is a fallback for whatever
+// wrapper shape a given call site ends up throwing.
+function isNetworkError(e){
+  if(!e) return false;
+  if(e instanceof TypeError) return true;
+  const msg = String(e.message || e.details || '').toLowerCase();
+  return msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed');
+}
+
+// Lightweight connectivity probe, independent of navigator.onLine —
+// confirms the browser can actually reach Supabase right now.
+async function checkOnline(){
+  try{
+    const res = await fetch(CONFIG.SUPABASE_URL+'/rest/v1/', {method:'HEAD', cache:'no-cache'});
+    return res.ok || res.status < 500;
+  }catch{
+    return false;
+  }
+}
+
+// Call from a catch block that already suspects a network failure. Never
+// trusts a single failed request — pings Supabase directly, with one
+// retry, before actually flipping the offline banner on. Returns
+// whether it declared offline, and always logs which branch fired so a
+// false positive is diagnosable from the console instead of a guess.
+async function confirmOffline(err, source){
+  // Every branch below sets isOffline explicitly (not just on the way
+  // in) — otherwise a stale isOffline=true from an earlier real outage
+  // would survive an unrelated, later, non-network error and keep the
+  // banner showing after connectivity actually came back.
+  if(!isNetworkError(err)){
+    console.log(`[practice] ${source} failed with a non-network error — NOT going offline (reached the server fine, request was rejected):`, err);
+    isOffline = false;
+    return false;
+  }
+  if(await checkOnline()){
+    console.log(`[practice] ${source} failed but a connectivity ping to Supabase succeeded — NOT going offline (transient error):`, err);
+    isOffline = false;
+    return false;
+  }
+  await new Promise(r=>setTimeout(r,800));
+  if(await checkOnline()){
+    console.log(`[practice] ${source} failed, but the retry ping succeeded — NOT going offline:`, err);
+    isOffline = false;
+    return false;
+  }
+  console.log(`[practice] ${source} failed and two connectivity pings to Supabase both failed — going offline:`, err);
+  isOffline = true;
+  return true;
+}
+
 // Practice Builder draft state — a plan is only written into DB.plans (and
 // synced) when the coach taps Save Practice; until then it's a local-only
 // object here, and builderDirty gates the unsaved-changes nav guard below.
@@ -848,10 +916,12 @@ async function runSync(opts){
     return true;
   }catch(e){
     console.error('[practice] sync failed', e);
-    isOffline = true;
+    await confirmOffline(e, 'runSync');
     setSyncStatus('error');
     renderOfflineBanner();
-    if(!silent) toast('Sync failed — changes are saved on this device and will retry.');
+    if(!silent) toast(isOffline
+      ? 'Sync failed — changes are saved on this device and will retry.'
+      : 'Sync failed — please try again.');
     return false;
   }finally{
     syncInFlight = false;
@@ -888,7 +958,7 @@ async function loadDB(coachId){
     SYNC_CFG.forEach(cfg=>{ debugRecordCounts[cfg.key] = (remoteDB[cfg.key]||[]).length; });
   }catch(e){
     console.error('[practice] Supabase fetch failed, falling back to local', e);
-    isOffline = true;
+    await confirmOffline(e, 'loadDB (initial fetch)');
     debugFetchError = e?.message || String(e);
   }
 
@@ -1046,9 +1116,17 @@ function renderOfflineBanner(){
     <span class="msg">📡 <strong>You're offline.</strong> Changes are being saved on this device and will sync automatically once you're back online.</span>
   </div>`;
 }
-function handleConnectivityChange(){
-  if(navigator.onLine) scheduleSync();
-  else { isOffline = true; renderOfflineBanner(); }
+async function handleConnectivityChange(){
+  if(navigator.onLine){ scheduleSync(); return; }
+  // The browser's 'offline' event is itself just navigator.onLine under
+  // the hood — confirm with a real ping to Supabase before trusting it,
+  // same as every other place isOffline gets set.
+  const reachable = await checkOnline();
+  console.log(reachable
+    ? "[practice] browser reported offline, but a connectivity ping to Supabase succeeded — NOT going offline"
+    : '[practice] browser reported offline and a connectivity ping to Supabase failed — going offline');
+  isOffline = !reachable;
+  renderOfflineBanner();
 }
 window.addEventListener('online', handleConnectivityChange);
 window.addEventListener('offline', handleConnectivityChange);
