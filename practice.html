@@ -603,6 +603,7 @@ function migrateIfNeeded(){
     if(!p.announcementList)p.announcementList=[];
     if(!p.practicePoints)p.practicePoints=[];
     if(p.notes===undefined)p.notes='';
+    if(p.isShared===undefined)p.isShared=false;
   });
 }
 function saveDB(){
@@ -1802,6 +1803,7 @@ function duplicatePlan(id){
   copy.id=uid('plan');copy.name=p.name+' (Copy)';copy.dateCreated=nowStamp();
   copy.coachId=SYNC_COACH_ID; // this duplicate belongs to you, even if the original plan didn't
   copy.coachName=coachDisplayName();
+  copy.isShared=false; // duplicating a shared plan must not silently publish the copy — sharing is an explicit per-plan action
   copy.rows=copy.rows.map(r=>({...r,id:uid('row')}));
   DB.plans.push(copy);saveDB();router();
   toast('Plan duplicated');
