@@ -605,6 +605,7 @@ function migrateIfNeeded(){
     if(p.notes===undefined)p.notes='';
     if(p.isShared===undefined)p.isShared=false;
   });
+  backfillBlockSkills(DB.skillBlocks, DB.skills, DB.categories);
 }
 function saveDB(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
@@ -824,6 +825,28 @@ function prefsFromSnake(row){
     includeColorsPrint:row.include_colors_print!==false,
   };
 }
+// Old skill blocks only ever stored skill_ids (migration v41) — a bare
+// list of custom-skill ids resolved against the live library at render
+// time. The redesigned block editor snapshots each skill's name/station/
+// source onto the block itself (see supabase-migration-v51.sql), so any
+// block still sitting at the old shape (skills empty/missing, skillIds
+// non-empty) gets converted here, once, using whatever skills/categories
+// were loaded alongside it. A block with a real (even empty) skills
+// array is left alone — an intentionally-emptied block must not get
+// resurrected from a stale skillIds list on a later load.
+function backfillBlockSkills(blocks, skills, categories){
+  blocks.forEach(b=>{
+    if((!b.skills || b.skills.length===0) && Array.isArray(b.skillIds) && b.skillIds.length){
+      b.skills = b.skillIds.map(id=>{
+        const d = skills.find(s=>s.id===id);
+        if(!d) return null;
+        const cat = categories.find(c=>c.id===d.categoryId);
+        return {skillId:d.id, name:d.name, minutes:5, station:cat?cat.name:'', source:'custom'};
+      }).filter(Boolean);
+    }
+    if(!Array.isArray(b.skills)) b.skills=[];
+  });
+}
 
 // Fetches the whole club's shared data (visible via RLS, not filtered
 // by coach_id here — RLS decides what this coach can see) plus this
@@ -852,6 +875,7 @@ async function fetchAllFromSupabase(coachId){
       data[cfg.key].push(fromSnakeRow(row, cfg));
     });
   });
+  backfillBlockSkills(data.skillBlocks, data.skills, data.categories);
 
   return {
     coach:{firstName:'',lastName:'',username:'',email:'',timezone:'',isSuperUser:false}, // overwritten from Auth right after load, never synced
@@ -2300,6 +2324,7 @@ function renderPracticeBuilder(id,container){
             <button class="btn btn-sm" onclick="addPlanRowFromLibrary('${plan.id}')">${ic('plus')} Add from Skill Library</button>
             <button class="btn btn-sm" onclick="openRotationPickerModal('${plan.id}')">${ic('plus')} Add Rotation</button>
             <button class="btn btn-sm btn-primary" onclick="addPlanRow('${plan.id}')">${ic('plus')} Add Blank Row</button>
+            <button class="btn btn-sm" onclick="openBlockPickerModal('${plan.id}')">${ic('plus')} Add Block</button>
           </div>`}
         </div>
         <div class="tablewrap skilltable">
@@ -2308,7 +2333,7 @@ function renderPracticeBuilder(id,container){
             <th>Stations</th><th style="text-align:right">Action</th>
           </tr></thead>
           <tbody id="planRowsBody">
-          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="9">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</td></tr>`:
+          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="9">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row" / "Add Block".</td></tr>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<tr class="${r.rotationGroupId?'rotation-row':''}" draggable="${readOnly?'false':'true'}" data-idx="${idx}" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event,'${plan.id}')">
@@ -2336,7 +2361,7 @@ function renderPracticeBuilder(id,container){
           </tbody></table>
         </div>
         <div class="skill-cards-mobile">
-          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row".</p>`:
+          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row" / "Add Block".</p>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<div class="skill-card ${r.rotationGroupId?'rotation-row':''}">
@@ -2548,6 +2573,68 @@ function addRotationToPlan(planId,templateId){
   builderDirty=true;closeModal();
   if(window.__currentPlanDraw)window.__currentPlanDraw();
   toast(tmpl.name+' rotation added to plan');
+}
+// Block picker: unlike the Rotation picker's per-row instant "Add"
+// button, the spec here is tap-to-select-a-row then a separate "Insert
+// Block" button confirms it — so the selection has to survive a redraw.
+// blockPickerSelectedId lives outside the modal (openModal() fully
+// replaces #modalRoot's innerHTML on every call) and window.__blockPickerRedraw
+// only touches the #blockPickerBody container, so re-selecting a row
+// never rebuilds the modal shell or loses scroll position.
+let blockPickerSelectedId=null;
+function blockPickerBodyHtml(){
+  if(DB.skillBlocks.length===0) return `<p class="mutedtext">No skill blocks yet. Create one from the Skill Block List page.</p>`;
+  return `<div class="tablewrap"><table><thead><tr><th>Block Name</th><th>Skills</th><th>Total Min</th></tr></thead><tbody>
+    ${DB.skillBlocks.map(b=>{
+      const skills=b.skills||[];
+      const mins=skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
+      const selected=b.id===blockPickerSelectedId;
+      return `<tr onclick="selectBlockPickerRow('${b.id}')" style="cursor:pointer;${selected?'background:var(--bg-surface-2);':''}">
+        <td>${esc(b.name)}</td><td>${skills.length}</td><td>${mins}</td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+}
+function openBlockPickerModal(planId){
+  blockPickerSelectedId=null;
+  openModal({
+    title:'Add Skill Block',
+    wide:true,
+    bodyHtml:`<div id="blockPickerBody">${blockPickerBodyHtml()}</div>`,
+    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="insertSelectedBlock('${planId}')">Insert Block</button>`,
+  });
+  window.__blockPickerRedraw=()=>{ const host=document.getElementById('blockPickerBody'); if(host)host.innerHTML=blockPickerBodyHtml(); };
+}
+function selectBlockPickerRow(id){
+  blockPickerSelectedId = blockPickerSelectedId===id ? null : id;
+  if(window.__blockPickerRedraw)window.__blockPickerRedraw();
+}
+function insertSelectedBlock(planId){
+  if(!blockPickerSelectedId){ toast('Select a block first'); return; }
+  insertBlockIntoPlan(planId, blockPickerSelectedId);
+}
+// Each block skill carries its own source (dd/custom) — a dd-sourced
+// entry is rebuilt as a real ddSkillId row (read-only, locked, matching
+// what adding that same skill via the inline search would produce)
+// rather than a plain custom row, so it doesn't silently become editable
+// just because it arrived through a block.
+function insertBlockIntoPlan(planId,blockId){
+  const plan=findPlanById(planId);
+  const block=DB.skillBlocks.find(b=>b.id===blockId);
+  if(!plan||!block)return;
+  const skills=block.skills||[];
+  skills.forEach(s=>{
+    if(s.source==='dd'){
+      const dd=DD_SKILLS.find(d=>d.id===s.skillId);
+      plan.rows.push({id:uid('row'),activity:s.name,min:parseInt(s.minutes)||5,category:s.station||(dd?dd.type:''),notes:'',image:null,stations:false,ddSkillId:s.skillId,ddSkillLevel:dd?dd.level:null});
+    } else {
+      plan.rows.push({id:uid('row'),activity:s.name,min:parseInt(s.minutes)||5,category:s.station||'',notes:'',image:null,stations:false});
+    }
+  });
+  builderDirty=true;closeModal();
+  if(window.__currentPlanDraw)window.__currentPlanDraw();
+  toast(`${skills.length} skill${skills.length===1?'':'s'} added from ${block.name}`);
+  focusFreshBuilderSkillSearch();
 }
 function updatePlanRow(planId,rowId,field,value){
   const plan=findPlanById(planId);
@@ -3497,10 +3584,15 @@ function renderSkillBlockList(container){
     if(search)list=list.filter(b=>b.name.toLowerCase().includes(search.toLowerCase()));
     container.innerHTML=pageHeader('Skill Block List',`<button class="btn btn-primary" onclick="openSkillBlockForm()">${ic('plus')} New Skill Block</button>`)+
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="db-search" placeholder="Search"></div></div>
-    <div class="tablewrap"><table><thead><tr><th style="width:34px"><input type="checkbox" disabled></th><th>Skill Block Name</th><th>Total Skills</th><th>Date Created</th><th style="text-align:right">Action</th></tr></thead><tbody>
-    ${list.length===0?`<tr class="empty-row"><td colspan="5">No skill blocks found.</td></tr>`:
-      list.map(b=>{const mine=isMine(b);return `<tr><td><input type="checkbox"></td><td>${mine?`<a onclick="openSkillBlockForm('${b.id}')">${esc(b.name)}</a>`:esc(b.name)}</td><td>${b.skillIds.length}</td><td>${fmtDate(b.dateCreated)}</td>
-      <td><div class="row-actions">${mine?`<button class="icon-btn" onclick="openSkillBlockForm('${b.id}')">${ic('edit')}</button><button class="icon-btn" onclick="deleteSkillBlock('${b.id}')">${ic('trash')}</button>`:''}</div></td></tr>`;}).join('')}
+    <div class="tablewrap"><table><thead><tr><th>Block Name</th><th>Skill Count</th><th>Total Minutes</th><th style="text-align:right">Action</th></tr></thead><tbody>
+    ${list.length===0?`<tr class="empty-row"><td colspan="4">No skill blocks yet. Create your first block to quickly insert groups of skills into your practices.</td></tr>`:
+      list.map(b=>{
+        const mine=isMine(b);
+        const skills=b.skills||[];
+        const mins=skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
+        return `<tr><td>${mine?`<a onclick="openSkillBlockForm('${b.id}')">${esc(b.name)}</a>`:esc(b.name)}</td><td>${skills.length}</td><td>${mins}</td>
+      <td><div class="row-actions">${mine?`<button class="icon-btn" title="Edit" onclick="openSkillBlockForm('${b.id}')">${ic('edit')}</button><button class="icon-btn" title="Delete" onclick="deleteSkillBlock('${b.id}')">${ic('trash')}</button>`:''}</div></td></tr>`;
+      }).join('')}
     </tbody></table></div>`;
     document.getElementById('db-search').value=search;
     document.getElementById('db-search').oninput=e=>{search=e.target.value;draw();};
@@ -3508,26 +3600,194 @@ function renderSkillBlockList(container){
   draw();
 }
 function deleteSkillBlock(id){confirmDelete('Delete this skill block?',()=>{DB.skillBlocks=DB.skillBlocks.filter(b=>b.id!==id);saveDB();router();});}
+
+/* ============================= SKILL BLOCK EDITOR (modal) =============================
+   Mirrors the Practice Builder's Skills & Rotations section: same inline
+   search widget (bskill_input/bskill_results -> blkskill_input/
+   blkskill_results), same minutesInputPairHtml, same drag-desktop /
+   Move-Up-Down-mobile reorder split (.skilltable / .skill-cards-mobile).
+   blockDraft is a local edit copy — nothing touches DB.skillBlocks until
+   Save Block, same as builderDraft/saveBuilderDraft(). */
+let blockDraft=null;
+function loadBlockDraft(id){
+  if(id){
+    const existing=DB.skillBlocks.find(b=>b.id===id);
+    if(!existing) return false;
+    blockDraft=JSON.parse(JSON.stringify(existing));
+    if(!Array.isArray(blockDraft.skills)) blockDraft.skills=[];
+    blockDraft.__sourceId=id;
+  } else {
+    blockDraft={id:uid('block'),name:'',skills:[],dateCreated:nowStamp(),__sourceId:null};
+  }
+  return true;
+}
+function drawBlockForm(){
+  const root=document.getElementById('blockFormRoot');
+  const b=blockDraft;
+  if(!root||!b)return;
+  const totalMin=b.skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
+  const emptyMsg='No skills added yet. Search below to add some.';
+  root.innerHTML=`
+    <div class="field"><label>Block Name</label>
+      <input class="input" id="blkform_name" placeholder="e.g. Warm-Up Set" value="${escAttr(b.name)}">
+    </div>
+    <div class="field">
+      <label>Skills</label>
+      <div class="tablewrap skilltable">
+        <table><thead><tr><th></th><th style="width:30px">#</th><th>Skill</th><th style="width:110px">Min</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody>
+        ${b.skills.length===0?`<tr class="empty-row"><td colspan="5">${emptyMsg}</td></tr>`:
+          b.skills.map((s,idx)=>`<tr draggable="true" data-idx="${idx}" ondragstart="blockRowDragStart(event)" ondragover="blockRowDragOver(event)" ondrop="blockRowDrop(event)">
+            <td class="drag-handle">${ic('drag')}</td>
+            <td>${idx+1}</td>
+            <td><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}${s.source==='dd'?' <span class="badge badge-secondary">Dive Drills</span>':' <span class="badge badge-secondary">Custom</span>'}</td>
+            <td>${minutesInputPairHtml('blkmin_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}</td>
+            <td><div class="row-actions"><button class="icon-btn" title="Remove" onclick="deleteBlockSkill(${idx})">${ic('trash')}</button></div></td>
+          </tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="skill-cards-mobile">
+        ${b.skills.length===0?`<p class="mutedtext">${emptyMsg}</p>`:
+          b.skills.map((s,idx)=>`<div class="skill-card">
+            <div class="skill-card-top">
+              <div class="skill-card-activity"><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}</div>
+              <details class="row-action-menu">
+                <summary>⋮</summary>
+                <div class="row-action-menu-list">
+                  <button type="button" onclick="moveBlockSkillUp(${idx})">Move Up</button>
+                  <button type="button" onclick="moveBlockSkillDown(${idx})">Move Down</button>
+                  <button type="button" onclick="deleteBlockSkill(${idx})">Delete</button>
+                </div>
+              </details>
+            </div>
+            <div class="skill-card-row">
+              <span class="skill-card-label">Min</span>${minutesInputPairHtml('blkmin_m_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="skill-search-inline" id="blkSkillSearchInline">
+        <div class="searchadd-wrap">
+          <input class="input" id="blkskill_input" placeholder="Search and add a skill..." autocomplete="off">
+          <div class="searchadd-results" id="blkskill_results" style="display:none;"></div>
+        </div>
+      </div>
+      <p class="mutedtext" style="margin-top:10px;">${b.skills.length} skill${b.skills.length===1?'':'s'} &middot; ${totalMin} minute${totalMin===1?'':'s'} total</p>
+    </div>`;
+  document.getElementById('blkform_name').oninput=e=>{blockDraft.name=e.target.value;};
+  document.getElementById('blkskill_input').oninput=()=>drawBlockSkillSearch();
+}
 function openSkillBlockForm(id){
-  const b=id?DB.skillBlocks.find(b=>b.id===id):{name:'',skillIds:[]};
+  if(!loadBlockDraft(id))return;
+  window.__currentBlockDraw=drawBlockForm;
   openModal({
     title:id?'Edit Skill Block':'New Skill Block',
-    bodyHtml:`<div class="field"><label>Name</label><input class="input" id="db_name" value="${escAttr(b.name||'')}"></div>
-      <div class="field"><label>Skills in this block</label>
-      <div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;">
-      ${DB.skills.map(d=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13.5px;">
-        <input type="checkbox" value="${d.id}" class="db_skill_chk" ${b.skillIds&&b.skillIds.includes(d.id)?'checked':''}> ${esc(d.name)} <span class="mutedtext">(${esc(categoryName(d.categoryId))})</span>
-      </label>`).join('') || '<p class="mutedtext">No skills yet — add some in Skill List first.</p>'}
-      </div></div>`,
-    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSkillBlockForm('${id||''}')">Save</button>`
+    wide:true,
+    bodyHtml:`<div id="blockFormRoot"></div>`,
+    footHtml:`${id?`<button class="btn btn-danger" onclick="deleteSkillBlock('${id}')" style="margin-right:auto;">Delete</button>`:''}<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveBlockForm()">Save Block</button>`,
+    onMount: drawBlockForm,
   });
 }
-function saveSkillBlockForm(id){
-  const skillIds=[...document.querySelectorAll('.db_skill_chk:checked')].map(c=>c.value);
-  const name=document.getElementById('db_name').value.trim()||'Untitled Block';
-  if(id){Object.assign(DB.skillBlocks.find(b=>b.id===id),{name,skillIds});}
-  else{DB.skillBlocks.push({id:uid('block'),name,skillIds,dateCreated:nowStamp()});}
-  saveDB();closeModal();router();toast('Skill block saved');
+function saveBlockForm(){
+  const name=(blockDraft.name||'').trim()||'Untitled Block';
+  blockDraft.name=name;
+  // Mirror skillIds (the old TEXT[] column) so a stale value never
+  // resurrects removed skills via backfillBlockSkills() on a later load.
+  blockDraft.skillIds=blockDraft.skills.map(s=>s.skillId);
+  if(blockDraft.__sourceId){
+    const real=DB.skillBlocks.find(b=>b.id===blockDraft.__sourceId);
+    if(real) Object.assign(real,{name:blockDraft.name,skills:blockDraft.skills,skillIds:blockDraft.skillIds});
+  } else {
+    DB.skillBlocks.push({id:blockDraft.id,name:blockDraft.name,skills:blockDraft.skills,skillIds:blockDraft.skillIds,dateCreated:blockDraft.dateCreated});
+  }
+  saveDB();
+  blockDraft=null;
+  closeModal();
+  router();
+  toast('Skill block saved');
+}
+function updateBlockSkillMinutes(idx,value){
+  const s=blockDraft.skills[idx];
+  if(!s)return;
+  s.minutes=Math.max(1,Math.min(180,parseInt(value,10)||5));
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+}
+function deleteBlockSkill(idx){
+  blockDraft.skills.splice(idx,1);
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+}
+function moveBlockSkillUp(idx){
+  if(idx<=0)return;
+  [blockDraft.skills[idx-1],blockDraft.skills[idx]]=[blockDraft.skills[idx],blockDraft.skills[idx-1]];
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+}
+function moveBlockSkillDown(idx){
+  if(idx===-1||idx>=blockDraft.skills.length-1)return;
+  [blockDraft.skills[idx],blockDraft.skills[idx+1]]=[blockDraft.skills[idx+1],blockDraft.skills[idx]];
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+}
+let blockDragIdx=null;
+function blockRowDragStart(e){blockDragIdx=parseInt(e.currentTarget.dataset.idx);}
+function blockRowDragOver(e){e.preventDefault();}
+function blockRowDrop(e){
+  e.preventDefault();
+  const dropIdx=parseInt(e.currentTarget.dataset.idx);
+  const [moved]=blockDraft.skills.splice(blockDragIdx,1);
+  blockDraft.skills.splice(dropIdx,0,moved);
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+}
+// Same two-source (DD + custom) inline search as drawBuilderSkillSearch,
+// adapted to push into blockDraft.skills instead of plan.rows.
+function drawBlockSkillSearch(){
+  const input=document.getElementById('blkskill_input');
+  const host=document.getElementById('blkskill_results');
+  if(!input||!host)return;
+  const q=input.value.trim().toLowerCase();
+  if(!q){host.style.display='none';host.innerHTML='';host.__matches=[];return;}
+  const customMatches=DB.skills.filter(d=>d.status!=='Disabled'&&d.name.toLowerCase().includes(q)).slice(0,15)
+    .map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),stations:d.stations}));
+  const ddMatches=DD_SKILLS.filter(s=>s.name.toLowerCase().includes(q)).slice(0,15)
+    .map(s=>({kind:'dd',id:s.id,name:s.name,station:s.type,level:s.level}));
+  const matches=[...customMatches,...ddMatches].slice(0,20);
+  host.__matches=matches;
+  const resultsHtml = matches.length ? matches.map((m,i)=>{
+    const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
+    const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
+    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
+    const stationsFlagBadge=m.stations?' <span class="searchadd-badge practice">Stations</span>':'';
+    return `<div class="searchadd-result" onmousedown="event.preventDefault();pickBlockSkillSearchResult(${i})" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${esc(m.name)}</strong>${stationPart}${levelPart}</span>
+      <span style="flex-shrink:0;white-space:nowrap;">${kindBadge}${stationsFlagBadge}</span>
+    </div>`;
+  }).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
+  const createHtml=`<div class="searchadd-result add-new" onmousedown="event.preventDefault();pickBlockSkillCreateNew()">+ Add "${esc(input.value.trim())}" as new skill</div>`;
+  host.innerHTML = resultsHtml + createHtml;
+  host.style.display='block';
+}
+function pickBlockSkillSearchResult(idx){
+  const host=document.getElementById('blkskill_results');
+  const m=host&&host.__matches&&host.__matches[idx];
+  if(!m)return;
+  blockDraft.skills.push({skillId:m.id,name:m.name,minutes:5,station:m.station||'',source:m.kind});
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+  focusFreshBlockSkillSearch();
+}
+function pickBlockSkillCreateNew(){
+  const input=document.getElementById('blkskill_input');
+  const trimmed=(input&&input.value||'').trim();
+  if(!trimmed)return;
+  const skill={id:uid('skill'),name:trimmed,categoryId:'',notes:'',stations:false,dateCreated:nowStamp(),image:null,minutes:5,status:'Enabled'};
+  DB.skills.push(skill);
+  blockDraft.skills.push({skillId:skill.id,name:skill.name,minutes:5,station:'',source:'custom'});
+  saveDB();
+  if(window.__currentBlockDraw)window.__currentBlockDraw();
+  toast('New skill added to block and saved to your library');
+  focusFreshBlockSkillSearch();
+}
+function focusFreshBlockSkillSearch(){
+  const freshWrap=document.getElementById('blkSkillSearchInline');
+  const freshInput=document.getElementById('blkskill_input');
+  if(freshWrap)freshWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(freshInput)freshInput.focus();
 }
 
 /* ============================= SETTINGS ============================= */
