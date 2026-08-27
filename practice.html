@@ -1350,11 +1350,12 @@ function router(){
   const root=parts[0];
   const content=document.getElementById('content');
 
-  // #/view/:id is reachable by any logged-in user, not just coaches (see
-  // the role gate in initPracticePlanner()) — no sidebar/bottom nav, and
+  // #/view/:id is reachable by ANYONE, logged in or not (see the auth
+  // skip in initPracticePlanner()) — no sidebar/bottom nav, and
   // renderPlanViewPage() doesn't assume DB is even loaded, so this has to
   // short-circuit before renderSidebar() (which reads DB.coach directly
-  // and would throw for a parent/diver viewer with no DB at all).
+  // and would throw for a viewer with no DB at all, e.g. an anonymous
+  // visitor or a parent/diver).
   if(root==='view'){
     document.body.classList.add('view-mode');
     content.innerHTML='';
@@ -1993,7 +1994,7 @@ function loadBuilderDraft(id){
       startTime:defaultTime?defaultTime.startTime:'12:00', ampm:defaultTime?defaultTime.ampm:'AM',
       duration:DB.prefs.defaultDuration||'', color:'#00c9a7',
       announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',groups:[],visibility:'club',
-      announcementList:[],practicePoints:[],notes:'',dateCreated:nowStamp(),rows:[],__sourceId:null};
+      announcementList:[],practicePoints:[],notes:'',dateCreated:nowStamp(),rows:[],isShared:false,__sourceId:null};
   }
   builderDirty=false;
   currentOpenPlanId=builderDraft.id;
@@ -2016,22 +2017,48 @@ function saveBuilderDraft(){
   if(window.__currentPlanDraw) window.__currentPlanDraw();
 }
 // The share link points at #/view/:id, which reads the plan straight from
-// DB.plans (or, for a non-coach viewer, a direct Supabase fetch) — not
-// this in-memory draft — so there's nothing to actually share until the
-// plan has been saved at least once.
+// DB.plans (or, for an anonymous/non-coach viewer, a direct Supabase RPC —
+// see get_shared_practice_plan, supabase-migration-v50.sql) — not this
+// in-memory draft — so there's nothing to actually share until the plan
+// has been saved at least once. Sharing itself is a public-visibility
+// flag (isShared) on the saved row, not just handing out a URL: the RPC
+// refuses to return anything until isShared is true, so this has to
+// flip that flag and push it to Supabase before the link is worth
+// copying at all.
 function sharePracticePlan(){
   if(!builderDraft || !builderDraft.__sourceId){
     toast('Save this practice first, then share it');
     return;
   }
-  const url=window.location.origin+'/practice.html#/view/'+builderDraft.id;
-  const done=()=>toast('Link copied to clipboard!');
-  const fail=()=>toast('Could not copy — link: '+url);
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(done).catch(fail);
+  setPlanShared(true, 'Link copied! Anyone with this link can view this practice');
+}
+function unsharePracticePlan(){
+  if(!builderDraft || !builderDraft.__sourceId) return;
+  setPlanShared(false, 'Practice is now private');
+}
+// Flips is_shared on both the live builder draft and its saved DB.plans
+// row, then pushes to Supabase immediately — bypassing the usual 500ms
+// scheduleSync() debounce — because a copied share link needs to work
+// the instant the coach copies it, not half a second later.
+async function setPlanShared(shared, message){
+  builderDraft.isShared=shared;
+  const real=DB.plans.find(p=>p.id===builderDraft.__sourceId);
+  if(real) real.isShared=shared;
+  saveDB();
+  await runSync();
+  if(shared){
+    const url=window.location.origin+'/practice.html#/view/'+builderDraft.id;
+    const done=()=>toast(message);
+    const fail=()=>toast('Could not copy — link: '+url);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(done).catch(fail);
+    } else {
+      fail();
+    }
   } else {
-    fail();
+    toast(message);
   }
+  if(window.__currentPlanDraw) window.__currentPlanDraw();
 }
 function deleteBuilderPlan(){
   if(!builderDraft)return;
@@ -2358,6 +2385,7 @@ function renderPracticeBuilder(id,container){
         <div class="builder-savebar-right">
           <button class="btn btn-sm" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')" title="Print">${ic('printer')}<span class="btn-label"> Print</span></button>
           <button class="btn btn-sm" onclick="sharePracticePlan()" title="Share">🔗<span class="btn-label"> Share</span></button>
+          ${plan.isShared?`<button class="btn btn-sm btn-ghost" onclick="unsharePracticePlan()" title="Make this practice private again">Unshare</button>`:''}
           ${readOnly?'':`<button class="btn btn-sm btn-primary" onclick="saveBuilderDraft()" title="Save Practice">💾<span class="btn-label"> Save</span></button>`}
         </div>
       </div>
@@ -3014,21 +3042,21 @@ async function generatePracticePDF(id){
 
 /* =============================================
    SHARED PLAN VIEW (#/view/:id) — read-only, light theme, no sidebar/
-   bottom nav. Reachable by ANY logged-in user (coach, parent, or diver),
-   not just coaches — see the role gate in initPracticePlanner() below,
-   which skips the whole coach-oriented DB/sync bootstrap for a non-coach
-   landing directly on this route and lets this section fetch just the
-   one plan it needs. Reuses buildPdfTheme()/buildDonutData()/
-   pdfDonutSvgHtml()/pdfDonutLegendHtml() from the PDF code above so the
-   RIT branding and donut are identical between the two.
+   bottom nav. Public: reachable by anyone with the link, no login at
+   all, not just coaches — see the auth skip in initPracticePlanner()
+   below, which bypasses Auth.init()/loadDB() entirely for this route
+   and lets this section fetch just the one plan it needs. Reuses
+   buildPdfTheme()/buildDonutData()/pdfDonutSvgHtml()/
+   pdfDonutLegendHtml() from the PDF code above so the RIT branding and
+   donut are identical between the two.
    ============================================= */
-// Coaches: DB.plans is already synced locally, so this is instant and
-// always current. Parents/divers (and a coach who hasn't synced this
-// plan yet): DB may not even be loaded, so fall back to a direct,
-// narrow Supabase RPC that returns just this one row — see
-// supabase-migration-v47.sql. That function requires only a signed-in
-// session, no coach role or roster membership, matching "any logged-in
-// coach, parent, or diver can view shared plans."
+// Coaches with the plan already synced locally: DB.plans lookup is
+// instant and always current. Everyone else — a totally anonymous
+// visitor with no session at all, a parent/diver, or a coach who hasn't
+// synced this plan yet — falls back to a direct, narrow Supabase RPC
+// that returns just this one row — see supabase-migration-v50.sql. That
+// function needs NO session (GRANT ... TO anon) and only ever returns a
+// row when the coach has explicitly set is_shared = true.
 async function fetchSharedPracticePlan(planId){
   const sb=window.supabaseClient;
   const { data, error } = await sb.rpc('get_shared_practice_plan', { p_plan_id: planId });
@@ -3050,7 +3078,7 @@ function planViewNotFoundHtml(){
     <div class="view-card" style="text-align:center;padding:44px 20px;">
       <div style="font-size:2rem;margin-bottom:10px;">🔍</div>
       <div style="font-weight:700;font-size:1.05rem;color:#1a1a1a;margin-bottom:6px;">Practice plan not found</div>
-      <div style="color:#666666;font-size:.88rem;">Practice plan not found or no longer available.</div>
+      <div style="color:#666666;font-size:.88rem;">This practice plan is not available or has not been shared publicly.</div>
     </div>
   </div></div>`;
 }
@@ -3154,7 +3182,9 @@ function buildPlanViewHtml(plan){
 }
 async function renderPlanViewPage(planId, container){
   container.innerHTML=planViewSkeletonHtml();
-  let plan=(DB && DB.plans) ? DB.plans.find(p=>p.id===planId) : null;
+  // Local lookup still has to honor is_shared — a coach's own DB.plans
+  // cache holds every club plan, shared or not, and this route is public.
+  let plan=(DB && DB.plans) ? DB.plans.find(p=>p.id===planId && p.isShared) : null;
   if(!plan){
     try{
       plan=await fetchSharedPracticePlan(planId);
@@ -3686,22 +3716,24 @@ function saveBuilderSettings(){
 (async function initPracticePlanner(){
   renderDebugBar(); // show "loading…" immediately, before the async fetch even starts
   initSupabase();
-  const user = await Auth.init(true);
-  if(!user)return; // Auth.init() already redirected to index.html
 
-  const isViewRoute = currentRoute().split('/')[0]==='view';
-
-  if(user.role!=='coach' && !isViewRoute){
-    window.location.href='dashboard.html';
+  if(currentRoute().split('/')[0]==='view'){
+    // Public share link (practice.html#/view/:id) — must work with zero
+    // login, even on a device that has never signed in. Skip Auth.init()
+    // (and the whole coach-oriented DB/sync bootstrap) entirely — calling
+    // it would redirect straight to index.html the instant there's no
+    // session. router()'s #/view/:id branch -> renderPlanViewPage() hits
+    // get_shared_practice_plan directly, which is anon-granted and
+    // itself enforces is_shared=true (supabase-migration-v50.sql).
+    router();
     return;
   }
 
-  if(user.role!=='coach' && isViewRoute){
-    // Parent/diver opened a shared plan link — skip the coach-oriented
-    // DB/sync bootstrap entirely (wrong RLS assumptions, wrong DB.coach
-    // context for a non-coach). router()'s #/view/:id branch and
-    // renderPlanViewPage() already handle DB not being loaded at all.
-    router();
+  const user = await Auth.init(true);
+  if(!user)return; // Auth.init() already redirected to index.html
+
+  if(user.role!=='coach'){
+    window.location.href='dashboard.html';
     return;
   }
 
