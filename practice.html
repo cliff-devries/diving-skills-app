@@ -1420,6 +1420,7 @@ function router(){
     notes:()=>renderSimpleList(CFG.notes),
     skills:renderSkillList,
     'skill-blocks':renderSkillBlockList,
+    rotations:renderRotationsList,
     stations:renderStationsList,
     categories:()=>renderSimpleList(CFG.categories),
     calendar:renderCalendarPage,
@@ -1432,6 +1433,8 @@ function router(){
     return;
   } else if(root==='builder'){
     renderPracticeBuilder(parts[1],content);
+  } else if(root==='skill-blocks' && parts[1]){
+    renderSkillBlockForm(parts[1]==='new'?null:parts[1], content);
   } else if(map[root]){
     map[root](content);
   } else {
@@ -1629,13 +1632,15 @@ function renderPracticeDetails(container){
     {icon:'🎯',title:'Practice Points',count:DB.practiceEmphasis.length+DB.competitionEmphasis.length,route:'practice-points'},
     {icon:'📝',title:'Notes',count:DB.notes.length,route:'notes'},
     {icon:'📁',title:'Stations',count:DB.categories.length,route:'categories'},
+    {icon:'📦',title:'Skill Blocks',count:DB.skillBlocks.length,route:'skill-blocks',countLabel:DB.skillBlocks.length+' block'+(DB.skillBlocks.length===1?'':'s')},
+    {icon:'🔄',title:'Rotations',count:DB.rotationTemplates.length,route:'rotations'},
   ];
   container.innerHTML = `<div class="pagehead"><div><h1>Practice Details</h1><p class="mutedtext" style="margin:2px 0 0;">Manage the components used in your practice plans</p></div></div>` +
     `<div class="details-grid">${cards.map(c=>`
       <div class="details-card" onclick="navigate('${c.route}')">
         <div class="details-card-icon">${c.icon}</div>
         <div class="details-card-title">${c.title}</div>
-        <div class="details-card-count">${c.count} ${c.title.toLowerCase()}</div>
+        <div class="details-card-count">${c.countLabel || (c.count+' '+c.title.toLowerCase())}</div>
       </div>`).join('')}</div>`;
 }
 function renderPracticePointsHub(container){
@@ -3381,7 +3386,7 @@ function renderSkillList(container, stationsOnly){
     container.innerHTML = pageHeader(stationsOnly?'Stations Skill List':'Skill List', `
       <button class="btn btn-primary" onclick="openSkillForm()">${ic('plus')} New Skill</button>
     `) +
-    (stationsOnly?'':`<div style="margin:-10px 0 16px;"><a onclick="navigate('skill-blocks')">${ic('block')} Skill Block List</a> &nbsp;·&nbsp; <a onclick="navigate('stations')">Stations Skill List</a></div>`) +
+    (stationsOnly?'':`<div style="margin:-10px 0 16px;"><a onclick="navigate('stations')">Stations Skill List</a></div>`) +
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="dr-search" placeholder="Search by name" value="${escAttr(search)}"></div></div>
     <div class="tablewrap"><table><thead><tr>${theadHtml}</tr></thead><tbody id="skillListBody"></tbody></table></div>` +
     (stationsOnly?'':`
@@ -3390,18 +3395,7 @@ function renderSkillList(container, stationsOnly){
         <h2 style="font-size:1.05rem;margin:0;">Rotations</h2>
         <button class="btn btn-primary" onclick="openRotationForm()">${ic('plus')} Create Rotation</button>
       </div>
-      <div class="tablewrap"><table><thead><tr><th>Name</th><th>Stations</th><th>Total Minutes</th><th style="text-align:right">Action</th></tr></thead><tbody>
-      ${DB.rotationTemplates.length===0?`<tr class="empty-row"><td colspan="4">No rotations yet.</td></tr>`:
-        DB.rotationTemplates.map(t=>{const mine=isMine(t);return `<tr>
-          <td>${mine?`<a onclick="openRotationForm('${t.id}')">${esc(t.name)}</a>`:esc(t.name)}</td>
-          <td>${t.stations.length}</td>
-          <td>${t.stations.reduce((s,st)=>s+(parseInt(st.minutes)||0),0)}</td>
-          <td><div class="row-actions">
-            ${mine?`<button class="icon-btn" onclick="openRotationForm('${t.id}')">${ic('edit')}</button>
-            <button class="icon-btn" onclick="deleteRotationTemplate('${t.id}')">${ic('trash')}</button>`:''}
-          </div></td>
-        </tr>`;}).join('')}
-      </tbody></table></div>
+      ${rotationsTableHtml()}
     `);
     document.getElementById('dr-search').oninput=e=>{search=e.target.value;renderTable();};
     renderTable();
@@ -3416,6 +3410,30 @@ function renderSkillList(container, stationsOnly){
 function renderStationsList(container){renderSkillList(container,true);}
 function deleteSkill(id){confirmDelete('This will permanently delete this skill. Continue?',()=>{DB.skills=DB.skills.filter(d=>d.id!==id);saveDB();router();});}
 /* ============================= ROTATIONS ============================= */
+// Shared by the Rotations section embedded in the Skills page and the
+// standalone /rotations page (reachable from Practice Details) — same
+// table, same rows, same openRotationForm()/deleteRotationTemplate()
+// handlers either way, so saving/deleting redraws whichever page is
+// actually on screen via router() without either page needing to know
+// about the other.
+function rotationsTableHtml(){
+  return `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Stations</th><th>Total Minutes</th><th style="text-align:right">Action</th></tr></thead><tbody>
+  ${DB.rotationTemplates.length===0?`<tr class="empty-row"><td colspan="4">No rotations yet.</td></tr>`:
+    DB.rotationTemplates.map(t=>{const mine=isMine(t);return `<tr>
+      <td>${mine?`<a onclick="openRotationForm('${t.id}')">${esc(t.name)}</a>`:esc(t.name)}</td>
+      <td>${t.stations.length}</td>
+      <td>${t.stations.reduce((s,st)=>s+(parseInt(st.minutes)||0),0)}</td>
+      <td><div class="row-actions">
+        ${mine?`<button class="icon-btn" onclick="openRotationForm('${t.id}')">${ic('edit')}</button>
+        <button class="icon-btn" onclick="deleteRotationTemplate('${t.id}')">${ic('trash')}</button>`:''}
+      </div></td>
+    </tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+function renderRotationsList(container){
+  container.innerHTML = pageHeader('Rotations', `<button class="btn btn-primary" onclick="openRotationForm()">${ic('plus')} Create Rotation</button>`) +
+    rotationsTableHtml();
+}
 function openRotationForm(id){
   const t=id?DB.rotationTemplates.find(t=>t.id===id):null;
   window.__rotationDraft={name:t?t.name:'',stations:t?JSON.parse(JSON.stringify(t.stations)):[{name:'',skillId:'',minutes:5}]};
@@ -3582,7 +3600,7 @@ function renderSkillBlockList(container){
   function draw(){
     let list=[...DB.skillBlocks];
     if(search)list=list.filter(b=>b.name.toLowerCase().includes(search.toLowerCase()));
-    container.innerHTML=pageHeader('Skill Block List',`<button class="btn btn-primary" onclick="openSkillBlockForm()">${ic('plus')} New Skill Block</button>`)+
+    container.innerHTML=pageHeader('Skill Block List',`<button class="btn btn-primary" onclick="navigate('skill-blocks/new')">${ic('plus')} New Skill Block</button>`)+
     `<div class="toolbar"><div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="db-search" placeholder="Search"></div></div>
     <div class="tablewrap"><table><thead><tr><th>Block Name</th><th>Skill Count</th><th>Total Minutes</th><th style="text-align:right">Action</th></tr></thead><tbody>
     ${list.length===0?`<tr class="empty-row"><td colspan="4">No skill blocks yet. Create your first block to quickly insert groups of skills into your practices.</td></tr>`:
@@ -3590,8 +3608,8 @@ function renderSkillBlockList(container){
         const mine=isMine(b);
         const skills=b.skills||[];
         const mins=skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
-        return `<tr><td>${mine?`<a onclick="openSkillBlockForm('${b.id}')">${esc(b.name)}</a>`:esc(b.name)}</td><td>${skills.length}</td><td>${mins}</td>
-      <td><div class="row-actions">${mine?`<button class="icon-btn" title="Edit" onclick="openSkillBlockForm('${b.id}')">${ic('edit')}</button><button class="icon-btn" title="Delete" onclick="deleteSkillBlock('${b.id}')">${ic('trash')}</button>`:''}</div></td></tr>`;
+        return `<tr><td>${mine?`<a onclick="navigate('skill-blocks/${b.id}')">${esc(b.name)}</a>`:esc(b.name)}</td><td>${skills.length}</td><td>${mins}</td>
+      <td><div class="row-actions">${mine?`<button class="icon-btn" title="Edit" onclick="navigate('skill-blocks/${b.id}')">${ic('edit')}</button><button class="icon-btn" title="Delete" onclick="deleteSkillBlock('${b.id}')">${ic('trash')}</button>`:''}</div></td></tr>`;
       }).join('')}
     </tbody></table></div>`;
     document.getElementById('db-search').value=search;
@@ -3621,71 +3639,85 @@ function loadBlockDraft(id){
   }
   return true;
 }
-function drawBlockForm(){
-  const root=document.getElementById('blockFormRoot');
-  const b=blockDraft;
-  if(!root||!b)return;
-  const totalMin=b.skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
-  const emptyMsg='No skills added yet. Search below to add some.';
-  root.innerHTML=`
-    <div class="field"><label>Block Name</label>
-      <input class="input" id="blkform_name" placeholder="e.g. Warm-Up Set" value="${escAttr(b.name)}">
-    </div>
-    <div class="field">
-      <label>Skills</label>
-      <div class="tablewrap skilltable">
-        <table><thead><tr><th></th><th style="width:30px">#</th><th>Skill</th><th style="width:110px">Min</th><th style="text-align:right">Action</th></tr></thead>
-        <tbody>
-        ${b.skills.length===0?`<tr class="empty-row"><td colspan="5">${emptyMsg}</td></tr>`:
-          b.skills.map((s,idx)=>`<tr draggable="true" data-idx="${idx}" ondragstart="blockRowDragStart(event)" ondragover="blockRowDragOver(event)" ondrop="blockRowDrop(event)">
-            <td class="drag-handle">${ic('drag')}</td>
-            <td>${idx+1}</td>
-            <td><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}${s.source==='dd'?' <span class="badge badge-secondary">Dive Drills</span>':' <span class="badge badge-secondary">Custom</span>'}</td>
-            <td>${minutesInputPairHtml('blkmin_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}</td>
-            <td><div class="row-actions"><button class="icon-btn" title="Remove" onclick="deleteBlockSkill(${idx})">${ic('trash')}</button></div></td>
-          </tr>`).join('')}
-        </tbody></table>
+// Full page (not a modal) — same routing shape as Practice Builder
+// itself (router()'s root==='skill-blocks' && parts[1] branch below
+// calls this with the id, or null for /skill-blocks/new). blockDraft
+// still gates everything else (updateBlockSkillMinutes, deleteBlockSkill,
+// drag/reorder, search) exactly as when this was a modal — only the
+// container this redraws into, and how Save/Cancel/Delete get the coach
+// back to the list, actually changed.
+function renderSkillBlockForm(id, container){
+  if(!loadBlockDraft(id)){ navigate('skill-blocks'); return; }
+  function draw(){
+    const b=blockDraft;
+    const totalMin=b.skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
+    const emptyMsg='No skills added yet. Search below to add some.';
+    container.innerHTML=`
+      <div class="builder-compact">
+      <div class="crumb"><a onclick="navigate('skill-blocks')">‹ Skill Blocks</a></div>
+      <div class="pagehead"><h1>${id?'Edit Skill Block':'New Skill Block'}</h1></div>
+
+      <div class="card builder-card">
+        <label class="builder-label">Block Name</label>
+        <input class="input" id="blkform_name" placeholder="e.g. Warm-Up Set" value="${escAttr(b.name)}">
       </div>
-      <div class="skill-cards-mobile">
-        ${b.skills.length===0?`<p class="mutedtext">${emptyMsg}</p>`:
-          b.skills.map((s,idx)=>`<div class="skill-card">
-            <div class="skill-card-top">
-              <div class="skill-card-activity"><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}</div>
-              <details class="row-action-menu">
-                <summary>⋮</summary>
-                <div class="row-action-menu-list">
-                  <button type="button" onclick="moveBlockSkillUp(${idx})">Move Up</button>
-                  <button type="button" onclick="moveBlockSkillDown(${idx})">Move Down</button>
-                  <button type="button" onclick="deleteBlockSkill(${idx})">Delete</button>
-                </div>
-              </details>
-            </div>
-            <div class="skill-card-row">
-              <span class="skill-card-label">Min</span>${minutesInputPairHtml('blkmin_m_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}
-            </div>
-          </div>`).join('')}
+
+      <div class="card builder-card">
+        <label class="builder-label">Skills</label>
+        <div class="tablewrap skilltable">
+          <table><thead><tr><th></th><th style="width:30px">#</th><th>Skill</th><th style="width:110px">Min</th><th style="text-align:right">Action</th></tr></thead>
+          <tbody>
+          ${b.skills.length===0?`<tr class="empty-row"><td colspan="5">${emptyMsg}</td></tr>`:
+            b.skills.map((s,idx)=>`<tr draggable="true" data-idx="${idx}" ondragstart="blockRowDragStart(event)" ondragover="blockRowDragOver(event)" ondrop="blockRowDrop(event)">
+              <td class="drag-handle">${ic('drag')}</td>
+              <td>${idx+1}</td>
+              <td><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}${s.source==='dd'?' <span class="badge badge-secondary">Dive Drills</span>':' <span class="badge badge-secondary">Custom</span>'}</td>
+              <td>${minutesInputPairHtml('blkmin_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}</td>
+              <td><div class="row-actions"><button class="icon-btn" title="Remove" onclick="deleteBlockSkill(${idx})">${ic('trash')}</button></div></td>
+            </tr>`).join('')}
+          </tbody></table>
+        </div>
+        <div class="skill-cards-mobile">
+          ${b.skills.length===0?`<p class="mutedtext">${emptyMsg}</p>`:
+            b.skills.map((s,idx)=>`<div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-card-activity"><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}</div>
+                <details class="row-action-menu">
+                  <summary>⋮</summary>
+                  <div class="row-action-menu-list">
+                    <button type="button" onclick="moveBlockSkillUp(${idx})">Move Up</button>
+                    <button type="button" onclick="moveBlockSkillDown(${idx})">Move Down</button>
+                    <button type="button" onclick="deleteBlockSkill(${idx})">Delete</button>
+                  </div>
+                </details>
+              </div>
+              <div class="skill-card-row">
+                <span class="skill-card-label">Min</span>${minutesInputPairHtml('blkmin_m_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}
+              </div>
+            </div>`).join('')}
+        </div>
+        <div class="skill-search-inline" id="blkSkillSearchInline">
+          <div class="searchadd-wrap">
+            <input class="input" id="blkskill_input" placeholder="Search and add a skill..." autocomplete="off">
+            <div class="searchadd-results" id="blkskill_results" style="display:none;"></div>
+          </div>
+        </div>
+        <p class="mutedtext" style="margin-top:10px;">${b.skills.length} skill${b.skills.length===1?'':'s'} &middot; ${totalMin} minute${totalMin===1?'':'s'} total</p>
       </div>
-      <div class="skill-search-inline" id="blkSkillSearchInline">
-        <div class="searchadd-wrap">
-          <input class="input" id="blkskill_input" placeholder="Search and add a skill..." autocomplete="off">
-          <div class="searchadd-results" id="blkskill_results" style="display:none;"></div>
+
+      <div class="builder-savebar">
+        <div>${id?`<button class="btn btn-sm btn-danger" onclick="deleteSkillBlock('${id}')" title="Delete">${ic('trash')}<span class="btn-label"> Delete</span></button>`:''}</div>
+        <div class="builder-savebar-right">
+          <button class="btn btn-sm" onclick="navigate('skill-blocks')">Cancel</button>
+          <button class="btn btn-sm btn-primary" onclick="saveBlockForm()" title="Save Block">💾<span class="btn-label"> Save Block</span></button>
         </div>
       </div>
-      <p class="mutedtext" style="margin-top:10px;">${b.skills.length} skill${b.skills.length===1?'':'s'} &middot; ${totalMin} minute${totalMin===1?'':'s'} total</p>
-    </div>`;
-  document.getElementById('blkform_name').oninput=e=>{blockDraft.name=e.target.value;};
-  document.getElementById('blkskill_input').oninput=()=>drawBlockSkillSearch();
-}
-function openSkillBlockForm(id){
-  if(!loadBlockDraft(id))return;
-  window.__currentBlockDraw=drawBlockForm;
-  openModal({
-    title:id?'Edit Skill Block':'New Skill Block',
-    wide:true,
-    bodyHtml:`<div id="blockFormRoot"></div>`,
-    footHtml:`${id?`<button class="btn btn-danger" onclick="deleteSkillBlock('${id}')" style="margin-right:auto;">Delete</button>`:''}<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveBlockForm()">Save Block</button>`,
-    onMount: drawBlockForm,
-  });
+      </div>`;
+    document.getElementById('blkform_name').oninput=e=>{blockDraft.name=e.target.value;};
+    document.getElementById('blkskill_input').oninput=()=>drawBlockSkillSearch();
+  }
+  window.__currentBlockDraw=draw;
+  draw();
 }
 function saveBlockForm(){
   const name=(blockDraft.name||'').trim()||'Untitled Block';
@@ -3701,9 +3733,8 @@ function saveBlockForm(){
   }
   saveDB();
   blockDraft=null;
-  closeModal();
-  router();
   toast('Skill block saved');
+  navigate('skill-blocks');
 }
 function updateBlockSkillMinutes(idx,value){
   const s=blockDraft.skills[idx];
