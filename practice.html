@@ -903,11 +903,16 @@ async function diffAndPush(cfg, current, prev, coachId){
   if(toUpsert.length){
     const rows = toUpsert.map(r=>toSnakeRow(r, cfg, coachId));
     const {error} = await sb.from(cfg.table).upsert(rows);
-    if(error) throw error;
+    // Tag the raw PostgREST error with which table/rows it happened on —
+    // runSync()'s catch block only sees the final thrown error, and
+    // without this it has no way to say anything more useful than "sync
+    // failed" (the code/message/details/hint alone don't say which of
+    // the 12 SYNC_CFG tables, or which row, actually caused it).
+    if(error){ error.__syncTable=cfg.table; error.__syncRowIds=rows.map(r=>r.id); throw error; }
   }
   if(toDelete.length){
     const {error} = await sb.from(cfg.table).delete().in('id', toDelete);
-    if(error) throw error;
+    if(error){ error.__syncTable=cfg.table; error.__syncRowIds=toDelete; throw error; }
   }
 }
 
@@ -932,7 +937,7 @@ async function runSync(opts){
       : null;
     if(!prevPrefsPayload || JSON.stringify(prefsPayload)!==JSON.stringify(prevPrefsPayload)){
       const {error} = await sb.from('dive_practice_prefs').upsert(prefsPayload);
-      if(error) throw error;
+      if(error){ error.__syncTable='dive_practice_prefs'; error.__syncRowIds=[coachId]; throw error; }
     }
 
     lastSyncedSnapshot = structuredClone(DB);
@@ -942,13 +947,21 @@ async function runSync(opts){
     renderOfflineBanner();
     return true;
   }catch(e){
-    console.error('[practice] sync failed', e);
+    // Full PostgREST error body, not just "sync failed" — code/message/
+    // details/hint are exactly what a schema mismatch, a CHECK
+    // constraint, or an RLS rejection would each show up as, and which
+    // table/row(s) (tagged by diffAndPush above) narrows it to one
+    // SYNC_CFG entry instead of all twelve.
+    console.error('[practice] sync failed', {
+      table: e.__syncTable, rowIds: e.__syncRowIds,
+      code: e.code, message: e.message, details: e.details, hint: e.hint,
+    }, e);
     await confirmOffline(e, 'runSync');
     setSyncStatus('error');
     renderOfflineBanner();
     if(!silent) toast(isOffline
       ? 'Sync failed — changes are saved on this device and will retry.'
-      : 'Sync failed — please try again.');
+      : `Sync failed${e.__syncTable?' ('+e.__syncTable+')':''}: ${e.message||e.code||'unknown error'}`);
     return false;
   }finally{
     syncInFlight = false;
