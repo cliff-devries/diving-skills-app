@@ -659,39 +659,6 @@ const SupabaseDB = {
     return this._upsertCompletion(diverId, skillId, updates);
   },
 
-  // Stage 3 — Tested and Passed. Coach only. Requires Stages 1 & 2 complete.
-  // Inserts a new test attempt record (history is never overwritten) and
-  // marks the skill_completions row as tested_and_passed.
-  async recordTestAttempt({ skillCompletionId, diverId, skillId, coachId, score, testDate, notes }) {
-    const payload = {
-      skill_completion_id: skillCompletionId,
-      diver_id:            diverId,
-      skill_id:            skillId,
-      coach_id:            coachId,
-      score:               score,
-      test_date:           testDate,
-      notes:               notes || '',
-    };
-    const { data: attempt, error: attemptError } = await this.db
-      .from('skill_test_attempts')
-      .insert(payload)
-      .select()
-      .single();
-    if (attemptError) {
-      throw new Error(attemptError.message);
-    }
-
-    const { data: completion, error: completionError } = await this.db
-      .from('skill_completions')
-      .update({ tested_and_passed: true })
-      .eq('id', skillCompletionId)
-      .select()
-      .single();
-    if (completionError) throw new Error(completionError.message);
-
-    return { attempt, completion };
-  },
-
   // Full attempt history for one skill (most recent first).
   async getTestAttempts(skillCompletionId) {
     const { data, error } = await this.db
@@ -969,6 +936,20 @@ const SupabaseDB = {
     if (attErr) throw new Error(`Skill ${skillId} test attempt insert failed: ${attErr.message}`);
 
     return { completionId: finalCompletionId };
+  },
+
+  // Clears a skill's current score (back to un-tested) without touching
+  // skill_test_attempts history — used when a coach empties the score
+  // input in the progress-page scoring popup and hits Save.
+  async clearSkillScore(completionId) {
+    const { data, error } = await this.db
+      .from('skill_completions')
+      .update({ latest_score: null, latest_test_date: null, tested_and_passed: false })
+      .eq('id', completionId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   // Saves the FINALIZED result of a level test — status/averageScore/

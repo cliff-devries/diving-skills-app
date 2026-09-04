@@ -152,6 +152,89 @@
       .attempts-table { word-break: break-word; }
       .attempts-table th, .attempts-table td { padding: 5px 6px; }
     }
+
+    /* ---- Skill scoring popup ---- */
+    .score-popup-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 250;
+    }
+    .score-popup-backdrop.hidden { display: none; }
+
+    .score-popup {
+      position: fixed;
+      width: 280px;
+      max-width: calc(100vw - 24px);
+      background: var(--bg-surface);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      z-index: 251;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.18s ease;
+    }
+    .score-popup.hidden { display: none; }
+
+    .score-popup-name {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 10px;
+    }
+    .score-popup-input {
+      width: 100%;
+      font-size: 1.6rem;
+      font-weight: 800;
+      text-align: center;
+      padding: 10px 8px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-surface-2);
+      color: var(--text-primary);
+    }
+    .score-popup-input:focus { outline: none; border-color: var(--accent); }
+    .score-popup-readonly-score {
+      font-size: 1.6rem;
+      font-weight: 800;
+      text-align: center;
+      color: var(--text-primary);
+      padding: 10px 0;
+    }
+    .score-popup-hint {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 6px;
+    }
+    .score-popup-prior {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 8px;
+    }
+    .score-popup-error {
+      font-size: 0.72rem;
+      color: #ef4444;
+      text-align: center;
+      margin-top: 6px;
+    }
+    .score-popup-error.hidden { display: none; }
+    .score-popup-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .score-popup-buttons .btn {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+    .score-popup-buttons .btn:disabled { opacity: 0.35; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -339,11 +422,18 @@
 </div>
 
 
+<!-- =============================================
+     SKILL SCORING POPUP — positioned near the clicked skill row;
+     content is fully rebuilt by JS on each open (coach vs read-only).
+============================================= -->
+<div class="score-popup-backdrop hidden" id="score-popup-backdrop"></div>
+<div class="score-popup hidden" id="score-popup" role="dialog" aria-modal="true"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=33"></script>
+<script src="js/supabase.js?v=34"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=9"></script>
@@ -861,6 +951,7 @@
 
   function selectLevel(level) {
     activeLevel = level;
+    closeScorePopup();
     document.querySelectorAll('.level-tab').forEach(t => {
       t.classList.toggle('active', parseInt(t.dataset.level) === level);
     });
@@ -1101,14 +1192,20 @@
 
     const stage1Click = stage1Disabled ? '' : `onclick="toggleStage1(${skill.id})"`;
     const stage2Click = stage2Disabled ? '' : `onclick="toggleStage2(${skill.id})"`;
-    const stage3Click = stage3Disabled ? '' : `onclick="toggleTestPanel(${skill.id})"`;
+    const stage3Click = stage3Disabled ? '' : `onclick="openScorePopup(${skill.id})"`;
 
     const harnessIcon = skill.requiresHarness
       ? '<span class="harness-icon" title="Requires harness">🦺</span>'
       : '';
 
-    const latestScore = completion.latest_score ?? mostRecent?.score ?? null;
-    const latestDate  = completion.latest_test_date ?? mostRecent?.test_date ?? null;
+    // completion.latest_score is the source of truth (kept in sync by the
+    // scoring popup, including clearing it back to null). The attempts
+    // fallback exists only for skills certified before that column was
+    // populated — tested_and_passed true with no latest_score recorded —
+    // so it must not resurrect a score the coach just explicitly cleared.
+    const legacyUnbackedScore = completion.tested_and_passed && completion.latest_score == null;
+    const latestScore = completion.latest_score ?? (legacyUnbackedScore ? mostRecent?.score : null) ?? null;
+    const latestDate  = completion.latest_test_date ?? (legacyUnbackedScore ? mostRecent?.test_date : null) ?? null;
     const recentHtml  = latestScore !== null
       ? `<span class="text-xs text-secondary">Last test: ${formatDateOnly(latestDate)} · Score ${Number(latestScore).toFixed(1)}</span>`
       : '';
@@ -1135,59 +1232,8 @@
               title="Stage 3: Tested &amp; Passed" ${stage3Click}>${stage3Filled ? '✓' : '3'}</button>
           </div>
         </div>
-        <div class="test-panel" id="test-panel-${skill.id}">
-          <div class="test-panel-inner">
-            ${buildTestPanelInner(skill, completion, attempts)}
-          </div>
-        </div>
       </div>
     `;
-  }
-
-  function buildTestPanelInner(skill, completion, attempts) {
-    const canScore = currentUser.role === 'coach' && completion.skill_attained && completion.ready_for_test;
-    const today = new Date().toISOString().slice(0, 10);
-
-    const formHtml = canScore ? `
-      <div class="form-group">
-        <label class="form-label">Score (0–10)</label>
-        <select id="test-score-${skill.id}" class="form-select">
-          <option value="" disabled selected>Select score…</option>
-          ${scoreOptionsHtml()}
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Test Date</label>
-        <input type="date" id="test-date-${skill.id}" class="form-input" value="${today}">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes (optional)</label>
-        <textarea id="test-notes-${skill.id}" class="form-input" rows="2" style="resize:vertical"
-          placeholder="Coaching notes about this attempt…"></textarea>
-      </div>
-      <button class="btn btn-primary btn-sm" id="test-submit-${skill.id}" onclick="submitTestAttempt(${skill.id})">Submit Test</button>
-      <div class="divider mt-4 mb-2"></div>
-    ` : '';
-
-    const attemptsHtml = attempts.length
-      ? `
-        <div class="text-sm" style="font-weight:600">Previous Attempts</div>
-        <table class="attempts-table">
-          <thead><tr><th>Date</th><th>Score</th><th>Notes</th></tr></thead>
-          <tbody>
-            ${attempts.map(a => `
-              <tr>
-                <td>${formatDateOnly(a.test_date)}</td>
-                <td>${Number(a.score).toFixed(1)}</td>
-                <td>${App.escHtml(a.notes || '—')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `
-      : '<p class="text-secondary text-sm">No test attempts recorded yet.</p>';
-
-    return formHtml + attemptsHtml;
   }
 
   // result: anything with a .status ('incomplete'|'failed'|'passed') and
@@ -1206,15 +1252,6 @@
     return '<span class="badge" style="background:rgba(20,184,166,.15);color:#14b8a6;border:1px solid rgba(20,184,166,.3)">✅ Passed</span>';
   }
 
-  function scoreOptionsHtml() {
-    let html = '';
-    for (let i = 0; i <= 20; i++) {
-      const val = (i * 0.5).toFixed(1);
-      html += `<option value="${val}">${val}</option>`;
-    }
-    return html;
-  }
-
   // Format a plain YYYY-MM-DD date string without timezone shift.
   function formatDateOnly(dateStr) {
     if (!dateStr) return '—';
@@ -1224,20 +1261,9 @@
     });
   }
 
-  function toggleTestPanel(skillId) {
-    const panel = document.getElementById(`test-panel-${skillId}`);
-    if (panel) panel.classList.toggle('open');
-  }
-
-  function refreshSkillRow(skill, keepOpen = false) {
-    const panelEl = document.getElementById(`test-panel-${skill.id}`);
-    const wasOpen = keepOpen || panelEl?.classList.contains('open');
-
+  function refreshSkillRow(skill) {
     const row = document.getElementById(`skill-row-${skill.id}`);
-    if (row) {
-      row.outerHTML = buildSkillRow(skill);
-      if (wasOpen) document.getElementById(`test-panel-${skill.id}`)?.classList.add('open');
-    }
+    if (row) row.outerHTML = buildSkillRow(skill);
 
     updateLevelHeader(skill.level);
     updateTypeGroupHeader(skill.level, skill.type || 'General');
@@ -1278,43 +1304,247 @@
     }
   }
 
-  async function submitTestAttempt(skillId) {
-    const skill      = allSkills.find(s => s.id === skillId);
-    const completion = completionMap[skillId];
-    const scoreEl = document.getElementById(`test-score-${skillId}`);
-    const dateEl  = document.getElementById(`test-date-${skillId}`);
-    const notesEl = document.getElementById(`test-notes-${skillId}`);
-    const btn     = document.getElementById(`test-submit-${skillId}`);
+  // =============================================
+  // SKILL SCORING POPUP
+  // =============================================
+  let scorePopupSkillId = null;
 
-    const score = scoreEl.value;
-    const date  = dateEl.value;
-    const notes = notesEl.value.trim();
+  function isCoachUser() {
+    return currentUser.role === 'coach' || currentUser.role === 'super_user';
+  }
 
-    if (score === '') { App.showToast('Please select a score.', 'error'); return; }
-    if (!date)        { App.showToast('Please select a test date.', 'error'); return; }
+  // Flattened top-to-bottom skill order for the active level — same order
+  // the page actually renders in (grouped by type, each group sorted by
+  // skill_order) — so Prev/Next matches what the coach sees on screen.
+  function levelSkillOrder(level) {
+    const lvlSkills = allSkills.filter(s => s.level === level);
+    return groupSkillsByType(lvlSkills).flatMap(g => g.skills);
+  }
 
-    App.setBtnLoading(btn, true);
-    try {
-      const { attempt, completion: updatedCompletion } = await SupabaseDB.recordTestAttempt({
-        skillCompletionId: completion.id,
-        diverId:           targetDiverId,
-        skillId,
-        coachId:           currentUser.id,
-        score:             parseFloat(score),
-        testDate:          date,
-        notes,
+  function openScorePopup(skillId, anchorEl) {
+    scorePopupSkillId = skillId;
+    renderScorePopup(anchorEl || document.getElementById(`skill-row-${skillId}`));
+  }
+
+  function closeScorePopup() {
+    document.getElementById('score-popup').classList.add('hidden');
+    document.getElementById('score-popup-backdrop').classList.add('hidden');
+    scorePopupSkillId = null;
+  }
+
+  function renderScorePopup(anchorEl) {
+    const skill = allSkills.find(s => s.id === scorePopupSkillId);
+    if (!skill) { closeScorePopup(); return; }
+
+    const completion   = completionMap[skill.id] || {};
+    const attempts     = attemptsBySkill[skill.id] || [];
+    const currentScore = completion.latest_score ?? null;
+    // The most recent attempt not already reflected as the current score —
+    // i.e. what the skill was scored at last time, for context while re-testing.
+    const priorAttempt = currentScore == null ? (attempts[0] || null) : (attempts[1] || null);
+    const coach = isCoachUser();
+
+    const order   = levelSkillOrder(activeLevel);
+    const idx     = order.findIndex(s => s.id === skill.id);
+    const isFirst = idx <= 0;
+    const isLast  = idx === -1 || idx >= order.length - 1;
+
+    const priorHtml = priorAttempt
+      ? `<div class="score-popup-prior">Prior: ${Number(priorAttempt.score).toFixed(1)} · ${formatDateOnly(priorAttempt.test_date)}</div>`
+      : '';
+
+    const bodyHtml = coach ? `
+      <input type="number" class="score-popup-input" id="score-popup-input"
+        min="0" max="10" step="0.5" inputmode="decimal" placeholder="—"
+        value="${currentScore != null ? Number(currentScore).toFixed(1) : ''}">
+      <div class="score-popup-hint">0 – 10 in 0.5 steps</div>
+      <div class="score-popup-error hidden" id="score-popup-error">Enter a score between 0 and 10 in 0.5 increments</div>
+      ${priorHtml}
+      <div class="score-popup-buttons">
+        <button class="btn btn-ghost btn-sm" ${isFirst ? 'disabled' : ''} onclick="scorePopupNav(-1)">← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeScorePopup()">✕ Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveScorePopup()">✓ Save</button>
+        <button class="btn btn-ghost btn-sm" ${isLast ? 'disabled' : ''} onclick="scorePopupNav(1)">Next →</button>
+      </div>
+    ` : `
+      <div class="score-popup-readonly-score">${currentScore != null ? Number(currentScore).toFixed(1) : '—'}</div>
+      ${priorHtml}
+      <div class="score-popup-buttons">
+        <button class="btn btn-ghost btn-sm" ${isFirst ? 'disabled' : ''} onclick="scorePopupNav(-1)">← Prev</button>
+        <button class="btn btn-primary btn-sm" onclick="closeScorePopup()">Close</button>
+        <button class="btn btn-ghost btn-sm" ${isLast ? 'disabled' : ''} onclick="scorePopupNav(1)">Next →</button>
+      </div>
+    `;
+
+    const popup = document.getElementById('score-popup');
+    popup.innerHTML = `<div class="score-popup-name" title="${App.escHtml(skill.name)}">${App.escHtml(skill.name)}</div>` + bodyHtml;
+    popup.classList.remove('hidden');
+    document.getElementById('score-popup-backdrop').classList.remove('hidden');
+
+    positionScorePopup(popup, anchorEl);
+
+    if (coach) {
+      const input = document.getElementById('score-popup-input');
+      input.focus();
+      input.select();
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); saveScorePopup({ advance: true }); }
       });
+    }
+  }
 
-      completionMap[skillId] = updatedCompletion;
-      attemptsBySkill[skillId] = [attempt, ...(attemptsBySkill[skillId] || [])]
-        .sort((a, b) => b.test_date.localeCompare(a.test_date) || b.created_at.localeCompare(a.created_at));
+  // Keeps the popup fully on-screen: anchored under the clicked row by
+  // default, flipped above it if there isn't room below, and clamped
+  // horizontally so it never runs off either edge.
+  function positionScorePopup(popup, anchorEl) {
+    const margin = 12;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const popupWidth = popup.offsetWidth || 280;
+    const rect = anchorEl ? anchorEl.getBoundingClientRect() : null;
 
-      refreshSkillRow(skill, true);
-      App.showToast('Test attempt recorded!');
+    let top, left;
+    if (rect) {
+      left = Math.min(Math.max(rect.left, margin), vw - popupWidth - margin);
+
+      const estHeight = popup.offsetHeight || 220;
+      if (vh - rect.bottom >= estHeight + margin) {
+        top = rect.bottom + 8;
+      } else if (rect.top >= estHeight + margin) {
+        top = rect.top - estHeight - 8;
+      } else {
+        top = Math.max(margin, (vh - estHeight) / 2);
+      }
+    } else {
+      left = (vw - popupWidth) / 2;
+      top  = Math.max(margin, (vh - (popup.offsetHeight || 220)) / 2);
+    }
+
+    popup.style.left = `${left}px`;
+    popup.style.top  = `${top}px`;
+  }
+
+  document.getElementById('score-popup-backdrop').addEventListener('click', closeScorePopup);
+
+  // Keep the popup on-screen through a rotation/resize while it's open.
+  window.addEventListener('resize', () => {
+    if (scorePopupSkillId === null) return;
+    const row = document.getElementById(`skill-row-${scorePopupSkillId}`);
+    positionScorePopup(document.getElementById('score-popup'), row);
+  });
+
+  // Validates a raw score-input string against "0–10 in 0.5 steps".
+  // Returns { value } (null means "clear") or { error: true }.
+  function parseScoreInputValue(raw) {
+    const trimmed = (raw || '').trim();
+    if (trimmed === '') return { value: null };
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || num < 0 || num > 10) return { error: true };
+    if (Math.round(num * 2) !== num * 2) return { error: true };
+    return { value: num };
+  }
+
+  // Persists a score (or clears it, for value === null) for one skill and
+  // updates the local completionMap/attemptsBySkill/skill-row in place.
+  // Shared by the Save button and by Prev/Next auto-saving on the way out.
+  async function persistSkillScore(skill, value) {
+    const completion = completionMap[skill.id] || {};
+    if (value === null) {
+      if (completion.id) completionMap[skill.id] = await SupabaseDB.clearSkillScore(completion.id);
+    } else {
+      const { completionId } = await SupabaseDB.saveSkillScore({
+        diverId:      targetDiverId,
+        skillId:      skill.id,
+        coachId:      currentUser.id,
+        score:        value,
+        completionId: completion.id || null,
+      });
+      const testDate = new Date().toISOString().slice(0, 10);
+      completionMap[skill.id] = {
+        ...completion,
+        id:                completionId,
+        latest_score:      value,
+        latest_test_date:  testDate,
+        tested_and_passed: value >= 5.0,
+      };
+      attemptsBySkill[skill.id] = [
+        { skill_id: skill.id, score: value, test_date: testDate, notes: '' },
+        ...(attemptsBySkill[skill.id] || []),
+      ];
+    }
+    refreshSkillRow(skill);
+  }
+
+  async function saveScorePopup({ advance = false } = {}) {
+    const skill = allSkills.find(s => s.id === scorePopupSkillId);
+    if (!skill) return;
+
+    const input   = document.getElementById('score-popup-input');
+    const errorEl = document.getElementById('score-popup-error');
+    const parsed  = parseScoreInputValue(input.value);
+
+    if (parsed.error) {
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    errorEl.classList.add('hidden');
+
+    const saveBtn = document.querySelector('#score-popup .btn-primary');
+    if (saveBtn) App.setBtnLoading(saveBtn, true);
+    try {
+      await persistSkillScore(skill, parsed.value);
+      App.showToast(parsed.value === null ? 'Score cleared.' : 'Score saved!');
+
+      if (advance) {
+        scorePopupNav(1);
+      } else {
+        closeScorePopup();
+      }
     } catch (err) {
       App.showToast(err.message, 'error');
-      App.setBtnLoading(btn, false);
+    } finally {
+      if (saveBtn) App.setBtnLoading(saveBtn, false);
     }
+  }
+
+  // Prev/Next within the active level's skill order — saves (or clears)
+  // whatever's in the input first for a coach, then opens the neighboring
+  // skill's popup and scrolls it into view.
+  async function scorePopupNav(direction) {
+    if (scorePopupSkillId === null) return;
+
+    if (isCoachUser()) {
+      const input   = document.getElementById('score-popup-input');
+      const errorEl = document.getElementById('score-popup-error');
+      const parsed  = parseScoreInputValue(input.value);
+      if (parsed.error) {
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      const skill      = allSkills.find(s => s.id === scorePopupSkillId);
+      const completion = completionMap[skill.id] || {};
+      if (parsed.value !== (completion.latest_score ?? null)) {
+        try {
+          await persistSkillScore(skill, parsed.value);
+        } catch (err) {
+          App.showToast(err.message, 'error');
+          return;
+        }
+      }
+    }
+
+    const order   = levelSkillOrder(activeLevel);
+    const idx     = order.findIndex(s => s.id === scorePopupSkillId);
+    const nextIdx = idx + direction;
+    if (nextIdx < 0 || nextIdx >= order.length) { closeScorePopup(); return; }
+
+    const nextSkill = order[nextIdx];
+    scorePopupSkillId = nextSkill.id;
+
+    const row = document.getElementById(`skill-row-${nextSkill.id}`);
+    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    renderScorePopup(row);
   }
 </script>
 
