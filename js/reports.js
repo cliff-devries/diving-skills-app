@@ -27,6 +27,12 @@
 
 const Reports = {
 
+  // iOS Safari + html2canvas is occasionally unreliable (can stall
+  // indefinitely rather than throw). This caps how long generation is
+  // allowed to hang before we give up and, on iOS, fall back to
+  // window.print() instead of leaving the UI spinning forever.
+  PDF_TIMEOUT_MS: 30000,
+
   SECTION_ORDER: [
     'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
     'Dryboard', 'Dryboard in Belt', 'Dry Platform', '1m Platform', '1m Platform in Belt',
@@ -304,16 +310,95 @@ const Reports = {
   // Y-position tracker (see page-break strategy note at the top of the file)
   // =============================================
 
+  _isMobile() {
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  },
+
+  _isIOSSafari() {
+    const ua = navigator.userAgent;
+    return /iPad|iPhone|iPod/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  },
+
+  // Lower resolution on mobile — same fixed 900px "device" width, just a
+  // smaller multiplier — cuts per-canvas memory/GPU load on iOS Safari,
+  // which is the likeliest source of the stalls seen there.
+  _captureScale() {
+    return this._isMobile() ? 1.5 : 2;
+  },
+
   async _captureBlock(html, blockWidthPx) {
     const container = document.createElement('div');
     container.style.cssText = `position:fixed;left:-99999px;top:0;width:${blockWidthPx}px;background:#ffffff`;
     container.innerHTML = html;
     document.body.appendChild(container);
     try {
-      return await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      return await html2canvas(container, {
+        scale: this._captureScale(),
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        imageTimeout: 15000,
+        removeContainer: true,
+      });
     } finally {
       document.body.removeChild(container);
     }
+  },
+
+  // Races a promise against a timeout so a stalled html2canvas call (which
+  // can hang on iOS Safari rather than reject) can't leave the caller's
+  // await — and therefore its button-loading state — stuck forever.
+  _withTimeout(promise, ms, message) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  },
+
+  // Last-resort path for iOS Safari when canvas-based generation fails or
+  // times out: render the same report blocks into a hidden container and
+  // use the browser's native print dialog (Save as PDF) instead of jsPDF.
+  _printFallback(data) {
+    const result = this.computeResult(data.skills);
+    const groups = this._groupByType(data.skills);
+    const html = `
+      ${this._headerBlockHtml(data, result)}
+      ${groups.map(g => this._sectionBlockHtml(g)).join('')}
+      ${this._summaryBlockHtml(data, result)}
+    `;
+
+    let container = document.getElementById('dive-drills-print-report');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'dive-drills-print-report';
+      document.body.appendChild(container);
+    }
+    container.innerHTML = `<div style="max-width:800px;margin:0 auto;padding:24px">${html}</div>`;
+
+    let style = document.getElementById('dive-drills-print-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'dive-drills-print-style';
+      document.head.appendChild(style);
+    }
+    style.textContent = `
+      @media print {
+        body > :not(#dive-drills-print-report) { display: none !important; }
+        #dive-drills-print-report { display: block !important; }
+      }
+      @media screen {
+        #dive-drills-print-report { display: none; }
+      }
+    `;
+
+    const cleanup = () => {
+      container.innerHTML = '';
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
   },
 
   // Draws one already-captured canvas onto the doc, slicing it across as
@@ -370,10 +455,15 @@ const Reports = {
       this._summaryBlockHtml(data, result),
     ];
 
+    const isMobile = this._isMobile();
     let y = margin;
     let firstBlockOnPage = true;
     for (const html of blockHtmls) {
       const canvas   = await this._captureBlock(html, blockWidthPx);
+      // Give iOS Safari a beat to release the previous canvas before the
+      // next capture — cheap insurance against memory pressure building up
+      // across a multi-section report.
+      if (isMobile) await new Promise(r => setTimeout(r, 80));
       const pxPerPt  = canvas.width / contentWidth;
       const blockHeightPt = canvas.height / pxPerPt;
       const pageContentHeightPt = pageHeight - margin * 2 - footerReserve;
@@ -423,15 +513,35 @@ const Reports = {
   // PUBLIC ACTIONS
   // =============================================
 
+  // Returns { printed } — printed:true means html2canvas failed/stalled and
+  // we fell back to the browser print dialog on iOS Safari instead of a
+  // download; callers should show different confirmation copy for that case.
   async downloadTestReport(diverId, level) {
     const data = await this.gatherReportData(diverId, level);
-    const doc = await this._renderPdfDocument(data);
-    doc.save(this._fileName(data));
+    try {
+      const doc = await this._withTimeout(
+        this._renderPdfDocument(data),
+        this.PDF_TIMEOUT_MS,
+        'PDF generation is taking longer than expected. Please try again.'
+      );
+      doc.save(this._fileName(data));
+      return { printed: false };
+    } catch (err) {
+      if (this._isIOSSafari()) {
+        this._printFallback(data);
+        return { printed: true };
+      }
+      throw err;
+    }
   },
 
   async getReportPdfBase64(diverId, level) {
     const data = await this.gatherReportData(diverId, level);
-    const doc = await this._renderPdfDocument(data);
+    const doc = await this._withTimeout(
+      this._renderPdfDocument(data),
+      this.PDF_TIMEOUT_MS,
+      'PDF generation is taking longer than expected. Please try again.'
+    );
     return { base64: doc.output('datauristring').split(',')[1], fileName: this._fileName(data), data };
   },
 

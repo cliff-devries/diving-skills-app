@@ -437,7 +437,7 @@
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
 <script src="js/app.js?v=9"></script>
-<script src="js/reports.js?v=4"></script>
+<script src="js/reports.js?v=5"></script>
 
 <script>
   let allSkills       = [];
@@ -1059,9 +1059,10 @@
     const btn = document.getElementById(`pdf-report-btn-${level}`);
     App.setBtnLoading(btn, true);
     try {
-      await Reports.downloadTestReport(targetDiverId, level);
+      const result = await Reports.downloadTestReport(targetDiverId, level);
+      App.showToast(result.printed ? 'Opening print dialog — select Save as PDF' : 'PDF downloaded');
     } catch (err) {
-      App.showToast('Could not generate report: ' + err.message, 'error');
+      App.showToast('PDF generation failed: ' + err.message, 'error');
     } finally {
       App.setBtnLoading(btn, false);
     }
