@@ -50,7 +50,7 @@
 <script src="js/supabase.js?v=34"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=9"></script>
-<script src="js/reports.js?v=7"></script>
+<script src="js/reports.js?v=8"></script>
 
 <script>
   let allReports = [];
@@ -166,8 +166,8 @@
     const btn = document.getElementById(`report-dl-${idx}`);
     App.setBtnLoading(btn, true);
     try {
-      const result = await Reports.downloadTestReport(report.diverId, report.level);
-      App.showToast(result.printed ? 'Your PDF is ready — tap Share → Save to Files to save it' : 'PDF downloaded');
+      await Reports.downloadTestReport(report.diverId, report.level);
+      App.showToast('PDF downloaded');
     } catch (err) {
       App.showToast('PDF generation failed: ' + err.message, 'error');
     } finally {

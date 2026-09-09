@@ -37,10 +37,10 @@
 
 const Reports = {
 
-  // iOS Safari + html2canvas is occasionally unreliable (can stall
+  // html2canvas is occasionally unreliable on mobile (can stall
   // indefinitely rather than throw). This caps how long generation is
-  // allowed to hang before we give up and, on iOS, fall back to
-  // window.print() instead of leaving the UI spinning forever.
+  // allowed to hang before we give up and surface a clear error instead of
+  // leaving the UI spinning forever.
   PDF_TIMEOUT_MS: 30000,
 
   // A level with more total skills than this gets extra mobile memory
@@ -48,6 +48,13 @@ const Reports = {
   // off the actual level being rendered, not any specific level number,
   // since whichever level ends up with the most skills is the one at risk.
   LARGE_LEVEL_SKILL_THRESHOLD: 50,
+
+  // A level with more skill-type sections than this gets the same extra
+  // mobile memory management, on top of (or instead of) the skill-count
+  // threshold above — more sections means more total html2canvas captures
+  // in one report, which is its own source of accumulated memory pressure
+  // independent of how big any single section is.
+  SECTION_COUNT_THRESHOLD_MOBILE: 5,
 
   // Sections taller than this many rows are split into multiple smaller
   // html2canvas captures instead of one — see the page-break strategy note
@@ -387,32 +394,26 @@ const Reports = {
     return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   },
 
-  // Every iOS browser (Safari, Chrome, Firefox, ...) is required by Apple
-  // to run on the same underlying WebKit engine, so this isn't Safari-
-  // specific — any iOS browser hits the same html2canvas unreliability.
-  _isIOS() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  },
-
   // Lower resolution on mobile — same fixed 900px "device" width, just a
-  // smaller multiplier — cuts per-canvas memory/GPU load on iOS Safari,
-  // which is the likeliest source of the stalls seen there. Levels with an
-  // unusually high total skill count (more captures overall) get an extra
-  // step down, since accumulated memory pressure across the report is the
-  // greater risk than any single capture's resolution.
-  _captureScale(isLargeLevel) {
+  // smaller multiplier — cuts per-canvas memory/GPU load on mobile Safari,
+  // which is the likeliest source of stalls there. Levels flagged as
+  // higher memory risk (high total skill count or high section count — see
+  // isHighMemoryRisk in _renderPdfDocument) get an extra step down, since
+  // accumulated memory pressure across the report is the greater risk than
+  // any single capture's resolution.
+  _captureScale(isHighMemoryRisk) {
     if (!this._isMobile()) return 2;
-    return isLargeLevel ? 1.0 : 1.5;
+    return isHighMemoryRisk ? 1.0 : 1.5;
   },
 
-  async _captureBlock(html, blockWidthPx, isLargeLevel) {
+  async _captureBlock(html, blockWidthPx, isHighMemoryRisk) {
     const container = document.createElement('div');
     container.style.cssText = `position:fixed;left:-99999px;top:0;width:${blockWidthPx}px;background:#ffffff`;
     container.innerHTML = html;
     document.body.appendChild(container);
     try {
       return await html2canvas(container, {
-        scale: this._captureScale(isLargeLevel),
+        scale: this._captureScale(isHighMemoryRisk),
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: false,
@@ -426,65 +427,15 @@ const Reports = {
   },
 
   // Races a promise against a timeout so a stalled html2canvas call (which
-  // can hang on iOS Safari rather than reject) can't leave the caller's
-  // await — and therefore its button-loading state — stuck forever.
+  // has been observed to hang on mobile Safari rather than reject) can't
+  // leave the caller's await — and therefore its button-loading state —
+  // stuck forever.
   _withTimeout(promise, ms, message) {
     let timer;
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => reject(new Error(message)), ms);
     });
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-  },
-
-  // iOS path: render the same report blocks (same header/branding, section
-  // layout, scores, and designation as the html2canvas version — these are
-  // the very same _headerBlockHtml/_sectionBlockHtml/_summaryBlockHtml
-  // functions, just left as live DOM instead of rasterized) into a hidden
-  // container and use the browser's native print dialog instead of jsPDF.
-  // Real print engines DO implement CSS page-break-* properties (unlike
-  // html2canvas — see the page-break strategy note at the top of this
-  // file), so native printing paginates this correctly on its own.
-  _printFallback(data) {
-    const result = this.computeResult(data.skills);
-    const groups = this._groupByType(data.skills);
-    const wrap = html => `<div style="page-break-inside:avoid;margin-bottom:14px">${html}</div>`;
-    const html = [
-      wrap(this._headerBlockHtml(data, result)),
-      ...groups.map(g => wrap(this._sectionBlockHtml(g))),
-      wrap(this._summaryBlockHtml(data, result)),
-    ].join('');
-
-    let container = document.getElementById('dive-drills-print-report');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'dive-drills-print-report';
-      document.body.appendChild(container);
-    }
-    container.innerHTML = `<div style="max-width:800px;margin:0 auto;padding:24px;background:#ffffff">${html}</div>`;
-
-    let style = document.getElementById('dive-drills-print-style');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'dive-drills-print-style';
-      document.head.appendChild(style);
-    }
-    style.textContent = `
-      @page { margin: 0.5in; }
-      @media print {
-        body > :not(#dive-drills-print-report) { display: none !important; }
-        #dive-drills-print-report { display: block !important; background: #ffffff; }
-      }
-      @media screen {
-        #dive-drills-print-report { display: none; }
-      }
-    `;
-
-    const cleanup = () => {
-      container.innerHTML = '';
-      window.removeEventListener('afterprint', cleanup);
-    };
-    window.addEventListener('afterprint', cleanup);
-    window.print();
   },
 
   // Draws one already-captured canvas onto the doc, slicing it across as
@@ -541,20 +492,30 @@ const Reports = {
       { html: this._summaryBlockHtml(data, result), label: 'Summary', skillCount: null },
     ];
 
-    const isMobile      = this._isMobile();
-    const isLargeLevel  = data.skills.length > this.LARGE_LEVEL_SKILL_THRESHOLD;
-    const captureDelayMs = isLargeLevel ? 150 : 80;
+    // Two independent memory-pressure signals: a level can be large because
+    // one section has a lot of skills (isLargeLevel), or because it has a
+    // lot of *sections* (isManySections) — more sections means more total
+    // html2canvas captures in one report, which stacks up memory pressure
+    // regardless of how big any single one is. Either one triggers the more
+    // conservative mobile settings; hitting both (isManySections) gets the
+    // longest delay since that's the most captures overall.
+    const isMobile        = this._isMobile();
+    const sectionCount    = groups.length;
+    const isLargeLevel    = data.skills.length > this.LARGE_LEVEL_SKILL_THRESHOLD;
+    const isManySections  = sectionCount > this.SECTION_COUNT_THRESHOLD_MOBILE;
+    const isHighMemoryRisk = isLargeLevel || isManySections;
+    const captureDelayMs  = isManySections ? 200 : (isLargeLevel ? 150 : 80);
+
+    console.log('[PDF] Level', data.level, '—', sectionCount, 'sections,', data.skills.length, 'total skills,',
+      blocks.length, 'capture blocks. isLargeLevel:', isLargeLevel, 'isManySections:', isManySections);
 
     let y = margin;
     let firstBlockOnPage = true;
     for (const block of blocks) {
-      console.log('Capturing section:', block.label, 'skills count:', block.skillCount);
-      const canvas   = await this._captureBlock(block.html, blockWidthPx, isLargeLevel);
-      // Give iOS Safari a beat to release the previous canvas before the
-      // next capture — cheap insurance against memory pressure building up
-      // across a multi-section report. Large levels get a longer delay
-      // since they produce more captures overall.
-      if (isMobile) await new Promise(r => setTimeout(r, captureDelayMs));
+      console.log('[PDF] Starting section:', block.label, 'row count:', block.skillCount);
+      let canvas = await this._captureBlock(block.html, blockWidthPx, isHighMemoryRisk);
+      console.log('[PDF] Completed section:', block.label);
+
       const pxPerPt  = canvas.width / contentWidth;
       const blockHeightPt = canvas.height / pxPerPt;
       const pageContentHeightPt = pageHeight - margin * 2 - footerReserve;
@@ -575,6 +536,15 @@ const Reports = {
       }
       y += blockGap;
       firstBlockOnPage = false;
+
+      // Explicit memory cleanup: release the canvas reference before the
+      // next capture instead of just letting the loop variable fall out of
+      // scope, then give mobile Safari a beat to actually reclaim it —
+      // cheap insurance against memory pressure building up across a
+      // multi-section report. Levels flagged as high memory risk get a
+      // longer delay since they produce more captures overall.
+      canvas = null;
+      if (isMobile) await new Promise(r => setTimeout(r, captureDelayMs));
     }
 
     const totalPages = doc.internal.getNumberOfPages();
@@ -604,38 +574,16 @@ const Reports = {
   // PUBLIC ACTIONS
   // =============================================
 
-  // Returns { printed } — printed:true means iOS used the native print
-  // dialog instead of a file download; callers should show different
-  // confirmation copy for that case.
   async downloadTestReport(diverId, level) {
     const data = await this.gatherReportData(diverId, level);
-
-    // html2canvas is unreliable on iOS (WebKit) — it's been observed to
-    // stall indefinitely on some reports rather than reject, which no
-    // timeout can fully paper over since a hung capture still burns that
-    // time on every attempt. Skip it there entirely rather than trying and
-    // waiting it out, and go straight to the print dialog, which uses the
-    // browser's native rendering/pagination and isn't subject to the same
-    // failure mode. Desktop and Android are unaffected and keep the
-    // existing html2canvas + jsPDF path.
-    if (this._isIOS()) {
-      this._printFallback(data);
-      return { printed: true };
-    }
-
     const doc = await this._withTimeout(
       this._renderPdfDocument(data),
       this.PDF_TIMEOUT_MS,
       'PDF generation is taking longer than expected. Please try again.'
     );
     doc.save(this._fileName(data));
-    return { printed: false };
   },
 
-  // Still uses html2canvas on iOS — emailing requires actual PDF bytes,
-  // which the print fallback (just opens the native print dialog) can't
-  // produce, so there's no iOS bypass available here. The timeout at least
-  // ensures a stalled attempt surfaces as a clear error instead of hanging.
   async getReportPdfBase64(diverId, level) {
     const data = await this.gatherReportData(diverId, level);
     const doc = await this._withTimeout(
