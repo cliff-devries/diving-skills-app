@@ -49,11 +49,14 @@
       font-weight: 600;
       color: var(--text-secondary);
     }
-    /* The header's button row has no wrap, so on a narrow phone it overflows
-       past the viewport and gets clipped by .main-content's overflow-x:
-       hidden — "+ Add Diver" (last in the row) is the one that disappears.
-       Stack the title and button row, and let the buttons fill the width
-       with an easy-to-tap height, instead of letting them overflow. */
+    /* The header's button row has no wrap, and .btn text is white-space:
+       nowrap, so the row can't actually shrink to fit a narrow phone — it
+       overflows past the viewport and gets clipped by .main-content's
+       overflow-x: hidden. "+ Add Diver" (last in DOM order) is the one
+       that disappears. Fix: wrap the row, and use `order` to put Add Diver
+       on its own full-width first line — visual order only, DOM/tab order
+       is unchanged — with the two secondary buttons sharing the line below.
+       Desktop (768px+) is untouched, still one row in DOM order. */
     @media (max-width: 767px) {
       .page-header .flex.items-center.justify-between {
         flex-direction: column;
@@ -62,10 +65,23 @@
       }
       .page-header .flex.gap-2 {
         width: 100%;
+        flex-wrap: wrap;
       }
       .page-header .flex.gap-2 .btn {
-        flex: 1 1 auto;
         min-height: 44px;
+      }
+      .page-header .flex.gap-2 .btn-primary {
+        order: -1;
+        flex: 1 1 100%;
+      }
+      .page-header .flex.gap-2 .btn-ghost {
+        order: 1;
+        flex: 1 1 0;
+        min-width: 0;
+        white-space: normal;
+      }
+      .page-header .flex.gap-2 #update-aqua-btn {
+        order: 2;
       }
     }
   </style>
