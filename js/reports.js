@@ -387,9 +387,11 @@ const Reports = {
     return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   },
 
-  _isIOSSafari() {
-    const ua = navigator.userAgent;
-    return /iPad|iPhone|iPod/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  // Every iOS browser (Safari, Chrome, Firefox, ...) is required by Apple
+  // to run on the same underlying WebKit engine, so this isn't Safari-
+  // specific — any iOS browser hits the same html2canvas unreliability.
+  _isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   },
 
   // Lower resolution on mobile — same fixed 900px "device" width, just a
@@ -434,17 +436,23 @@ const Reports = {
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   },
 
-  // Last-resort path for iOS Safari when canvas-based generation fails or
-  // times out: render the same report blocks into a hidden container and
-  // use the browser's native print dialog (Save as PDF) instead of jsPDF.
+  // iOS path: render the same report blocks (same header/branding, section
+  // layout, scores, and designation as the html2canvas version — these are
+  // the very same _headerBlockHtml/_sectionBlockHtml/_summaryBlockHtml
+  // functions, just left as live DOM instead of rasterized) into a hidden
+  // container and use the browser's native print dialog instead of jsPDF.
+  // Real print engines DO implement CSS page-break-* properties (unlike
+  // html2canvas — see the page-break strategy note at the top of this
+  // file), so native printing paginates this correctly on its own.
   _printFallback(data) {
     const result = this.computeResult(data.skills);
     const groups = this._groupByType(data.skills);
-    const html = `
-      ${this._headerBlockHtml(data, result)}
-      ${groups.map(g => this._sectionBlockHtml(g)).join('')}
-      ${this._summaryBlockHtml(data, result)}
-    `;
+    const wrap = html => `<div style="page-break-inside:avoid;margin-bottom:14px">${html}</div>`;
+    const html = [
+      wrap(this._headerBlockHtml(data, result)),
+      ...groups.map(g => wrap(this._sectionBlockHtml(g))),
+      wrap(this._summaryBlockHtml(data, result)),
+    ].join('');
 
     let container = document.getElementById('dive-drills-print-report');
     if (!container) {
@@ -452,7 +460,7 @@ const Reports = {
       container.id = 'dive-drills-print-report';
       document.body.appendChild(container);
     }
-    container.innerHTML = `<div style="max-width:800px;margin:0 auto;padding:24px">${html}</div>`;
+    container.innerHTML = `<div style="max-width:800px;margin:0 auto;padding:24px;background:#ffffff">${html}</div>`;
 
     let style = document.getElementById('dive-drills-print-style');
     if (!style) {
@@ -461,9 +469,10 @@ const Reports = {
       document.head.appendChild(style);
     }
     style.textContent = `
+      @page { margin: 0.5in; }
       @media print {
         body > :not(#dive-drills-print-report) { display: none !important; }
-        #dive-drills-print-report { display: block !important; }
+        #dive-drills-print-report { display: block !important; background: #ffffff; }
       }
       @media screen {
         #dive-drills-print-report { display: none; }
@@ -595,28 +604,38 @@ const Reports = {
   // PUBLIC ACTIONS
   // =============================================
 
-  // Returns { printed } — printed:true means html2canvas failed/stalled and
-  // we fell back to the browser print dialog on iOS Safari instead of a
-  // download; callers should show different confirmation copy for that case.
+  // Returns { printed } — printed:true means iOS used the native print
+  // dialog instead of a file download; callers should show different
+  // confirmation copy for that case.
   async downloadTestReport(diverId, level) {
     const data = await this.gatherReportData(diverId, level);
-    try {
-      const doc = await this._withTimeout(
-        this._renderPdfDocument(data),
-        this.PDF_TIMEOUT_MS,
-        'PDF generation is taking longer than expected. Please try again.'
-      );
-      doc.save(this._fileName(data));
-      return { printed: false };
-    } catch (err) {
-      if (this._isIOSSafari()) {
-        this._printFallback(data);
-        return { printed: true };
-      }
-      throw err;
+
+    // html2canvas is unreliable on iOS (WebKit) — it's been observed to
+    // stall indefinitely on some reports rather than reject, which no
+    // timeout can fully paper over since a hung capture still burns that
+    // time on every attempt. Skip it there entirely rather than trying and
+    // waiting it out, and go straight to the print dialog, which uses the
+    // browser's native rendering/pagination and isn't subject to the same
+    // failure mode. Desktop and Android are unaffected and keep the
+    // existing html2canvas + jsPDF path.
+    if (this._isIOS()) {
+      this._printFallback(data);
+      return { printed: true };
     }
+
+    const doc = await this._withTimeout(
+      this._renderPdfDocument(data),
+      this.PDF_TIMEOUT_MS,
+      'PDF generation is taking longer than expected. Please try again.'
+    );
+    doc.save(this._fileName(data));
+    return { printed: false };
   },
 
+  // Still uses html2canvas on iOS — emailing requires actual PDF bytes,
+  // which the print fallback (just opens the native print dialog) can't
+  // produce, so there's no iOS bypass available here. The timeout at least
+  // ensures a stalled attempt surfaces as a clear error instead of hanging.
   async getReportPdfBase64(diverId, level) {
     const data = await this.gatherReportData(diverId, level);
     const doc = await this._withTimeout(

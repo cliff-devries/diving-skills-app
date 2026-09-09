@@ -65,7 +65,7 @@ This has caused repeated bugs throughout development.
 | js/supabase.js | v=34 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
-| js/reports.js | v=6 |
+| js/reports.js | v=7 |
 | css/styles.css | v=10 |
 
 ---
