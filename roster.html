@@ -49,6 +49,25 @@
       font-weight: 600;
       color: var(--text-secondary);
     }
+    /* The header's button row has no wrap, so on a narrow phone it overflows
+       past the viewport and gets clipped by .main-content's overflow-x:
+       hidden — "+ Add Diver" (last in the row) is the one that disappears.
+       Stack the title and button row, and let the buttons fill the width
+       with an easy-to-tap height, instead of letting them overflow. */
+    @media (max-width: 767px) {
+      .page-header .flex.items-center.justify-between {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .page-header .flex.gap-2 {
+        width: 100%;
+      }
+      .page-header .flex.gap-2 .btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -68,21 +87,6 @@
           <button class="btn btn-ghost" onclick="openInviteAllModal()">✉️ Invite All Parents</button>
           <button class="btn btn-primary" onclick="App.openModal('add-diver-modal')">+ Add Diver</button>
         </div>
-      </div>
-    </div>
-
-    <div class="card-grid mb-6" id="roster-stats">
-      <div class="stat-card">
-        <div class="stat-value" id="roster-count">—</div>
-        <div class="stat-label">Total Divers</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:var(--pending)" id="ready-count">—</div>
-        <div class="stat-label">Ready for Testing</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:var(--text-secondary)" id="unclaimed-count">—</div>
-        <div class="stat-label">Unclaimed Profiles</div>
       </div>
     </div>
 
@@ -239,14 +243,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=34"></script>
+<script src="js/supabase.js?v=35"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/app.js?v=9"></script>
 
 <script>
   let currentUser     = null;
   let roster          = [];
-  let completionStats = {};
 
   (async function initRosterPage() {
     initSupabase();
@@ -290,15 +293,6 @@
   async function loadRoster() {
     const divers = await SupabaseDB.getAllDivers();
     roster = divers.map(d => ({ diver: d })).sort((a, b) => App.compareNames(a.diver, b.diver));
-    completionStats = await SupabaseDB.getRosterCompletionStats(roster.map(r => r.diver.id));
-
-    const unclaimedCount = roster.filter(r => r.diver.status !== 'active').length;
-    const readyCount = Object.values(completionStats).reduce((sum, s) => sum + s.readyForTest, 0);
-
-    document.getElementById('roster-count').textContent    = roster.length;
-    document.getElementById('ready-count').textContent     = readyCount;
-    document.getElementById('unclaimed-count').textContent = unclaimedCount;
-
     renderRosterList();
   }
 
