@@ -20,9 +20,19 @@
 //   - A per-row (rather than per-section) height/Y-tracker was not used
 //     either: it would need one html2canvas call per skill row (47+ per
 //     report) instead of one per section (at most 16), for no benefit here
-//     — a full level's skill types realistically hold a handful of skills
-//     each, never more than fits on one page, so section-level atomicity
-//     already guarantees no split/orphaned rows at a fraction of the cost.
+//     — most levels' skill types hold a handful of skills each, never more
+//     than fits on one page, so section-level atomicity already guarantees
+//     no split/orphaned rows at a fraction of the cost.
+//   - EXCEPTION — large sections: a section with more than
+//     SECTION_CHUNK_SIZE rows (e.g. a level with an unusually large skill
+//     count in one type) is split into multiple capture blocks instead of
+//     one giant one: [header + first chunk], then subsequent row-chunks,
+//     then the average footer. A tall single html2canvas capture is more
+//     prone to stalling on mobile Safari, so this trades a small chance of
+//     a page break landing between two row-chunks (rare, and each chunk is
+//     small enough to never itself split) for much smaller, more reliable
+//     captures. Small/typical sections are unaffected — still one atomic
+//     block as described above.
 // =============================================
 
 const Reports = {
@@ -32,6 +42,17 @@ const Reports = {
   // allowed to hang before we give up and, on iOS, fall back to
   // window.print() instead of leaving the UI spinning forever.
   PDF_TIMEOUT_MS: 30000,
+
+  // A level with more total skills than this gets extra mobile memory
+  // management (lower capture scale, longer inter-capture delay) — sized
+  // off the actual level being rendered, not any specific level number,
+  // since whichever level ends up with the most skills is the one at risk.
+  LARGE_LEVEL_SKILL_THRESHOLD: 50,
+
+  // Sections taller than this many rows are split into multiple smaller
+  // html2canvas captures instead of one — see the page-break strategy note
+  // above.
+  SECTION_CHUNK_SIZE: 15,
 
   SECTION_ORDER: [
     'Basics', 'Conditioning', 'Flexibility', 'Trampoline', 'Trampoline in Belt',
@@ -207,9 +228,30 @@ const Reports = {
       </tr>`;
   },
 
+  _sectionHeaderHtml(group) {
+    const c = this.COLORS;
+    return `
+      <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff">
+        <div style="background:${c.accent};color:#ffffff;font-weight:700;font-size:12px;padding:6px 10px;letter-spacing:0.03em;text-transform:uppercase">
+          ${App.escHtml(group.type)}
+        </div>
+      </div>`;
+  },
+
+  // startIdx keeps zebra striping continuous across chunks of the same
+  // section, as if the rows had never been split.
+  _sectionRowsHtml(skills, startIdx) {
+    return `
+      <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>${skills.map((s, i) => this._skillRowHtml(s, startIdx + i)).join('')}</tbody>
+        </table>
+      </div>`;
+  },
+
   // Section average only counts tested skills — untested ('—') skills don't
   // pull it down, and a section with nothing tested yet shows '—'.
-  _sectionBlockHtml(group) {
+  _sectionFooterHtml(group) {
     const c = this.COLORS;
     const tested = group.skills.filter(s => s.latestScore != null);
     const avg = tested.length
@@ -217,16 +259,47 @@ const Reports = {
       : null;
     return `
       <div style="font-family:Helvetica,Arial,sans-serif;background:#ffffff">
-        <div style="background:${c.accent};color:#ffffff;font-weight:700;font-size:12px;padding:6px 10px;letter-spacing:0.03em;text-transform:uppercase">
-          ${App.escHtml(group.type)}
-        </div>
-        <table style="width:100%;border-collapse:collapse">
-          <tbody>${group.skills.map((s, i) => this._skillRowHtml(s, i)).join('')}</tbody>
-        </table>
         <div style="text-align:right;font-size:10.5px;color:${c.textSecondary};padding:4px 10px;font-style:italic">
           Section Average: ${avg !== null ? avg : '—'}
         </div>
       </div>`;
+  },
+
+  _sectionBlockHtml(group) {
+    return `${this._sectionHeaderHtml(group)}${this._sectionRowsHtml(group.skills, 0)}${this._sectionFooterHtml(group)}`;
+  },
+
+  // Returns an array of { html, label, skillCount } capture blocks for one
+  // section. Sections at or under SECTION_CHUNK_SIZE stay a single atomic
+  // block (unchanged behavior); larger ones split into [header + first
+  // chunk], then further row-chunks, then the average footer.
+  _buildSectionBlocks(group) {
+    const chunkSize = this.SECTION_CHUNK_SIZE;
+    if (group.skills.length <= chunkSize) {
+      return [{ html: this._sectionBlockHtml(group), label: group.type, skillCount: group.skills.length }];
+    }
+
+    const blocks = [];
+    const firstChunk = group.skills.slice(0, chunkSize);
+    blocks.push({
+      html: `${this._sectionHeaderHtml(group)}${this._sectionRowsHtml(firstChunk, 0)}`,
+      label: `${group.type} (rows 1-${firstChunk.length})`,
+      skillCount: firstChunk.length,
+    });
+    for (let i = chunkSize; i < group.skills.length; i += chunkSize) {
+      const chunk = group.skills.slice(i, i + chunkSize);
+      blocks.push({
+        html: this._sectionRowsHtml(chunk, i),
+        label: `${group.type} (rows ${i + 1}-${i + chunk.length})`,
+        skillCount: chunk.length,
+      });
+    }
+    blocks.push({
+      html: this._sectionFooterHtml(group),
+      label: `${group.type} (average)`,
+      skillCount: group.skills.length,
+    });
+    return blocks;
   },
 
   _summaryBlockHtml(data, result) {
@@ -321,19 +394,23 @@ const Reports = {
 
   // Lower resolution on mobile — same fixed 900px "device" width, just a
   // smaller multiplier — cuts per-canvas memory/GPU load on iOS Safari,
-  // which is the likeliest source of the stalls seen there.
-  _captureScale() {
-    return this._isMobile() ? 1.5 : 2;
+  // which is the likeliest source of the stalls seen there. Levels with an
+  // unusually high total skill count (more captures overall) get an extra
+  // step down, since accumulated memory pressure across the report is the
+  // greater risk than any single capture's resolution.
+  _captureScale(isLargeLevel) {
+    if (!this._isMobile()) return 2;
+    return isLargeLevel ? 1.0 : 1.5;
   },
 
-  async _captureBlock(html, blockWidthPx) {
+  async _captureBlock(html, blockWidthPx, isLargeLevel) {
     const container = document.createElement('div');
     container.style.cssText = `position:fixed;left:-99999px;top:0;width:${blockWidthPx}px;background:#ffffff`;
     container.innerHTML = html;
     document.body.appendChild(container);
     try {
       return await html2canvas(container, {
-        scale: this._captureScale(),
+        scale: this._captureScale(isLargeLevel),
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: false,
@@ -449,21 +526,26 @@ const Reports = {
     const result = this.computeResult(data.skills);
     const groups = this._groupByType(data.skills);
 
-    const blockHtmls = [
-      this._headerBlockHtml(data, result),
-      ...groups.map(g => this._sectionBlockHtml(g)),
-      this._summaryBlockHtml(data, result),
+    const blocks = [
+      { html: this._headerBlockHtml(data, result), label: 'Header', skillCount: null },
+      ...groups.flatMap(g => this._buildSectionBlocks(g)),
+      { html: this._summaryBlockHtml(data, result), label: 'Summary', skillCount: null },
     ];
 
-    const isMobile = this._isMobile();
+    const isMobile      = this._isMobile();
+    const isLargeLevel  = data.skills.length > this.LARGE_LEVEL_SKILL_THRESHOLD;
+    const captureDelayMs = isLargeLevel ? 150 : 80;
+
     let y = margin;
     let firstBlockOnPage = true;
-    for (const html of blockHtmls) {
-      const canvas   = await this._captureBlock(html, blockWidthPx);
+    for (const block of blocks) {
+      console.log('Capturing section:', block.label, 'skills count:', block.skillCount);
+      const canvas   = await this._captureBlock(block.html, blockWidthPx, isLargeLevel);
       // Give iOS Safari a beat to release the previous canvas before the
       // next capture — cheap insurance against memory pressure building up
-      // across a multi-section report.
-      if (isMobile) await new Promise(r => setTimeout(r, 80));
+      // across a multi-section report. Large levels get a longer delay
+      // since they produce more captures overall.
+      if (isMobile) await new Promise(r => setTimeout(r, captureDelayMs));
       const pxPerPt  = canvas.width / contentWidth;
       const blockHeightPt = canvas.height / pxPerPt;
       const pageContentHeightPt = pageHeight - margin * 2 - footerReserve;
