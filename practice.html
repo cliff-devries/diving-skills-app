@@ -375,17 +375,12 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .date-pill{width:44px;text-align:center;flex-shrink:0;}
 .date-pill .d{font-size:1.15rem;font-weight:700;line-height:1;color:var(--text-primary);}
 .date-pill .m{font-size:.68rem;text-transform:uppercase;color:var(--text-secondary);}
-.cal-main{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);overflow:hidden;}
-.cal-toolbar{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
-.cal-toolbar h2{font-size:1.2rem;margin-right:auto;}
 .month-grid{display:grid;grid-template-columns:repeat(7,1fr);}
 .month-grid .dow{background:var(--bg-surface-2);padding:10px;font-size:.7rem;font-weight:700;color:var(--text-secondary);text-align:center;border-bottom:1px solid var(--border);text-transform:uppercase;}
 .month-cell{min-height:96px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;}
-.cal-main .month-cell{cursor:pointer;}
 .mini-cal-grid .month-cell:not(.blank){cursor:pointer;}
 .month-cell:nth-child(7n){border-right:none;}
 .month-cell .num{font-size:.8rem;color:var(--text-secondary);font-weight:600;}
-.month-cell.other .num{opacity:.3;}
 .month-cell.today{background:var(--accent-dim);}
 .month-cell.today .num{color:var(--accent);}
 .plan-chip{display:block;background:var(--accent);color:#000;font-size:.68rem;font-weight:700;padding:3px 6px;border-radius:5px;margin-top:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -502,7 +497,7 @@ body.view-mode #content{padding:0;max-width:none;}
 <script>
 /* ============================= ICONS (emoji, matching Dive Drills style) ============================= */
 const ICONS = {
-  home:'🏠', planner:'📋', skill:'🎯', calendar:'📅', settings:'⚙️',
+  home:'🏠', planner:'📋', skill:'🎯', settings:'⚙️',
   plus:'➕', chevDown:'▾', chevRight:'▸', menuL:'‹', menuR:'›', edit:'✏️', trash:'🗑️',
   search:'🔍', upload:'⬆️', download:'⬇️', image:'🖼️', note:'📝', printer:'🖨️',
   refresh:'🔄', x:'✕', location:'📍', megaphone:'📣', quote:'💬', flag:'🚩',
@@ -1424,7 +1419,6 @@ function router(){
     rotations:renderRotationsList,
     stations:renderStationsList,
     categories:()=>renderSimpleList(CFG.categories),
-    calendar:renderCalendarPage,
     settings:renderSettings,
     profile:renderProfile,
     'builder-settings':renderBuilderSettings,
@@ -1677,15 +1671,15 @@ function isoOf(year,month,day){
   return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 // Dashboard mini calendar — deliberately separate from buildMonthMatrix/
-// isoOf (used by the full /calendar page): those force-pad every grid to a
-// fixed 6 rows (42 cells), pulling in up to two extra weeks of next month,
-// and compute every overflow cell's date using the CURRENT month's index
-// instead of the adjacent month it actually represents — so a leading/
-// trailing filler cell can collide with a real same-numbered day in the
-// current month and render that day's plan a second time. This widget
-// shows a single month only: leading/trailing filler cells are truly
-// blank (no date, no plans), padded just enough to complete the grid's
-// last week, never a whole extra month.
+// isoOf above: those force-pad every grid to a fixed 6 rows (42 cells),
+// pulling in up to two extra weeks of next month, and compute every
+// overflow cell's date using the CURRENT month's index instead of the
+// adjacent month it actually represents — so a leading/trailing filler
+// cell can collide with a real same-numbered day in the current month and
+// render that day's plan a second time. This widget shows a single month
+// only: leading/trailing filler cells are truly blank (no date, no
+// plans), padded just enough to complete the grid's last week, never a
+// whole extra month.
 function mountMiniMonthCalendar(host){
   let cur=new Date();
   function draw(){
@@ -1721,45 +1715,10 @@ function mountMiniMonthCalendar(host){
   draw();
 }
 
-/* ============================= CALENDAR PAGE ============================= */
-function renderCalendarPage(container){
-  container.innerHTML = pageHeader('Calendar', `<button class="btn" onclick="window.print()">${ic('printer')} Print</button>`) +
-    `<div class="cal-main">
-      <div class="cal-toolbar">
-        <button class="btn btn-sm" id="calToday">Today</button>
-        <button class="icon-btn" id="calPrev">${ic('menuL')}</button>
-        <button class="icon-btn" id="calNext">${ic('menuR')}</button>
-        <h2 id="calTitle"></h2>
-      </div>
-      <div class="month-grid" id="calGrid">
-        ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="dow">${d}</div>`).join('')}
-      </div>
-    </div>`;
-  let cur=new Date();
-  function drawMain(){
-    const y=cur.getFullYear(),m=cur.getMonth();
-    document.getElementById('calTitle').textContent=cur.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-    const cells=buildMonthMatrix(y,m);
-    const todayIso=todayISO();
-    const grid=document.getElementById('calGrid');
-    grid.innerHTML=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="dow">${d}</div>`).join('')+
-      cells.map(c=>{
-        const iso=isoOf(y,m,c.day);
-        const plans=DB.plans.filter(p=>p.date===iso);
-        return `<div class="month-cell ${c.other?'other':''} ${iso===todayIso?'today':''}" onclick="handleCalendarDateClick('${iso}')">
-          <div class="num">${c.day}</div>
-          ${plans.map(p=>`<div class="plan-chip" style="background:${p.color||'#00c9a7'}" title="${escAttr(p.name)}" onclick="event.stopPropagation();navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
-        </div>`;
-      }).join('');
-  }
-  document.getElementById('calPrev').onclick=()=>{cur=new Date(cur.getFullYear(),cur.getMonth()-1,1);drawMain();};
-  document.getElementById('calNext').onclick=()=>{cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);drawMain();};
-  document.getElementById('calToday').onclick=()=>{cur=new Date();drawMain();};
-  drawMain();
-}
 // Clicking a date with at least one plan opens the first plan scheduled
 // that day; clicking an empty date creates a new plan pre-filled with
 // that date (matching createPlan()'s existing create-then-edit flow).
+// Used by the dashboard mini calendar (mountMiniMonthCalendar) above.
 function handleCalendarDateClick(iso){
   const plans=DB.plans.filter(p=>p.date===iso);
   if(plans.length>=1) navigate('plans/edit/'+plans[0].id);
