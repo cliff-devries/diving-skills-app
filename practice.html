@@ -1654,32 +1654,9 @@ function renderPracticePointsHub(container){
     </div>`;
 }
 
-function buildMonthMatrix(year,month){
-  const first=new Date(year,month,1);
-  const startDow=first.getDay();
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  const daysInPrev=new Date(year,month,0).getDate();
-  const cells=[];
-  for(let i=startDow-1;i>=0;i--)cells.push({day:daysInPrev-i,other:true,month:month-1});
-  for(let d=1;d<=daysInMonth;d++)cells.push({day:d,other:false,month});
-  while(cells.length%7!==0 || cells.length<42)cells.push({day:cells.length-startDow-daysInMonth+1,other:true,month:month+1});
-  return cells;
-}
-function isoOf(year,month,day){
-  const m=((month%12)+12)%12;
-  const y=year+Math.floor(month/12)-(month<0?1:0);
-  return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-}
-// Dashboard mini calendar — deliberately separate from buildMonthMatrix/
-// isoOf above: those force-pad every grid to a fixed 6 rows (42 cells),
-// pulling in up to two extra weeks of next month, and compute every
-// overflow cell's date using the CURRENT month's index instead of the
-// adjacent month it actually represents — so a leading/trailing filler
-// cell can collide with a real same-numbered day in the current month and
-// render that day's plan a second time. This widget shows a single month
-// only: leading/trailing filler cells are truly blank (no date, no
-// plans), padded just enough to complete the grid's last week, never a
-// whole extra month.
+// Dashboard mini calendar — builds a single month grid: leading/trailing
+// filler cells are truly blank (no date, no plans), padded just enough to
+// complete the grid's last week, never a whole extra month.
 function mountMiniMonthCalendar(host){
   let cur=new Date();
   function draw(){
