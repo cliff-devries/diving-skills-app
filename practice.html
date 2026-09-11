@@ -382,6 +382,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .month-grid .dow{background:var(--bg-surface-2);padding:10px;font-size:.7rem;font-weight:700;color:var(--text-secondary);text-align:center;border-bottom:1px solid var(--border);text-transform:uppercase;}
 .month-cell{min-height:96px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;}
 .cal-main .month-cell{cursor:pointer;}
+.mini-cal-grid .month-cell:not(.blank){cursor:pointer;}
 .month-cell:nth-child(7n){border-right:none;}
 .month-cell .num{font-size:.8rem;color:var(--text-secondary);font-weight:600;}
 .month-cell.other .num{opacity:.3;}
@@ -1675,32 +1676,47 @@ function isoOf(year,month,day){
   const y=year+Math.floor(month/12)-(month<0?1:0);
   return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
+// Dashboard mini calendar — deliberately separate from buildMonthMatrix/
+// isoOf (used by the full /calendar page): those force-pad every grid to a
+// fixed 6 rows (42 cells), pulling in up to two extra weeks of next month,
+// and compute every overflow cell's date using the CURRENT month's index
+// instead of the adjacent month it actually represents — so a leading/
+// trailing filler cell can collide with a real same-numbered day in the
+// current month and render that day's plan a second time. This widget
+// shows a single month only: leading/trailing filler cells are truly
+// blank (no date, no plans), padded just enough to complete the grid's
+// last week, never a whole extra month.
 function mountMiniMonthCalendar(host){
   let cur=new Date();
   function draw(){
     const y=cur.getFullYear(),m=cur.getMonth();
-    const cells=buildMonthMatrix(y,m);
+    const startDow=new Date(y,m,1).getDay();
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    const totalCells=startDow+daysInMonth;
+    const trailingBlanks=(7-(totalCells%7))%7;
     const todayIso=todayISO();
     host.innerHTML=`
       <div class="mini-cal-toolbar">
-        <button class="btn btn-sm">‹</button>
+        <button class="btn btn-sm" id="miniCalPrev">‹</button>
         <h2 style="font-size:1rem;">${cur.toLocaleDateString('en-US',{month:'long',year:'numeric'})}</h2>
-        <button class="btn btn-sm">›</button>
+        <button class="btn btn-sm" id="miniCalNext">›</button>
       </div>
-      <div class="month-grid" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      <div class="month-grid mini-cal-grid" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
         ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="dow">${d}</div>`).join('')}
-        ${cells.map(c=>{
-          const iso=isoOf(y,m,c.day);
+        ${Array.from({length:startDow}).map(()=>`<div class="month-cell blank"></div>`).join('')}
+        ${Array.from({length:daysInMonth}).map((_,i)=>{
+          const day=i+1;
+          const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
           const plans=DB.plans.filter(p=>p.date===iso);
-          return `<div class="month-cell ${c.other?'other':''} ${iso===todayIso?'today':''}">
-            <div class="num">${c.day}</div>
-            ${plans.slice(0,2).map(p=>`<div class="plan-chip" style="background:${p.color||'#00c9a7'}" onclick="navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
+          return `<div class="month-cell ${iso===todayIso?'today':''}" onclick="handleCalendarDateClick('${iso}')">
+            <div class="num">${day}</div>
+            ${plans.slice(0,2).map(p=>`<div class="plan-chip" style="background:${p.color||'#00c9a7'}" title="${escAttr(p.name)}" onclick="event.stopPropagation();navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
           </div>`;
         }).join('')}
+        ${Array.from({length:trailingBlanks}).map(()=>`<div class="month-cell blank"></div>`).join('')}
       </div>`;
-    const btns=host.querySelectorAll('.mini-cal-toolbar button');
-    btns[0].onclick=()=>{cur=new Date(y,m-1,1);draw();};
-    btns[1].onclick=()=>{cur=new Date(y,m+1,1);draw();};
+    document.getElementById('miniCalPrev').onclick=()=>{cur=new Date(y,m-1,1);draw();};
+    document.getElementById('miniCalNext').onclick=()=>{cur=new Date(y,m+1,1);draw();};
   }
   draw();
 }
