@@ -494,7 +494,22 @@
       (byAge[age] ??= []).push(s);
     });
 
-    const ages = Object.keys(byAge).map(Number).sort((a, b) => a - b);
+    // Keys stay as the original strings (not round-tripped through
+    // Number()) — aqua_group is a text column that defaults to the
+    // literal 'TBD' for divers with no DOB on file (see
+    // supabase-migration-v28.sql), and Number('TBD') is NaN. Looking up
+    // byAge[NaN] coerces to the property "NaN", which never matches the
+    // real "TBD" key — that mismatch was silently handing renderAgeColumn
+    // an undefined array. Numeric ages still sort first and ascending;
+    // any non-numeric label (e.g. "TBD") sorts after them.
+    const ages = Object.keys(byAge).sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      const aNum = !Number.isNaN(na), bNum = !Number.isNaN(nb);
+      if (aNum && bNum) return na - nb;
+      if (aNum) return -1;
+      if (bNum) return 1;
+      return a.localeCompare(b);
+    });
 
     const bodyHtml = ages.length
       ? `<div class="lb-age-columns">${ages.map(age => renderAgeColumn(age, byAge[age], ex, ages.length === 1, editing)).join('')}</div>`
@@ -511,7 +526,7 @@
   const RANK_MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
   function renderAgeColumn(age, scores, ex, isFullWidth, editing) {
-    const top10 = scores.slice().sort((a, b) => b.score - a.score).slice(0, 10);
+    const top10 = (scores || []).slice().sort((a, b) => b.score - a.score).slice(0, 10);
     const rows = top10.map((s, i) => {
       const rank      = i + 1;
       const rankLabel = RANK_MEDALS[rank] || String(rank);
