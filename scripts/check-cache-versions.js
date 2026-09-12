@@ -39,7 +39,11 @@ for (const { file, pattern } of TRACKED) {
       // (skills.js/reports.js are only on some pages — others legitimately omit them)
       const isExpected = (file !== 'js/skills.js' || content.includes('skills.js'))
         && (file !== 'js/reports.js' || content.includes('reports.js'));
-      if (isExpected && content.includes(file.split('?')[0].split('/').pop())) {
+      // Qualified path (e.g. "js/supabase.js"), not just the bare
+      // filename — the bare name also matches unrelated third-party CDN
+      // URLs that happen to end the same way (e.g. .../umd/supabase.js
+      // for the Supabase SDK itself, loaded on every page).
+      if (isExpected && content.includes(file.split('?')[0])) {
         missing.push(html);
       }
     } else {

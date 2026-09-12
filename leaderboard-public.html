@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upstate Diving — Strength &amp; Conditioning Leaderboard</title>
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+<style>
+  :root {
+    --accent:     #00c9a7;
+    --accent-dim: #e6faf6;
+    --text:       #1a1a1a;
+    --text-mut:   #6b7280;
+    --border:     #e5e7eb;
+    --bg:         #f8fafb;
+    --card:       #ffffff;
+    --gold:       #f5c518;
+    --silver:     #c0c0c0;
+    --bronze:     #cd7f32;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ---- Header ---- */
+  header { text-align: center; margin-bottom: 22px; }
+  .logo { font-size: 1.7rem; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+  .subtitle { color: var(--text-mut); font-size: 0.95rem; margin-top: 4px; }
+  .updated-row {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 14px; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-mut);
+  }
+  .refresh-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-dim); color: var(--accent);
+    border: 1px solid rgba(0,201,167,0.3); border-radius: 999px;
+    padding: 5px 12px; font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .refresh-btn:hover:not(:disabled) { background: #d3f5ee; }
+  .refresh-btn:disabled { opacity: 0.6; cursor: default; }
+  .spinner {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 2px solid rgba(0,201,167,0.35); border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Gender toggle ---- */
+  .gender-toggle { display: flex; justify-content: center; gap: 8px; margin-bottom: 22px; }
+  .gender-btn {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 999px; padding: 7px 20px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .gender-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ---- Exercise sections ---- */
+  .section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    margin-bottom: 18px; overflow: hidden;
+  }
+  .section-header {
+    padding: 13px 18px; background: var(--accent-dim);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  .section-title { font-weight: 700; font-size: 0.85rem; color: #067a64; text-transform: uppercase; letter-spacing: 0.5px; }
+  .section-unit { font-size: 0.76rem; color: var(--text-mut); }
+  .section-body { padding: 16px 18px; }
+
+  .age-columns { display: flex; gap: 0; overflow-x: auto; padding-bottom: 2px; }
+  .age-col { flex: 0 0 170px; padding: 0 14px; border-left: 1px solid var(--border); }
+  .age-col:first-child { border-left: none; padding-left: 0; }
+  .age-col-full { flex: 1 1 auto; width: 100%; }
+  .age-col-title {
+    font-size: 0.72rem; font-weight: 700; color: var(--text-mut);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .rank-row { padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-line1 { display: flex; align-items: center; gap: 8px; }
+  .rank-num { width: 22px; flex-shrink: 0; font-weight: 700; text-align: center; color: var(--text-mut); }
+  .rank-name { flex: 1; min-width: 0; font-weight: 600; font-size: 0.92rem; overflow-wrap: break-word; }
+  .rank-score { margin-top: 3px; padding-left: 30px; color: var(--accent); font-weight: 700; font-size: 0.85rem; }
+  .rank-1 .rank-num { color: var(--gold); }
+  .rank-2 .rank-num { color: var(--silver); }
+  .rank-3 .rank-num { color: var(--bronze); }
+
+  .milestone-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--accent); color: #fff; padding: 6px 12px; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 600;
+  }
+  .empty-msg { color: var(--text-mut); font-size: 0.85rem; }
+
+  /* ---- Footer ---- */
+  footer {
+    text-align: center; margin-top: 34px; color: var(--text-mut); font-size: 0.78rem;
+    line-height: 1.7;
+  }
+  footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  footer a:hover { text-decoration: underline; }
+
+  .page-error {
+    background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+    border-radius: 10px; padding: 14px 16px; font-size: 0.85rem; margin-bottom: 18px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="logo">Upstate Diving</div>
+    <div class="subtitle">Strength &amp; Conditioning Leaderboard</div>
+    <div class="updated-row">
+      <span id="updated-label">Loading…</span>
+      <button type="button" class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">
+        <span id="refresh-icon">🔄</span> Refresh
+      </button>
+    </div>
+  </header>
+
+  <div class="gender-toggle">
+    <button type="button" class="gender-btn active" id="btn-girls" onclick="setGender('Female')">Girls</button>
+    <button type="button" class="gender-btn" id="btn-boys" onclick="setGender('Male')">Boys</button>
+  </div>
+
+  <div id="content">
+    <p class="empty-msg" style="text-align:center">Loading leaderboard…</p>
+  </div>
+
+  <footer>
+    <div>© 2026 Upstate Diving</div>
+    <div><a href="/">Powered by Dive Drills</a></div>
+    <div id="footer-updated"></div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+  // =============================================
+  // Standalone, unauthenticated leaderboard. No dependency on this app's
+  // other JS files by design (see the file header requirements) — only
+  // js/config.js, for Supabase credentials and initSupabase(). Data comes
+  // from the get_public_leaderboard() SECURITY DEFINER RPC added in
+  // supabase-migration-v52.sql, which returns only exercise/score/
+  // score_type/recorded_at plus first name, a single last-initial
+  // character, aqua_group, and gender — never a diver_id, email, DOB, or
+  // any other profile field. See that migration for why this uses an RPC
+  // rather than an open RLS policy on profiles/leaderboard_scores.
+  //
+  // This EXERCISES list must stay in sync with the main app's shared
+  // App.EXERCISES constant (not reused directly here — this page loads
+  // no other app JS on purpose). RSI Jumps is its own score type (a
+  // 0.5–3.5 index, not a rep count) and Perfect Pike / Right Split / Left Split / All Splits
+  // are boolean achieved/not-achieved milestones, not measurements —
+  // matching the live app and the leaderboard_scores.score_type check
+  // constraint ('reps'|'inches'|'pounds'|'rsi'|'boolean'), not literal
+  // degree/inch values that type doesn't support.
+  // =============================================
+  const EXERCISES = [
+    { name: 'Tuck Ups',         type: 'reps',    unit: '30-second reps' },
+    { name: 'Pike Ups',         type: 'reps',    unit: '30-second reps' },
+    { name: 'Hanging Tuck-Ups', type: 'reps',    unit: '30-second reps' },
+    { name: 'Hanging Pike-Ups', type: 'reps',    unit: '30-second reps' },
+    { name: 'Vertical Jump',    type: 'inches',  unit: 'Standing vertical jump' },
+    { name: 'Push-Ups',         type: 'reps',    unit: '30-second reps' },
+    { name: 'A-Frame Push-Ups', type: 'reps',    unit: '30-second reps' },
+    { name: 'RSI Jumps',        type: 'rsi',     unit: 'Reactive strength index' },
+    { name: 'Grip Strength',    type: 'pounds',  unit: 'Dynamometer test' },
+    { name: 'Perfect Pike',     type: 'boolean', unit: 'Milestone Badge' },
+    { name: 'Right Split',      type: 'boolean', unit: 'Milestone Badge' },
+    { name: 'Left Split',       type: 'boolean', unit: 'Milestone Badge' },
+    { name: 'All Splits',       type: 'boolean', unit: 'Milestone Badge' },
+  ];
+
+  const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  let allRows      = [];
+  let genderFilter  = 'Female';
+  let refreshTimer  = null;
+
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  function formatScore(score, type) {
+    const n = Number(score);
+    if (type === 'reps')    return `${Math.round(n)} reps`;
+    if (type === 'inches')  return `${n.toFixed(1)}"`;
+    if (type === 'rsi')     return `${n.toFixed(2)} RSI`;
+    if (type === 'pounds')  return `${n.toFixed(1)} lbs`;
+    return '';
+  }
+
+  function displayName(row) {
+    const first = row.first_name || '';
+    const last  = row.last_initial ? `${row.last_initial.toUpperCase()}.` : '';
+    return [first, last].filter(Boolean).join(' ') || 'Diver';
+  }
+
+  // A row matches a gender division if it matches exactly, or the diver
+  // has no gender / 'Other' on file (shown under both) — same rule as
+  // the in-app leaderboard (leaderboard.html's diverMatchesGender()).
+  function matchesGender(row, gender) {
+    const g = row.gender;
+    if (!g || g === 'Other') return true;
+    return g === gender;
+  }
+
+  (async function init() {
+    initSupabase();
+    await loadData();
+    renderAll();
+    refreshTimer = setInterval(async () => { await loadData(); renderAll(); }, REFRESH_INTERVAL_MS);
+  })();
+
+  async function loadData() {
+    setRefreshing(true);
+    try {
+      const { data, error } = await window.supabaseClient.rpc('get_public_leaderboard');
+      if (error) throw error;
+      allRows = data || [];
+      setUpdatedLabel(new Date());
+    } catch (err) {
+      document.getElementById('content').innerHTML =
+        `<div class="page-error">Could not load the leaderboard right now. Please try again shortly.</div>`;
+      console.error('[leaderboard-public] load failed:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function manualRefresh() {
+    await loadData();
+    renderAll();
+  }
+
+  function setRefreshing(isRefreshing) {
+    const btn  = document.getElementById('refresh-btn');
+    const icon = document.getElementById('refresh-icon');
+    btn.disabled = isRefreshing;
+    icon.innerHTML = isRefreshing ? '<span class="spinner"></span>' : '🔄';
+  }
+
+  function setUpdatedLabel(date) {
+    const label = `Last updated: ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    document.getElementById('updated-label').textContent = label;
+    document.getElementById('footer-updated').textContent = label;
+  }
+
+  function setGender(gender) {
+    genderFilter = gender;
+    document.getElementById('btn-girls').classList.toggle('active', gender === 'Female');
+    document.getElementById('btn-boys').classList.toggle('active', gender === 'Male');
+    renderAll();
+  }
+
+  function renderAll() {
+    const container = document.getElementById('content');
+    if (!allRows.length) {
+      container.innerHTML = `<p class="empty-msg" style="text-align:center">No scores recorded yet.</p>`;
+      return;
+    }
+    container.innerHTML = EXERCISES.map(renderExerciseSection).join('');
+  }
+
+  function renderExerciseSection(ex) {
+    const rows = allRows.filter(r => r.exercise === ex.name && matchesGender(r, genderFilter));
+    return `
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">${escHtml(ex.name)}</span>
+          <span class="section-unit">${escHtml(ex.unit)}</span>
+        </div>
+        <div class="section-body">
+          ${ex.type === 'boolean' ? renderMilestoneBody(rows) : renderRankedBody(rows, ex)}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMilestoneBody(rows) {
+    const achievers = rows
+      .filter(r => Number(r.score) === 1)
+      .sort((a, b) => displayName(a).localeCompare(displayName(b)));
+    if (!achievers.length) return `<p class="empty-msg">No achievers yet.</p>`;
+    return `<div class="milestone-chips">${achievers.map(r => `<span class="chip">${escHtml(displayName(r))}</span>`).join('')}</div>`;
+  }
+
+  function renderRankedBody(rows, ex) {
+    const byAge = {};
+    rows.forEach(r => {
+      const age = r.aqua_group;
+      (byAge[age] ??= []).push(r);
+    });
+    // Numeric string keys sort correctly with a numeric comparator — every
+    // key here IS numeric already (get_public_leaderboard() only returns
+    // rows with a numeric aqua_group).
+    const ages = Object.keys(byAge).sort((a, b) => Number(a) - Number(b));
+    if (!ages.length) return `<p class="empty-msg">No scores recorded yet.</p>`;
+
+    const isFullWidth = ages.length === 1;
+    return `<div class="age-columns">${ages.map(age => renderAgeColumn(age, byAge[age], ex, isFullWidth)).join('')}</div>`;
+  }
+
+  function renderAgeColumn(age, rows, ex, isFullWidth) {
+    const top10 = rows.slice().sort((a, b) => b.score - a.score).slice(0, 10);
+    const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+    const rowsHtml = top10.map((r, i) => {
+      const rank = i + 1;
+      return `
+        <div class="rank-row rank-${rank <= 3 ? rank : ''}">
+          <div class="rank-line1">
+            <span class="rank-num">${medals[rank] || rank}</span>
+            <span class="rank-name">${escHtml(displayName(r))}</span>
+          </div>
+          <div class="rank-score">${escHtml(formatScore(r.score, ex.type))}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="age-col${isFullWidth ? ' age-col-full' : ''}">
+        <div class="age-col-title">Age ${escHtml(age)}</div>
+        ${rowsHtml}
+      </div>
+    `;
+  }
+</script>
+</body>
+</html>

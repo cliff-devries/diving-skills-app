@@ -47,3 +47,28 @@
   from   = "/"
   to     = "/index.html"
   status = 200
+
+# =============================================
+# Public leaderboard subdomain — leaderboard.divedrills.com
+# Serves the standalone, unauthenticated leaderboard-public.html at its
+# own subdomain instead of a path under the main app domain.
+#
+# REQUIRED MANUAL SETUP (this redirect alone does nothing until both of
+# these are done — a hostname-based redirect only fires for a domain
+# Netlify already recognizes as belonging to this site):
+#
+#   1. DNS — in GoDaddy (or wherever divedrills.com is registered), add a
+#      CNAME record:
+#        Name:  leaderboard
+#        Value: [this Netlify site's default domain, e.g. your-site-name.netlify.app]
+#        TTL:   600
+#
+#   2. Netlify — Site settings → Domain management → Add domain alias:
+#      leaderboard.divedrills.com
+#      (Netlify won't provision/renew TLS for the subdomain, and this
+#      redirect won't match, until the alias is added there.)
+# =============================================
+[[redirects]]
+  from   = "https://leaderboard.divedrills.com/*"
+  to     = "/leaderboard-public.html"
+  status = 200
