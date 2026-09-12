@@ -1194,6 +1194,22 @@ const SupabaseDB = {
     return data ?? [];
   },
 
+  // Every exercise's personal best for one diver, keyed by exercise name —
+  // leaderboard_scores has a unique constraint on (diver_id, exercise), kept
+  // current via the upsert in recordLeaderboardScore(), so each row already
+  // IS that exercise's personal best; no MAX/grouping needed. Used by
+  // progress.html's Personal Best tab.
+  async getDiverPersonalBests(diverId) {
+    const { data, error } = await this.db
+      .from('leaderboard_scores')
+      .select('exercise, score, score_type, recorded_at')
+      .eq('diver_id', diverId);
+    if (error) { console.error('[SupabaseDB] getDiverPersonalBests:', error.message); return {}; }
+    const byExercise = {};
+    (data ?? []).forEach(row => { byExercise[row.exercise] = row; });
+    return byExercise;
+  },
+
   // Current personal best for one diver/exercise (null if none recorded yet).
   async getPersonalBest(diverId, exercise) {
     const { data, error } = await this.db

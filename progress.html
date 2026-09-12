@@ -235,6 +235,61 @@
       white-space: nowrap;
     }
     .score-popup-buttons .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ---- Personal Best (PB) tab ---- */
+    .pb-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    @media (min-width: 640px)  { .pb-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 1024px) { .pb-grid { grid-template-columns: repeat(4, 1fr); } }
+    .pb-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pb-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .pb-card-name {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--text-primary);
+    }
+    .pb-card-edit-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 3px 5px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .pb-card-edit-btn:hover { background: var(--bg-surface-2); }
+    .pb-card-score {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .pb-card-score.pb-card-empty {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .pb-card-date {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
   </style>
 </head>
 <body>
@@ -429,14 +484,24 @@
 <div class="score-popup-backdrop hidden" id="score-popup-backdrop"></div>
 <div class="score-popup hidden" id="score-popup" role="dialog" aria-modal="true"></div>
 
+<!-- =============================================
+     PERSONAL BEST (PB) SCORE POPUP — coach-only, opened from a PB card's
+     edit button. Reuses the score-popup CSS above for visual consistency
+     but is otherwise independent (separate element/state) since it saves
+     through SupabaseDB.recordLeaderboardScore rather than a skill test
+     attempt — see the "PERSONAL BEST (PB) TAB" section of the script below.
+============================================= -->
+<div class="score-popup-backdrop hidden" id="pb-popup-backdrop"></div>
+<div class="score-popup hidden" id="pb-popup" role="dialog" aria-modal="true"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=35"></script>
+<script src="js/supabase.js?v=36"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/skills.js?v=4"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 <script src="js/reports.js?v=8"></script>
 
 <script>
@@ -448,10 +513,12 @@
   let targetDiver     = null;
   let diverCoach      = null;
   let linkedParent    = null;
-  let activeLevel     = 0;
+  let activeLevel     = 'pb'; // 'pb' or a numeric level — PB is the default tab
   let editModalCoaches = [];
   let prevDiverId      = null; // coach view only — alphabetical (last, first) neighbor among active divers
   let nextDiverId      = null;
+  let pbByExercise     = {};  // exercise name -> {exercise, score, score_type, recorded_at} — fetched once, cached in memory
+  let pendingPbSave    = null; // {exercise, score, scoreType, testDate} awaiting "lower than PB" confirmation
 
   // Display order for skill-type groups within each level.
   const SECTION_ORDER = [
@@ -482,7 +549,7 @@
 
     const isCoach = user.role === 'coach' || user.role === 'super_user';
 
-    const [skills, cMap, attempts, coachData, parentData, allDivers] = await Promise.all([
+    const [skills, cMap, attempts, coachData, parentData, allDivers, pbMap] = await Promise.all([
       Skills.getAll(),
       SupabaseDB.getCompletionMap(targetDiverId),
       SupabaseDB.getAllTestAttempts(targetDiverId),
@@ -492,10 +559,14 @@
       // once here and reused for every renderProfileHeader() call for
       // the rest of this page load, never re-fetched.
       isCoach ? SupabaseDB.getAllDivers() : Promise.resolve([]),
+      // Personal Best tab data — fetched once here alongside everything
+      // else and cached in pbByExercise; switching tabs never re-fetches.
+      SupabaseDB.getDiverPersonalBests(targetDiverId),
     ]);
 
     diverCoach   = coachData;
     linkedParent = parentData;
+    pbByExercise = pbMap;
 
     allSkills     = skills.filter(s => s.isTestable);
     completionMap = cMap;
@@ -510,6 +581,13 @@
       const idx = sortedActive.findIndex(d => d.id === targetDiverId);
       prevDiverId = idx > 0 ? sortedActive[idx - 1].id : null;
       nextDiverId = idx !== -1 && idx < sortedActive.length - 1 ? sortedActive[idx + 1].id : null;
+    }
+
+    // ?tab=pb (or no tab param at all) keeps the PB default; ?tab=<level
+    // number> links directly to that level tab instead.
+    const tabParam = App.getParam('tab');
+    if (tabParam && tabParam !== 'pb' && !Number.isNaN(Number(tabParam))) {
+      activeLevel = Number(tabParam);
     }
 
     renderProfileHeader();
@@ -920,7 +998,16 @@
     const levels = Skills.uniqueLevels(skills);
     const tabsEl = document.getElementById('level-tabs');
 
-    tabsEl.innerHTML = levels.map(lvl => {
+    const pbTabHtml = `
+      <button
+        class="level-tab ${activeLevel === 'pb' ? 'active' : ''}"
+        data-level="pb"
+        onclick="selectLevel('pb')">
+        PB
+      </button>
+    `;
+
+    tabsEl.innerHTML = pbTabHtml + levels.map(lvl => {
       const lvlSkills = skills.filter(s => s.level === lvl);
       const total     = lvlSkills.length;
       const certified = lvlSkills.filter(s => cMap[s.id]?.tested_and_passed).length;
@@ -952,8 +1039,11 @@
   function selectLevel(level) {
     activeLevel = level;
     closeScorePopup();
+    closePbPopup();
+    // String comparison (not parseInt) so this works for both numeric
+    // level tabs and the 'pb' tab's non-numeric data-level.
     document.querySelectorAll('.level-tab').forEach(t => {
-      t.classList.toggle('active', parseInt(t.dataset.level) === level);
+      t.classList.toggle('active', t.dataset.level === String(level));
     });
     renderLevel(level);
   }
@@ -978,6 +1068,12 @@
 
   function renderLevel(level) {
     const container = document.getElementById('level-content');
+
+    if (level === 'pb') {
+      renderPbTab(container);
+      return;
+    }
+
     const lvlSkills  = allSkills.filter(s => s.level === level);
 
     if (!lvlSkills.length) {
@@ -1049,6 +1145,187 @@
       });
     });
   }
+
+  // =============================================
+  // PERSONAL BEST (PB) TAB — card grid of the 13 leaderboard exercises
+  // (App.EXERCISES, shared with leaderboard.html). Data is fetched once in
+  // initProgressPage() into pbByExercise and never re-fetched on tab
+  // switches; saving updates that in-memory map directly from the save
+  // response and re-renders from it, so there's no extra round-trip.
+  // =============================================
+  function pbSlug(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+  }
+
+  // isCoachUser() is defined further down in this script (function
+  // declarations are hoisted, so it's usable here).
+  function renderPbTab(container) {
+    const coach = isCoachUser();
+    container.innerHTML = `
+      <div class="card fade-in">
+        <h3 class="mb-4">Personal Bests</h3>
+        <div class="pb-grid">
+          ${App.EXERCISES.map(ex => renderPbCard(ex, coach)).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPbCard(ex, coach) {
+    const pb = pbByExercise[ex.name];
+    const bodyHtml = pb
+      ? `
+        <div class="pb-card-score">${App.escHtml(App.formatExerciseScore(pb.score, pb.score_type || ex.type))}</div>
+        <div class="pb-card-date">${App.escHtml(App.formatDate(pb.recorded_at))}</div>
+      `
+      : `<div class="pb-card-score pb-card-empty">No score yet</div>`;
+
+    return `
+      <div class="pb-card" id="pb-card-${pbSlug(ex.name)}">
+        <div class="pb-card-top">
+          <div class="pb-card-name">${ex.icon} ${App.escHtml(ex.name)}</div>
+          ${coach ? `<button type="button" class="pb-card-edit-btn" title="Record score" onclick="openPbEditPopup('${ex.name}', this)">✏️</button>` : ''}
+        </div>
+        ${bodyHtml}
+      </div>
+    `;
+  }
+
+  function refreshPbCard(exerciseName) {
+    const ex = App.EXERCISES.find(e => e.name === exerciseName);
+    if (!ex) return;
+    const el = document.getElementById(`pb-card-${pbSlug(exerciseName)}`);
+    if (el) el.outerHTML = renderPbCard(ex, isCoachUser());
+  }
+
+  function closePbPopup() {
+    document.getElementById('pb-popup').classList.add('hidden');
+    document.getElementById('pb-popup-backdrop').classList.add('hidden');
+    pendingPbSave = null;
+  }
+
+  function openPbEditPopup(exerciseName, anchorEl) {
+    const ex = App.EXERCISES.find(e => e.name === exerciseName);
+    if (!ex) return;
+    const existing = pbByExercise[exerciseName];
+    const todayStr  = new Date().toISOString().slice(0, 10);
+    const dateValue = existing?.recorded_at ? existing.recorded_at.slice(0, 10) : todayStr;
+
+    const scoreFieldHtml = ex.type === 'boolean'
+      ? `
+        <div class="flex items-center gap-2" style="justify-content:center;margin:10px 0">
+          <label class="toggle-switch">
+            <input type="checkbox" id="pb-popup-toggle" ${existing && Number(existing.score) === 1 ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="text-sm text-secondary" id="pb-popup-toggle-label">${existing && Number(existing.score) === 1 ? 'Achieved' : 'Not achieved'}</span>
+        </div>
+      `
+      : `
+        <input type="number" class="score-popup-input" id="pb-popup-score-input"
+          step="${ex.type === 'reps' ? '1' : '0.1'}" min="0"
+          value="${existing ? Number(existing.score) : ''}" placeholder="Score">
+        <div class="score-popup-hint">${App.escHtml(ex.unit)}</div>
+      `;
+
+    const popup = document.getElementById('pb-popup');
+    popup.innerHTML = `
+      <div class="score-popup-name">${ex.icon} ${App.escHtml(ex.name)}</div>
+      ${scoreFieldHtml}
+      <div class="form-group" style="margin-top:8px">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="pb-popup-date-input" value="${dateValue}">
+      </div>
+      <div class="score-popup-error hidden" id="pb-popup-error"></div>
+      <div class="score-popup-buttons">
+        <button type="button" class="btn btn-ghost" onclick="closePbPopup()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="pb-popup-save-btn" onclick="savePbPopup('${exerciseName}')">Save</button>
+      </div>
+    `;
+
+    if (ex.type === 'boolean') {
+      document.getElementById('pb-popup-toggle').addEventListener('change', function() {
+        document.getElementById('pb-popup-toggle-label').textContent = this.checked ? 'Achieved' : 'Not achieved';
+      });
+    }
+
+    document.getElementById('pb-popup-backdrop').classList.remove('hidden');
+    popup.classList.remove('hidden');
+    positionScorePopup(popup, anchorEl);
+  }
+
+  function savePbPopup(exerciseName) {
+    const ex = App.EXERCISES.find(e => e.name === exerciseName);
+    if (!ex) return;
+
+    const errorEl = document.getElementById('pb-popup-error');
+    errorEl.classList.add('hidden');
+
+    let score;
+    if (ex.type === 'boolean') {
+      score = document.getElementById('pb-popup-toggle').checked ? 1 : 0;
+    } else {
+      const raw = document.getElementById('pb-popup-score-input').value;
+      if (raw === '') {
+        errorEl.textContent = 'Enter a score.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      score = Number(raw);
+      if (Number.isNaN(score)) {
+        errorEl.textContent = 'Enter a valid number.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      if (ex.type === 'reps') score = Math.round(score);
+    }
+
+    const testDate = document.getElementById('pb-popup-date-input').value || null;
+    const existing = pbByExercise[exerciseName];
+
+    pendingPbSave = { exercise: exerciseName, score, scoreType: ex.type, testDate };
+
+    // Mirrors leaderboard.html's "not higher than current PB" guard —
+    // same comparison, same underlying recordLeaderboardScore() upsert.
+    if (existing != null && score <= Number(existing.score)) {
+      errorEl.textContent = ex.type === 'boolean'
+        ? 'This is already marked as achieved. Save anyway?'
+        : `This score is lower than the current personal best (${App.formatExerciseScore(existing.score, existing.score_type || ex.type)}). Save anyway?`;
+      errorEl.classList.remove('hidden');
+      const saveBtn = document.getElementById('pb-popup-save-btn');
+      saveBtn.textContent = 'Save Anyway';
+      saveBtn.onclick = () => commitPbSave();
+      return;
+    }
+
+    commitPbSave();
+  }
+
+  async function commitPbSave() {
+    if (!pendingPbSave) return;
+    const { exercise } = pendingPbSave;
+    const saveBtn = document.getElementById('pb-popup-save-btn');
+    const errorEl = document.getElementById('pb-popup-error');
+    App.setBtnLoading(saveBtn, true);
+    try {
+      const saved = await SupabaseDB.recordLeaderboardScore(
+        targetDiverId, pendingPbSave.exercise, pendingPbSave.score,
+        pendingPbSave.scoreType, currentUser.id, null, pendingPbSave.testDate
+      );
+      pbByExercise[exercise] = saved;
+      pendingPbSave = null;
+      closePbPopup();
+      refreshPbCard(exercise);
+      App.showToast('Score saved');
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      App.setBtnLoading(saveBtn, false);
+    }
+  }
+
+  document.getElementById('pb-popup-backdrop').addEventListener('click', closePbPopup);
 
   // =============================================
   // TEST REPORT PDF — download + email to parent

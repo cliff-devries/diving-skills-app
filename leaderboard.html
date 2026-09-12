@@ -308,26 +308,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=35"></script>
+<script src="js/supabase.js?v=36"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 
 <script>
-  const EXERCISES = [
-    { name: 'Tuck Ups',         type: 'reps',    icon: '🏋️', unit: '30-second reps' },
-    { name: 'Pike Ups',         type: 'reps',    icon: '🏋️', unit: '30-second reps' },
-    { name: 'Hanging Tuck-Ups', type: 'reps',    icon: '🏋️', unit: '30-second reps' },
-    { name: 'Hanging Pike-Ups', type: 'reps',    icon: '🏋️', unit: '30-second reps' },
-    { name: 'Vertical Jump',    type: 'inches',  icon: '🦘', unit: 'Standing vertical jump' },
-    { name: 'Push-Ups',         type: 'reps',    icon: '💪', unit: '30-second reps' },
-    { name: 'A-Frame Push-Ups',type:  'reps',    icon: '💪', unit: '30-second reps' },
-    { name: 'RSI Jumps',        type: 'rsi',     icon: '⚡', unit: 'Reactive strength index' },
-    { name: 'Grip Strength',    type: 'pounds',  icon: '✊', unit: 'Dynamometer test' },
-    { name: 'Perfect Pike',     type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
-    { name: 'Right Split',      type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
-    { name: 'Left Split',       type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
-    { name: 'All Splits',       type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
-  ];
+  // Shared with progress.html's Personal Best tab — see js/app.js.
+  const EXERCISES = App.EXERCISES;
   const AGE_MIN = 6;
   const AGE_MAX = 18;
 
@@ -433,12 +420,7 @@
   }
 
   function formatScore(score, type) {
-    const n = Number(score);
-    if (type === 'reps')   return `${Math.round(n)} reps`;
-    if (type === 'inches') return `${n.toFixed(1)}"`;
-    if (type === 'rsi')    return `${n.toFixed(2)} RSI`;
-    if (type === 'pounds') return `${n.toFixed(1)} lbs`;
-    return '';
+    return App.formatExerciseScore(score, type);
   }
 
   function renderLeaderboard() {

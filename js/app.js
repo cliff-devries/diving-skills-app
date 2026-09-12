@@ -223,6 +223,39 @@ const App = {
   },
 
   // =============================================
+  // LEADERBOARD EXERCISES — shared config for leaderboard.html and
+  // progress.html's Personal Best tab, so both always agree on the
+  // exercise list, score type, and formatting. Keep in sync with the
+  // leaderboard_scores.score_type check ('reps'|'inches'|'pounds'|'rsi'|
+  // 'boolean' — see supabase-migration-v35.sql).
+  // =============================================
+  EXERCISES: [
+    { name: 'Tuck Ups',          type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Pike Ups',          type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Hanging Tuck-Ups',  type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Hanging Pike-Ups',  type: 'reps',    icon: '🏋️', unit: '30-second reps' },
+    { name: 'Vertical Jump',     type: 'inches',  icon: '🦘', unit: 'Standing vertical jump' },
+    { name: 'Push-Ups',          type: 'reps',    icon: '💪', unit: '30-second reps' },
+    { name: 'A-Frame Push-Ups',  type: 'reps',    icon: '💪', unit: '30-second reps' },
+    { name: 'RSI Jumps',         type: 'rsi',     icon: '⚡', unit: 'Reactive strength index' },
+    { name: 'Grip Strength',     type: 'pounds',  icon: '✊', unit: 'Dynamometer test' },
+    { name: 'Perfect Pike',      type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+    { name: 'Right Split',       type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+    { name: 'Left Split',        type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+    { name: 'All Splits',        type: 'boolean', icon: '🤸', unit: 'Milestone Badge' },
+  ],
+
+  formatExerciseScore(score, type) {
+    const n = Number(score);
+    if (type === 'reps')    return `${Math.round(n)} reps`;
+    if (type === 'inches')  return `${n.toFixed(1)}"`;
+    if (type === 'rsi')     return `${n.toFixed(2)} RSI`;
+    if (type === 'pounds')  return `${n.toFixed(1)} lbs`;
+    if (type === 'boolean') return n >= 1 ? 'Achieved' : 'Not achieved';
+    return '';
+  },
+
+  // =============================================
   // LEVEL TEST RESULT — the single source of truth for whether a level
   // is Incomplete / Failed / Passed(+designation), used by testing.html
   // (Complete Session), js/reports.js (PDF header/summary), and
