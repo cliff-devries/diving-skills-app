@@ -3494,8 +3494,13 @@ let currentOpenPlanId=null; // the plan currently being edited — target for "+
 // draft to add straight into — Practice Builder picks this up and adds it
 // the moment a draft becomes available (see renderPracticeBuilder()).
 let pendingSkillToAdd=null; // {type:'dd', id} | null
+// category (station) is deliberately left blank here rather than
+// defaulting to the DD skill's skill_type — the coach picks the actual
+// station this skill is being run at for this plan, which often isn't
+// the same as where the skill lives in the Dive Drills library (e.g. a
+// 1m Springboard skill drilled on Dryboard during this practice).
 function ddSkillToRow(skill){
-  return {id:uid('row'),activity:skill.name,min:5,category:skill.type,notes:'',image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level};
+  return {id:uid('row'),activity:skill.name,min:5,category:'',notes:'',image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level};
 }
 
 function loadDiveDrillsSkills(){
