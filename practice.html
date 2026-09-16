@@ -2509,14 +2509,25 @@ function openRotationPickerModal(planId){
     footHtml:`<button class="btn" onclick="closeModal()">Done</button>`
   });
 }
+// A station's assigned skill can come from either DB.skills (custom,
+// st.skillSource==='custom') or DD_SKILLS (st.skillSource==='dd') — see
+// the rotation form's inline search. Older saved rotations predate
+// skillSource and only ever referenced DB.skills, so a missing/blank
+// skillSource on a station with a skillId is treated as 'custom'.
 function addRotationToPlan(planId,templateId){
   const plan=findPlanById(planId);
   const tmpl=DB.rotationTemplates.find(t=>t.id===templateId);
   if(!plan||!tmpl)return;
   const groupId=uid('rotgrp');
   tmpl.stations.forEach(st=>{
-    const skill = st.skillId ? DB.skills.find(d=>d.id===st.skillId) : null;
-    plan.rows.push({id:uid('row'),activity:st.name||(skill?skill.name:'Station'),min:parseInt(st.minutes)||5,category:skill?categoryName(skill.categoryId):'',notes:'',image:null,stations:false,rotationGroupId:groupId,rotationName:tmpl.name});
+    const source=st.skillSource||'custom';
+    if(st.skillId && source==='dd'){
+      const dd=DD_SKILLS.find(d=>d.id===st.skillId);
+      plan.rows.push({id:uid('row'),activity:st.name||(dd?dd.name:'Station'),min:parseInt(st.minutes)||5,category:'',notes:'',image:null,stations:false,ddSkillId:st.skillId,ddSkillLevel:dd?dd.level:null,rotationGroupId:groupId,rotationName:tmpl.name});
+    } else {
+      const skill=st.skillId?DB.skills.find(d=>d.id===st.skillId):null;
+      plan.rows.push({id:uid('row'),activity:st.name||(skill?skill.name:'Station'),min:parseInt(st.minutes)||5,category:skill?categoryName(skill.categoryId):'',notes:'',image:null,stations:false,rotationGroupId:groupId,rotationName:tmpl.name});
+    }
   });
   builderDirty=true;closeModal();
   if(window.__currentPlanDraw)window.__currentPlanDraw();
@@ -3377,9 +3388,28 @@ function renderRotationsList(container){
   container.innerHTML = pageHeader('Rotations', `<button class="btn btn-primary" onclick="openRotationForm()">${ic('plus')} Create Rotation</button>`) +
     rotationsTableHtml();
 }
+const ROTATION_BLANK_STATION=()=>({name:'',skillId:'',skillName:'',skillStation:'',skillSource:'',minutes:5});
+// Older saved rotations only ever had {name, skillId, minutes} — skillId
+// always pointed into DB.skills (custom skills were the only kind the old
+// dropdown could offer). Backfill skillName/skillStation/skillSource from
+// that so the new search field has something to display, without waiting
+// on a resave to touch every existing template.
+function rotationNormalizeStation(st){
+  const out=Object.assign(ROTATION_BLANK_STATION(),st);
+  if(out.skillId && !out.skillSource){
+    const skill=DB.skills.find(d=>d.id===out.skillId);
+    out.skillSource='custom';
+    out.skillName=skill?skill.name:'';
+    out.skillStation=skill?categoryName(skill.categoryId):'';
+  }
+  return out;
+}
 function openRotationForm(id){
   const t=id?DB.rotationTemplates.find(t=>t.id===id):null;
-  window.__rotationDraft={name:t?t.name:'',stations:t?JSON.parse(JSON.stringify(t.stations)):[{name:'',skillId:'',minutes:5}]};
+  window.__rotationDraft={
+    name:t?t.name:'',
+    stations:t&&t.stations.length ? JSON.parse(JSON.stringify(t.stations)).map(rotationNormalizeStation) : [ROTATION_BLANK_STATION()],
+  };
   window.__rotationSaveId=id||'';
   drawRotationForm();
 }
@@ -3394,10 +3424,13 @@ function drawRotationForm(){
       <div class="tablewrap"><table><thead><tr><th>Station Name</th><th>Skill (optional)</th><th style="width:110px">Minutes</th><th></th></tr></thead><tbody>
       ${draft.stations.map((st,i)=>`<tr>
         <td><input class="input" value="${escAttr(st.name||'')}" onchange="rotationUpdateStation(${i},'name',this.value)"></td>
-        <td><select class="input" onchange="rotationUpdateStation(${i},'skillId',this.value)">
-          <option value="">--</option>
-          ${DB.skills.map(d=>`<option value="${d.id}" ${st.skillId===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}
-        </select></td>
+        <td>
+          <div class="searchadd-wrap">
+            <input class="input" id="rotskill_input_${i}" placeholder="Search for a skill…" autocomplete="off" value="${escAttr(st.skillName||'')}">
+            <div class="searchadd-results" id="rotskill_results_${i}" style="display:none;"></div>
+          </div>
+          ${st.skillId?`<div class="mutedtext" style="font-size:.72rem;margin-top:4px;">${st.skillSource==='dd'?'Dive Drills':'Custom'}${st.skillStation?' &middot; '+esc(st.skillStation):''} &middot; <a onclick="rotationClearStationSkill(${i})">Clear</a></div>`:''}
+        </td>
         <td><input class="input" type="number" value="${st.minutes||5}" onchange="rotationUpdateStation(${i},'minutes',this.value)"></td>
         <td><button class="icon-btn" onclick="rotationRemoveStation(${i})">${ic('trash')}</button></td>
       </tr>`).join('')}
@@ -3406,11 +3439,69 @@ function drawRotationForm(){
     `,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveRotationForm()">Save</button>`
   });
+  draft.stations.forEach((st,i)=>{
+    const input=document.getElementById('rotskill_input_'+i);
+    if(input)input.oninput=()=>drawRotationSkillSearch(i);
+  });
 }
-function rotationAddStation(){window.__rotationDraft.stations.push({name:'',skillId:'',minutes:5});drawRotationForm();}
+function rotationAddStation(){window.__rotationDraft.stations.push(ROTATION_BLANK_STATION());drawRotationForm();}
 function rotationRemoveStation(i){window.__rotationDraft.stations.splice(i,1);drawRotationForm();}
 function rotationUpdateStation(i,field,value){
   window.__rotationDraft.stations[i][field]= field==='minutes'?(parseInt(value)||0):value;
+}
+// Same two-source (DD + custom) inline search as drawBuilderSkillSearch/
+// drawBlockSkillSearch, adapted to set a single station's skill fields
+// (by index) instead of appending a new plan row / block skill.
+function drawRotationSkillSearch(i){
+  const input=document.getElementById('rotskill_input_'+i);
+  const host=document.getElementById('rotskill_results_'+i);
+  if(!input||!host)return;
+  const q=input.value.trim().toLowerCase();
+  if(!q){host.style.display='none';host.innerHTML='';host.__matches=[];return;}
+  const customMatches=DB.skills.filter(d=>d.status!=='Disabled'&&d.name.toLowerCase().includes(q)).slice(0,15)
+    .map(d=>({kind:'custom',id:d.id,name:d.name,station:categoryName(d.categoryId),stations:d.stations}));
+  const ddMatches=DD_SKILLS.filter(s=>s.name.toLowerCase().includes(q)).slice(0,15)
+    .map(s=>({kind:'dd',id:s.id,name:s.name,station:s.type,level:s.level}));
+  const matches=[...customMatches,...ddMatches].slice(0,20);
+  host.__matches=matches;
+  const resultsHtml = matches.length ? matches.map((m,idx)=>{
+    const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
+    const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
+    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
+    const stationsFlagBadge=m.stations?' <span class="searchadd-badge practice">Stations</span>':'';
+    return `<div class="searchadd-result" onmousedown="event.preventDefault();pickRotationSkillSearchResult(${i},${idx})" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${esc(m.name)}</strong>${stationPart}${levelPart}</span>
+      <span style="flex-shrink:0;white-space:nowrap;">${kindBadge}${stationsFlagBadge}</span>
+    </div>`;
+  }).join('') : '<div class="searchadd-result mutedtext" style="cursor:default;">No matching skills</div>';
+  const createHtml=`<div class="searchadd-result add-new" onmousedown="event.preventDefault();pickRotationSkillCreateNew(${i})">+ Add "${esc(input.value.trim())}" as new skill</div>`;
+  host.innerHTML = resultsHtml + createHtml;
+  host.style.display='block';
+}
+function pickRotationSkillSearchResult(i,idx){
+  const host=document.getElementById('rotskill_results_'+i);
+  const m=host&&host.__matches&&host.__matches[idx];
+  if(!m)return;
+  const st=window.__rotationDraft.stations[i];
+  st.skillId=m.id;st.skillName=m.name;st.skillStation=m.station||'';st.skillSource=m.kind;
+  drawRotationForm();
+}
+function pickRotationSkillCreateNew(i){
+  const input=document.getElementById('rotskill_input_'+i);
+  const trimmed=(input&&input.value||'').trim();
+  if(!trimmed)return;
+  const skill={id:uid('skill'),name:trimmed,categoryId:'',notes:'',stations:false,dateCreated:nowStamp(),image:null,minutes:5,status:'Enabled'};
+  DB.skills.push(skill);
+  saveDB();
+  const st=window.__rotationDraft.stations[i];
+  st.skillId=skill.id;st.skillName=skill.name;st.skillStation='';st.skillSource='custom';
+  drawRotationForm();
+  toast('New skill added to your library');
+}
+function rotationClearStationSkill(i){
+  const st=window.__rotationDraft.stations[i];
+  st.skillId='';st.skillName='';st.skillStation='';st.skillSource='';
+  drawRotationForm();
 }
 function saveRotationForm(){
   const draft=window.__rotationDraft;
