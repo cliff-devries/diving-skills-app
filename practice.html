@@ -2302,7 +2302,7 @@ function renderPracticeBuilder(id,container){
                 <td>${minutesInputPairHtml('row_min_'+r.id, r.min, `updatePlanRow('${plan.id}','${r.id}','min',this.value)`, readOnly)}</td>
                 <td class="mutedtext" style="white-space:nowrap;">${fromMinutes(t.start)} - ${fromMinutes(t.end)}</td>
                 <td>${r.ddSkillId
-                  ? `<span class="mutedtext">${esc(r.category||'')}${r.ddSkillLevel!=null?' · L'+esc(String(r.ddSkillLevel)):''}</span>`
+                  ? `<span class="mutedtext">${esc(r.category||'')}</span>`
                   : `<select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
                   <option value="">--</option>
                   ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
@@ -2347,7 +2347,7 @@ function renderPracticeBuilder(id,container){
                 <div class="skill-card-row">
                   <span class="skill-card-label">Station</span>
                   ${r.ddSkillId
-                    ? `<span class="mutedtext">${esc(r.category||'')}${r.ddSkillLevel!=null?' · L'+esc(String(r.ddSkillLevel)):''}</span>`
+                    ? `<span class="mutedtext">${esc(r.category||'')}</span>`
                     : `<select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
                       <option value="">--</option>
                       ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
