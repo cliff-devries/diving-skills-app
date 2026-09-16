@@ -2301,12 +2301,10 @@ function renderPracticeBuilder(id,container){
                   : `<input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)" ${dis}>`}</td>
                 <td>${minutesInputPairHtml('row_min_'+r.id, r.min, `updatePlanRow('${plan.id}','${r.id}','min',this.value)`, readOnly)}</td>
                 <td class="mutedtext" style="white-space:nowrap;">${fromMinutes(t.start)} - ${fromMinutes(t.end)}</td>
-                <td>${r.ddSkillId
-                  ? `<span class="mutedtext">${esc(r.category||'')}</span>`
-                  : `<select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
+                <td><select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
                   <option value="">--</option>
                   ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
-                </select>`}</td>
+                </select></td>
                 <td><input value="${escAttr(r.notes)}" onchange="updatePlanRow('${plan.id}','${r.id}','notes',this.value)" ${dis}></td>
                 <td><div class="row-actions">
                   ${readOnly?'':`<button class="icon-btn" title="Duplicate row" onclick="duplicatePlanRow('${plan.id}','${r.id}')">${ic('duplicate')}</button>
@@ -2345,12 +2343,10 @@ function renderPracticeBuilder(id,container){
                 </div>
                 <div class="skill-card-row">
                   <span class="skill-card-label">Station</span>
-                  ${r.ddSkillId
-                    ? `<span class="mutedtext">${esc(r.category||'')}</span>`
-                    : `<select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
-                      <option value="">--</option>
-                      ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
-                    </select>`}
+                  <select onchange="updatePlanRow('${plan.id}','${r.id}','category',this.value)" ${dis}>
+                    <option value="">--</option>
+                    ${cats.map(c=>`<option value="${escAttr(c.name)}" ${r.category===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
+                  </select>
                 </div>
                 <div class="skill-card-row">
                   <span class="skill-card-label">Notes</span><input value="${escAttr(r.notes)}" onchange="updatePlanRow('${plan.id}','${r.id}','notes',this.value)" ${dis}>
