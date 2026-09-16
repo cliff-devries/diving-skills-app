@@ -3209,7 +3209,7 @@ function buildPlanViewHtml(plan){
 
   const skillsSection=`
     <div class="view-card">
-      <div class="view-section-header" style="color:${c.accent};">🏊 Skills &amp; Rotations</div>
+      <div class="view-section-header" style="color:${c.accent};">Skills &amp; Rotations</div>
       <div class="view-skill-count">${plan.rows.length} skill${plan.rows.length===1?'':'s'} &middot; ${d.usedTotal} minute${d.usedTotal===1?'':'s'} total</div>
       ${plan.rows.length?`<div class="view-skill-list">${skillCardsHtml}</div>`:`<div class="view-body-text" style="color:#666666;">No skills added yet.</div>`}
     </div>`;
