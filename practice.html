@@ -3423,7 +3423,7 @@ function drawRotationForm(){
       <div class="field"><label>Stations</label></div>
       <div class="tablewrap"><table><thead><tr><th>Station Name</th><th>Skill (optional)</th><th style="width:110px">Minutes</th><th></th></tr></thead><tbody>
       ${draft.stations.map((st,i)=>`<tr>
-        <td><input class="input" value="${escAttr(st.name||'')}" onchange="rotationUpdateStation(${i},'name',this.value)"></td>
+        <td><input class="input" value="${escAttr(st.name||'')}" oninput="rotationUpdateStation(${i},'name',this.value)"></td>
         <td>
           <div class="searchadd-wrap">
             <input class="input" id="rotskill_input_${i}" placeholder="Search for a skill…" autocomplete="off" value="${escAttr(st.skillName||'')}">
@@ -3431,7 +3431,7 @@ function drawRotationForm(){
           </div>
           ${st.skillId?`<div class="mutedtext" style="font-size:.72rem;margin-top:4px;">${st.skillSource==='dd'?'Dive Drills':'Custom'}${st.skillStation?' &middot; '+esc(st.skillStation):''} &middot; <a onclick="rotationClearStationSkill(${i})">Clear</a></div>`:''}
         </td>
-        <td><input class="input" type="number" value="${st.minutes||5}" onchange="rotationUpdateStation(${i},'minutes',this.value)"></td>
+        <td><input class="input" type="number" value="${st.minutes||5}" oninput="rotationUpdateStation(${i},'minutes',this.value)"></td>
         <td><button class="icon-btn" onclick="rotationRemoveStation(${i})">${ic('trash')}</button></td>
       </tr>`).join('')}
       </tbody></table></div>
@@ -3439,6 +3439,15 @@ function drawRotationForm(){
     `,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveRotationForm()">Save</button>`
   });
+  // All three field kinds sync into the draft on every keystroke (not
+  // onchange/blur) — picking a skill result uses onmousedown+
+  // preventDefault specifically so the currently-focused field never
+  // blurs, which meant an onchange handler could be skipped entirely
+  // before the resulting drawRotationForm() re-render wiped whatever
+  // hadn't been committed yet. rot_name had no sync at all before this,
+  // which is why it was the field that visibly emptied out.
+  const nameInput=document.getElementById('rot_name');
+  if(nameInput)nameInput.oninput=e=>{window.__rotationDraft.name=e.target.value;};
   draft.stations.forEach((st,i)=>{
     const input=document.getElementById('rotskill_input_'+i);
     if(input)input.oninput=()=>drawRotationSkillSearch(i);
