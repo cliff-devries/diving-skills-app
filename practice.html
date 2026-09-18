@@ -837,7 +837,7 @@ function backfillBlockSkills(blocks, skills, categories){
         const d = skills.find(s=>s.id===id);
         if(!d) return null;
         const cat = categories.find(c=>c.id===d.categoryId);
-        return {skillId:d.id, name:d.name, minutes:5, station:cat?cat.name:'', source:'custom'};
+        return {skillId:d.id, name:d.name, minutes:5, station:cat?cat.name:'', source:'custom', notes:''};
       }).filter(Boolean);
     }
     if(!Array.isArray(b.skills)) b.skills=[];
@@ -2536,15 +2536,21 @@ function addRotationToPlan(planId,templateId){
 // Block picker: unlike the Rotation picker's per-row instant "Add"
 // button, the spec here is tap-to-select-a-row then a separate "Insert
 // Block" button confirms it — so the selection has to survive a redraw.
-// blockPickerSelectedId lives outside the modal (openModal() fully
-// replaces #modalRoot's innerHTML on every call) and window.__blockPickerRedraw
-// only touches the #blockPickerBody container, so re-selecting a row
-// never rebuilds the modal shell or loses scroll position.
+// blockPickerSelectedId/blockPickerSearch live outside the modal
+// (openModal() fully replaces #modalRoot's innerHTML on every call) and
+// window.__blockPickerRedraw only touches the #blockPickerBody container,
+// so selecting a row or typing a search term never rebuilds the modal
+// shell, the search input itself, or loses scroll position/focus.
 let blockPickerSelectedId=null;
+let blockPickerSearch='';
 function blockPickerBodyHtml(){
-  if(DB.skillBlocks.length===0) return `<p class="mutedtext">No skill blocks yet. Create one from the Skill Block List page.</p>`;
-  return `<div class="tablewrap"><table><thead><tr><th>Block Name</th><th>Skills</th><th>Total Min</th></tr></thead><tbody>
-    ${DB.skillBlocks.map(b=>{
+  if(DB.skillBlocks.length===0) return `<p class="mutedtext">No skill blocks yet. Create one in Practice Details &rarr; Skill Blocks.</p>`;
+  const q=blockPickerSearch.trim().toLowerCase();
+  const blocks=q?DB.skillBlocks.filter(b=>b.name.toLowerCase().includes(q)):DB.skillBlocks;
+  if(blocks.length===0) return `<p class="mutedtext">No blocks match "${esc(blockPickerSearch.trim())}".</p>`;
+  // No cap on how many blocks render — every match shows, scrollable.
+  return `<div class="tablewrap" style="max-height:60vh;overflow-y:auto;"><table><thead><tr><th>Block Name</th><th>Skills</th><th>Total Min</th></tr></thead><tbody>
+    ${blocks.map(b=>{
       const skills=b.skills||[];
       const mins=skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
       const selected=b.id===blockPickerSelectedId;
@@ -2556,13 +2562,22 @@ function blockPickerBodyHtml(){
 }
 function openBlockPickerModal(planId){
   blockPickerSelectedId=null;
+  blockPickerSearch='';
   openModal({
     title:'Add Skill Block',
     wide:true,
-    bodyHtml:`<div id="blockPickerBody">${blockPickerBodyHtml()}</div>`,
+    bodyHtml:`
+      ${DB.skillBlocks.length?`<input class="input" id="blockPickerSearchInput" placeholder="Search blocks by name…" autocomplete="off" style="margin-bottom:10px;">`:''}
+      <div id="blockPickerBody">${blockPickerBodyHtml()}</div>
+    `,
     footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="insertSelectedBlock('${planId}')">Insert Block</button>`,
   });
   window.__blockPickerRedraw=()=>{ const host=document.getElementById('blockPickerBody'); if(host)host.innerHTML=blockPickerBodyHtml(); };
+  const searchInput=document.getElementById('blockPickerSearchInput');
+  if(searchInput)searchInput.oninput=()=>{
+    blockPickerSearch=searchInput.value;
+    if(window.__blockPickerRedraw)window.__blockPickerRedraw();
+  };
 }
 function selectBlockPickerRow(id){
   blockPickerSelectedId = blockPickerSelectedId===id ? null : id;
@@ -2582,12 +2597,15 @@ function insertBlockIntoPlan(planId,blockId){
   const block=DB.skillBlocks.find(b=>b.id===blockId);
   if(!plan||!block)return;
   const skills=block.skills||[];
+  // A row created here is brand new, so "plan row notes are empty" is
+  // always true at this point — the block skill's own notes (if any)
+  // just become the new row's starting notes.
   skills.forEach(s=>{
     if(s.source==='dd'){
       const dd=DD_SKILLS.find(d=>d.id===s.skillId);
-      plan.rows.push({id:uid('row'),activity:s.name,min:parseInt(s.minutes)||5,category:s.station||(dd?dd.type:''),notes:'',image:null,stations:false,ddSkillId:s.skillId,ddSkillLevel:dd?dd.level:null});
+      plan.rows.push({id:uid('row'),activity:s.name,min:parseInt(s.minutes)||5,category:s.station||(dd?dd.type:''),notes:s.notes||'',image:null,stations:false,ddSkillId:s.skillId,ddSkillLevel:dd?dd.level:null});
     } else {
-      plan.rows.push({id:uid('row'),activity:s.name,min:parseInt(s.minutes)||5,category:s.station||'',notes:'',image:null,stations:false});
+      plan.rows.push({id:uid('row'),activity:s.name,min:parseInt(s.minutes)||5,category:s.station||'',notes:s.notes||'',image:null,stations:false});
     }
   });
   builderDirty=true;closeModal();
@@ -3713,14 +3731,15 @@ function renderSkillBlockForm(id, container){
       <div class="card builder-card">
         <label class="builder-label">Skills</label>
         <div class="tablewrap skilltable">
-          <table><thead><tr><th></th><th style="width:30px">#</th><th>Skill</th><th style="width:110px">Min</th><th style="text-align:right">Action</th></tr></thead>
+          <table><thead><tr><th></th><th style="width:30px">#</th><th>Skill</th><th style="width:110px">Min</th><th style="min-width:160px">Notes</th><th style="text-align:right">Action</th></tr></thead>
           <tbody>
-          ${b.skills.length===0?`<tr class="empty-row"><td colspan="5">${emptyMsg}</td></tr>`:
+          ${b.skills.length===0?`<tr class="empty-row"><td colspan="6">${emptyMsg}</td></tr>`:
             b.skills.map((s,idx)=>`<tr draggable="true" data-idx="${idx}" ondragstart="blockRowDragStart(event)" ondragover="blockRowDragOver(event)" ondrop="blockRowDrop(event)">
               <td class="drag-handle">${ic('drag')}</td>
               <td>${idx+1}</td>
               <td><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}${s.source==='dd'?' <span class="badge badge-secondary">Dive Drills</span>':' <span class="badge badge-secondary">Custom</span>'}</td>
               <td>${minutesInputPairHtml('blkmin_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}</td>
+              <td><input value="${escAttr(s.notes||'')}" placeholder="Add coaching notes..." oninput="updateBlockSkillNotes(${idx},this.value)"></td>
               <td><div class="row-actions"><button class="icon-btn" title="Remove" onclick="deleteBlockSkill(${idx})">${ic('trash')}</button></div></td>
             </tr>`).join('')}
           </tbody></table>
@@ -3741,6 +3760,9 @@ function renderSkillBlockForm(id, container){
               </div>
               <div class="skill-card-row">
                 <span class="skill-card-label">Min</span>${minutesInputPairHtml('blkmin_m_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}
+              </div>
+              <div class="skill-card-row">
+                <span class="skill-card-label">Notes</span><input value="${escAttr(s.notes||'')}" placeholder="Add coaching notes..." oninput="updateBlockSkillNotes(${idx},this.value)">
               </div>
             </div>`).join('')}
         </div>
@@ -3789,6 +3811,18 @@ function updateBlockSkillMinutes(idx,value){
   if(!s)return;
   s.minutes=Math.max(1,Math.min(180,parseInt(value,10)||5));
   if(window.__currentBlockDraw)window.__currentBlockDraw();
+}
+// oninput, not onchange — synced on every keystroke so nothing is lost if
+// some other action redraws the form first. Deliberately does NOT trigger
+// window.__currentBlockDraw() itself (unlike updateBlockSkillMinutes,
+// which needs to for the running total-minutes summary): nothing else on
+// screen depends on notes text, and redrawing the very field the coach is
+// mid-keystroke in would blow away their cursor position/reset focus —
+// the same class of bug just fixed on the rotation form's name field.
+function updateBlockSkillNotes(idx,value){
+  const s=blockDraft.skills[idx];
+  if(!s)return;
+  s.notes=value;
 }
 function deleteBlockSkill(idx){
   blockDraft.skills.splice(idx,1);
@@ -3846,7 +3880,7 @@ function pickBlockSkillSearchResult(idx){
   const host=document.getElementById('blkskill_results');
   const m=host&&host.__matches&&host.__matches[idx];
   if(!m)return;
-  blockDraft.skills.push({skillId:m.id,name:m.name,minutes:5,station:m.station||'',source:m.kind});
+  blockDraft.skills.push({skillId:m.id,name:m.name,minutes:5,station:m.station||'',source:m.kind,notes:''});
   if(window.__currentBlockDraw)window.__currentBlockDraw();
   focusFreshBlockSkillSearch();
 }
@@ -3856,7 +3890,7 @@ function pickBlockSkillCreateNew(){
   if(!trimmed)return;
   const skill={id:uid('skill'),name:trimmed,categoryId:'',notes:'',stations:false,dateCreated:nowStamp(),image:null,minutes:5,status:'Enabled'};
   DB.skills.push(skill);
-  blockDraft.skills.push({skillId:skill.id,name:skill.name,minutes:5,station:'',source:'custom'});
+  blockDraft.skills.push({skillId:skill.id,name:skill.name,minutes:5,station:'',source:'custom',notes:''});
   saveDB();
   if(window.__currentBlockDraw)window.__currentBlockDraw();
   toast('New skill added to block and saved to your library');
