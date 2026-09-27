@@ -2567,59 +2567,46 @@ function addRotationToPlan(planId,templateId){
   if(window.__currentPlanDraw)window.__currentPlanDraw();
   toast(tmpl.name+' rotation added to plan');
 }
-// Block picker: unlike the Rotation picker's per-row instant "Add"
-// button, the spec here is tap-to-select-a-row then a separate "Insert
-// Block" button confirms it — so the selection has to survive a redraw.
-// blockPickerSelectedId/blockPickerSearch live outside the modal
+// Block picker: same per-row instant "Add" pattern as the Rotation
+// picker (see openRotationPickerModal/addRotationToPlan above) — no
+// select-then-confirm step. blockPickerSearch lives outside the modal
 // (openModal() fully replaces #modalRoot's innerHTML on every call) and
 // window.__blockPickerRedraw only touches the #blockPickerBody container,
-// so selecting a row or typing a search term never rebuilds the modal
-// shell, the search input itself, or loses scroll position/focus.
-let blockPickerSelectedId=null;
+// so typing a search term never rebuilds the modal shell, the search
+// input itself, or loses scroll position/focus.
 let blockPickerSearch='';
-function blockPickerBodyHtml(){
+function blockPickerBodyHtml(planId){
   if(DB.skillBlocks.length===0) return `<p class="mutedtext">No skill blocks yet. Create one in Practice Details &rarr; Skill Blocks.</p>`;
   const q=blockPickerSearch.trim().toLowerCase();
   const blocks=q?DB.skillBlocks.filter(b=>b.name.toLowerCase().includes(q)):DB.skillBlocks;
   if(blocks.length===0) return `<p class="mutedtext">No blocks match "${esc(blockPickerSearch.trim())}".</p>`;
   // No cap on how many blocks render — every match shows, scrollable.
-  return `<div class="tablewrap" style="max-height:60vh;overflow-y:auto;"><table><thead><tr><th>Block Name</th><th>Skills</th><th>Total Min</th></tr></thead><tbody>
+  return `<div class="tablewrap" style="max-height:60vh;overflow-y:auto;"><table><thead><tr><th>Block Name</th><th>Skills</th><th>Total Min</th><th></th></tr></thead><tbody>
     ${blocks.map(b=>{
       const skills=b.skills||[];
       const mins=skills.reduce((s,x)=>s+(parseInt(x.minutes)||0),0);
-      const selected=b.id===blockPickerSelectedId;
-      return `<tr onclick="selectBlockPickerRow('${b.id}')" style="cursor:pointer;${selected?'background:var(--bg-surface-2);':''}">
-        <td>${esc(b.name)}</td><td>${skills.length}</td><td>${mins}</td>
-      </tr>`;
+      return `<tr><td>${esc(b.name)}</td><td>${skills.length}</td><td>${mins}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="insertBlockIntoPlan('${planId}','${b.id}')">Add</button></td></tr>`;
     }).join('')}
     </tbody></table></div>`;
 }
 function openBlockPickerModal(planId){
-  blockPickerSelectedId=null;
   blockPickerSearch='';
   openModal({
     title:'Add Skill Block',
     wide:true,
     bodyHtml:`
       ${DB.skillBlocks.length?`<input class="input" id="blockPickerSearchInput" placeholder="Search blocks by name…" autocomplete="off" style="margin-bottom:10px;">`:''}
-      <div id="blockPickerBody">${blockPickerBodyHtml()}</div>
+      <div id="blockPickerBody">${blockPickerBodyHtml(planId)}</div>
     `,
-    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="insertSelectedBlock('${planId}')">Insert Block</button>`,
+    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button>`,
   });
-  window.__blockPickerRedraw=()=>{ const host=document.getElementById('blockPickerBody'); if(host)host.innerHTML=blockPickerBodyHtml(); };
+  window.__blockPickerRedraw=()=>{ const host=document.getElementById('blockPickerBody'); if(host)host.innerHTML=blockPickerBodyHtml(planId); };
   const searchInput=document.getElementById('blockPickerSearchInput');
   if(searchInput)searchInput.oninput=()=>{
     blockPickerSearch=searchInput.value;
     if(window.__blockPickerRedraw)window.__blockPickerRedraw();
   };
-}
-function selectBlockPickerRow(id){
-  blockPickerSelectedId = blockPickerSelectedId===id ? null : id;
-  if(window.__blockPickerRedraw)window.__blockPickerRedraw();
-}
-function insertSelectedBlock(planId){
-  if(!blockPickerSelectedId){ toast('Select a block first'); return; }
-  insertBlockIntoPlan(planId, blockPickerSelectedId);
 }
 // Each block skill carries its own source (dd/custom) — a dd-sourced
 // entry is rebuilt as a real ddSkillId row (read-only, locked, matching
