@@ -527,6 +527,25 @@ function coachDisplayName(){
 // editable afterward from Settings -> Club Groups.
 const DEFAULT_GROUPS = ['Learn to Dive','Novice','Lessons','Pre-Team','Sparks','Fire','Blaze','Masters','RIT'];
 
+// Default plan color when no group is selected — same teal used everywhere
+// else in the app as the generic accent.
+const GROUP_DEFAULT_COLOR = '#00c9a7';
+
+// Per-group default plan colors, auto-applied when a coach picks a group in
+// the Practice Builder (see buildGroupCfg's onChange). RIT matches the
+// existing RIT branding used in PDF generation and the shared plan view.
+const GROUP_COLORS = {
+  'Learn to Dive':'#4CAF50',
+  'Novice':'#2196F3',
+  'Lessons':'#9C27B0',
+  'Pre-Team':'#FF9800',
+  'Sparks':'#FFD700',
+  'Fire':'#F44336',
+  'Blaze':'#FF5722',
+  'Masters':'#607D8B',
+  'RIT':'#F76900',
+};
+
 // Builds the club's flat, shared data set (skills, plans, etc. — no more
 // per-team nesting). Only ever used to seed a brand-new, empty club.
 function seedData(){
@@ -2116,7 +2135,21 @@ function renderPracticeBuilder(id,container){
       items:DB.groups,getText:g=>g.name,
       selected:(plan.groups&&plan.groups[0])?[{name:plan.groups[0]}]:[],
       onCreate:text=>{const item={id:uid('groups'),name:text,dateCreated:nowStamp()};DB.groups.push(item);saveDB();return item;}};
-    cfg.onChange=()=>{plan.groups=cfg.selected[0]?[cfg.selected[0].name]:[];builderDirty=true;draw();};
+    cfg.onChange=()=>{
+      const prevGroupName=(plan.groups&&plan.groups[0])||'';
+      const newGroupName=cfg.selected[0]?cfg.selected[0].name:'';
+      const prevDefaultColor=(GROUP_COLORS[prevGroupName]||GROUP_DEFAULT_COLOR).toLowerCase();
+      const currentColor=(plan.color||GROUP_DEFAULT_COLOR).toLowerCase();
+      // Only follow the group's default color if the coach hasn't already
+      // overridden it — i.e. the color is still whatever the previous
+      // group set it to (or the untouched teal default on a fresh plan).
+      const stillOnDefault = currentColor===prevDefaultColor || currentColor===GROUP_DEFAULT_COLOR;
+      plan.groups=newGroupName?[newGroupName]:[];
+      if(stillOnDefault){
+        plan.color=GROUP_COLORS[newGroupName]||GROUP_DEFAULT_COLOR;
+      }
+      builderDirty=true;draw();
+    };
     return cfg;
   }
   function buildCoachCfg(){
@@ -2238,7 +2271,8 @@ function renderPracticeBuilder(id,container){
               <div class="field"><input class="input" type="time" id="pb_start" value="${to12input(plan.startTime,plan.ampm)}" ${dis}></div>
               <div class="field"><input class="input" type="number" id="pb_duration" placeholder="Duration (min)" value="${esc(plan.duration)}" ${dis}></div>
             </div>
-            <input class="color-swatch" type="color" id="pb_color" value="${plan.color||'#00c9a7'}" ${dis}>
+            <input class="color-swatch" type="color" id="pb_color" value="${plan.color||GROUP_DEFAULT_COLOR}" ${dis}>
+            <div class="mutedtext" style="font-size:.72rem;margin-top:4px;">${(plan.color||GROUP_DEFAULT_COLOR).toLowerCase()===(GROUP_COLORS[(plan.groups&&plan.groups[0])||'']||GROUP_DEFAULT_COLOR).toLowerCase()?'Default color set by group':'Custom color'}</div>
           </div>
           <div class="builder-subsection" style="border-bottom:none;margin-bottom:0;padding-bottom:0;">
             <label class="builder-label">Location</label>
