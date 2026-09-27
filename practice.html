@@ -2530,18 +2530,40 @@ function focusFreshBuilderSkillSearch(){
   if(freshWrap)freshWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
   if(freshInput)freshInput.focus();
 }
+// Rotation picker: same per-row instant "Add" + live search pattern as
+// the Skill Block picker below. rotationPickerSearch lives outside the
+// modal (openModal() fully replaces #modalRoot's innerHTML on every
+// call) and window.__rotationPickerRedraw only touches the
+// #rotationPickerBody container, so typing a search term never rebuilds
+// the modal shell, the search input itself, or loses scroll/focus.
+let rotationPickerSearch='';
+function rotationPickerBodyHtml(planId){
+  if(DB.rotationTemplates.length===0) return `<p class="mutedtext">No rotation templates yet. Create one from the Skills page.</p>`;
+  const q=rotationPickerSearch.trim().toLowerCase();
+  const tmpls=q?DB.rotationTemplates.filter(t=>t.name.toLowerCase().includes(q)):DB.rotationTemplates;
+  if(tmpls.length===0) return `<p class="mutedtext">No rotations match "${esc(rotationPickerSearch.trim())}".</p>`;
+  return `<div class="tablewrap" style="max-height:60vh;overflow-y:auto;"><table><thead><tr><th>Rotation</th><th>Stations</th><th>Total Min</th><th></th></tr></thead><tbody>
+    ${tmpls.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.stations.length}</td><td>${t.stations.reduce((s,st)=>s+(parseInt(st.minutes)||0),0)}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="addRotationToPlan('${planId}','${t.id}')">Add</button></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
 function openRotationPickerModal(planId){
+  rotationPickerSearch='';
   openModal({
     title:'Add Rotation',
     wide:true,
-    bodyHtml: DB.rotationTemplates.length===0
-      ? `<p class="mutedtext">No rotation templates yet. Create one from the Skills page.</p>`
-      : `<div class="tablewrap"><table><thead><tr><th>Rotation</th><th>Stations</th><th>Total Min</th><th></th></tr></thead><tbody>
-        ${DB.rotationTemplates.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.stations.length}</td><td>${t.stations.reduce((s,st)=>s+(parseInt(st.minutes)||0),0)}</td>
-          <td><button class="btn btn-sm btn-primary" onclick="addRotationToPlan('${planId}','${t.id}')">Add</button></td></tr>`).join('')}
-        </tbody></table></div>`,
-    footHtml:`<button class="btn" onclick="closeModal()">Done</button>`
+    bodyHtml:`
+      ${DB.rotationTemplates.length?`<input class="input" id="rotationPickerSearchInput" placeholder="Search rotations..." autocomplete="off" style="margin-bottom:10px;">`:''}
+      <div id="rotationPickerBody">${rotationPickerBodyHtml(planId)}</div>
+    `,
+    footHtml:`<button class="btn" onclick="closeModal()">Cancel</button>`,
   });
+  window.__rotationPickerRedraw=()=>{ const host=document.getElementById('rotationPickerBody'); if(host)host.innerHTML=rotationPickerBodyHtml(planId); };
+  const searchInput=document.getElementById('rotationPickerSearchInput');
+  if(searchInput)searchInput.oninput=()=>{
+    rotationPickerSearch=searchInput.value;
+    if(window.__rotationPickerRedraw)window.__rotationPickerRedraw();
+  };
 }
 // A station's assigned skill can come from either DB.skills (custom,
 // st.skillSource==='custom') or DD_SKILLS (st.skillSource==='dd') — see
