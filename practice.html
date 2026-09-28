@@ -136,14 +136,6 @@ button{font-family:inherit;cursor:pointer;}
 .status-alert .msg{flex:1;min-width:200px;}
 .status-alert strong{color:var(--pending);}
 
-/* SYNC DOT */
-.sync-dot-wrap{display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:.72rem;color:var(--text-secondary);}
-.sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#6b7280;transition:background .2s ease;}
-.sync-dot.idle{background:var(--accent);}
-.sync-dot.saving{background:#f5a623;animation:sync-pulse 1s ease-in-out infinite;}
-.sync-dot.error{background:#eb5757;}
-@keyframes sync-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
-
 /* DEBUG BAR — only shown when the page URL has ?debug=1 */
 .debug-bar{
   display:flex;flex-direction:column;gap:4px;padding:8px 16px;font-size:.72rem;
@@ -765,15 +757,11 @@ function scheduleSync(){
   window.addEventListener(evt, ()=>{ if(document.visibilityState==='hidden'||evt==='beforeunload') runSync(); });
 });
 
-function syncStatusLabel(status){
-  return status==='saving' ? 'Saving…' : status==='error' ? 'Sync error' : 'Synced';
-}
+// No visible indicator reads this anymore — runSync() still calls this at
+// each state transition ('saving'/'idle'/'error') to track status, kept in
+// case something needs it again, but it no longer touches the DOM.
 function setSyncStatus(status){
   currentSyncStatus = status;
-  const dot = document.getElementById('syncDot');
-  const label = document.getElementById('syncLabel');
-  if(dot) dot.className = 'sync-dot '+status;
-  if(label) label.textContent = syncStatusLabel(status);
 }
 
 function camelToSnake(s){return s.replace(/([A-Z])/g,'_$1').toLowerCase();}
@@ -1326,7 +1314,6 @@ function renderSidebar(){
     <img class="brand-mark" src="assets/icons/diver-icon.svg" alt="">
     <div><div class="brand-text">Dive<span>Practice</span></div><div class="brand-tagline">Practice Scheduler</div></div>
   </div>`;
-  html+=`<div class="sync-dot-wrap"><span class="sync-dot ${currentSyncStatus}" id="syncDot" title="Cloud sync status"></span><span id="syncLabel">${syncStatusLabel(currentSyncStatus)}</span></div>`;
   html+='<nav class="sidebar-nav">';
   NAV.forEach(item=>{
     const active=mainRoute===item.route;
