@@ -430,9 +430,6 @@ body.view-mode #mainWrap{margin-left:0!important;}
 body.view-mode #content{padding:0;max-width:none;}
 .view-page{background:#f4f5f7;min-height:100vh;padding:20px 16px 60px;}
 .view-shell{max-width:680px;margin:0 auto;}
-.view-back{margin-bottom:14px;}
-.view-back a{color:#666666;font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;}
-.view-back a:hover{color:#1a1a1a;}
 .view-card{background:#ffffff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 20px;margin-bottom:14px;}
 .view-brand{font-size:1.05rem;font-weight:800;}
 .view-org{font-size:.78rem;color:#666666;margin-top:2px;font-weight:600;}
@@ -3216,7 +3213,6 @@ async function fetchSharedPracticePlan(planId){
 }
 function planViewSkeletonHtml(){
   return `<div class="view-page"><div class="view-shell">
-    <div class="view-back"><a onclick="history.back()">← Back</a></div>
     <div class="view-card view-skel" style="height:150px;"></div>
     <div class="view-card view-skel" style="height:56px;"></div>
     <div class="view-card view-skel" style="height:220px;"></div>
@@ -3224,7 +3220,6 @@ function planViewSkeletonHtml(){
 }
 function planViewNotFoundHtml(){
   return `<div class="view-page"><div class="view-shell">
-    <div class="view-back"><a onclick="history.back()">← Back</a></div>
     <div class="view-card" style="text-align:center;padding:44px 20px;">
       <div style="font-size:2rem;margin-bottom:10px;">🔍</div>
       <div style="font-weight:700;font-size:1.05rem;color:#1a1a1a;margin-bottom:6px;">Practice plan not found</div>
@@ -3326,7 +3321,6 @@ function buildPlanViewHtml(plan){
     </div>`;
 
   return `<div class="view-page"><div class="view-shell">
-    <div class="view-back"><a onclick="history.back()">← Back</a></div>
     ${headerCard}${infoRow}${announcementsCard}${quoteCard}${pointsCard}${skillsSection}${donutSection}${notesCard}${footer}
   </div></div>`;
 }
