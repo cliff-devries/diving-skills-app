@@ -60,8 +60,6 @@ button{font-family:inherit;cursor:pointer;}
   color:var(--text-secondary);
 }
 @media(min-width:768px){#sidebar{display:flex;}}
-.pp-back-link{display:flex;align-items:center;gap:8px;padding:14px 20px;color:var(--text-secondary);font-size:.8rem;font-weight:600;text-decoration:none;border-bottom:1px solid var(--border);transition:var(--transition);flex-shrink:0;}
-.pp-back-link:hover{color:var(--accent);background:var(--bg-surface-2);text-decoration:none;}
 .pp-mobile-backbar{display:flex;padding:10px 20px;background:var(--bg-surface);border-bottom:1px solid var(--border);}
 .pp-mobile-backbar a{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:.8rem;font-weight:600;}
 .pp-mobile-backbar a:hover{color:var(--accent);}
@@ -1324,7 +1322,6 @@ function renderSidebar(){
   const route=currentRoute();
   const mainRoute=route.split('/')[0];
   let html='';
-  html+=`<a class="pp-back-link" href="dashboard.html">← Dive Drills</a>`;
   html+=`<div class="brand" onclick="navigate('dashboard')">
     <img class="brand-mark" src="assets/icons/diver-icon.svg" alt="">
     <div><div class="brand-text">Dive<span>Practice</span></div><div class="brand-tagline">Practice Scheduler</div></div>
