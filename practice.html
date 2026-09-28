@@ -2312,9 +2312,7 @@ function renderPracticeBuilder(id,container){
         <label class="builder-label">Skills &amp; Rotations</label>
         <div style="margin:6px 0 12px;display:flex;align-items:center;justify-content:flex-end;">
           ${readOnly?'':`<div class="btn-group">
-            <button class="btn btn-sm" onclick="addPlanRowFromLibrary('${plan.id}')">${ic('plus')} Add from Skill Library</button>
             <button class="btn btn-sm" onclick="openRotationPickerModal('${plan.id}')">${ic('plus')} Add Rotation</button>
-            <button class="btn btn-sm btn-primary" onclick="addPlanRow('${plan.id}')">${ic('plus')} Add Blank Row</button>
             <button class="btn btn-sm" onclick="openBlockPickerModal('${plan.id}')">${ic('plus')} Add Block</button>
           </div>`}
         </div>
@@ -2324,7 +2322,7 @@ function renderPracticeBuilder(id,container){
             <th style="text-align:right">Action</th>
           </tr></thead>
           <tbody id="planRowsBody">
-          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="8">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row" / "Add Block".</td></tr>`:
+          ${plan.rows.length===0?`<tr class="empty-row"><td colspan="8">No skills added yet. Search below, or use "Add Rotation" / "Add Block".</td></tr>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<tr class="${r.rotationGroupId?'rotation-row':''}" draggable="${readOnly?'false':'true'}" data-idx="${idx}" ondragstart="rowDragStart(event)" ondragover="rowDragOver(event)" ondrop="rowDrop(event,'${plan.id}')">
@@ -2349,7 +2347,7 @@ function renderPracticeBuilder(id,container){
           </tbody></table>
         </div>
         <div class="skill-cards-mobile">
-          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search below, or use "Add from Skill Library" / "Add Rotation" / "Add Blank Row" / "Add Block".</p>`:
+          ${plan.rows.length===0?`<p class="mutedtext">No skills added yet. Search below, or use "Add Rotation" / "Add Block".</p>`:
             plan.rows.map((r,idx)=>{
               const t=times[idx];
               return `<div class="skill-card ${r.rotationGroupId?'rotation-row':''}">
@@ -2685,11 +2683,6 @@ function autoSaveSkillFromRow(row){
   saveDB();
   toast('Saved to your library');
 }
-function addPlanRow(planId){
-  const plan=findPlanById(planId);
-  plan.rows.push({id:uid('row'),activity:'',min:5,category:plan.filterCategory||'',notes:'',image:null,stations:false});
-  builderDirty=true;window.__currentPlanDraw();
-}
 function duplicatePlanRow(planId,rowId){
   const plan=findPlanById(planId);
   const row=plan.rows.find(r=>r.id===rowId);
@@ -2778,24 +2771,10 @@ function rowTouchEnd(){
   }
   if(window.__currentPlanDraw)window.__currentPlanDraw();
 }
-function addPlanRowFromLibrary(planId){
-  const plan=findPlanById(planId);
-  const pool=DB.skills.filter(d=>d.status!=='Disabled' && (!plan.filterCategory || categoryName(d.categoryId)===plan.filterCategory));
-  openModal({
-    title:'Add from Skill Library',
-    wide:true,
-    bodyHtml:`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Name</th><th>Notes</th><th></th></tr></thead><tbody>
-      ${pool.length===0?`<tr class="empty-row"><td colspan="4">No skills in your library yet.</td></tr>`:
-      pool.map(d=>`<tr><td>${esc(categoryName(d.categoryId))}</td><td>${esc(d.name)}</td><td class="mutedtext">${esc(d.notes||'')}</td>
-      <td><button class="btn btn-sm btn-primary" onclick="addSkillToPlan('${planId}','${d.id}')">Add</button></td></tr>`).join('')}
-    </tbody></table></div>`,
-    footHtml:`<button class="btn" onclick="closeModal()">Done</button>`
-  });
-}
-// Minutes always defaults to 5 regardless of entry point (this modal, the
-// Builder's inline search, Dive Drills results) — the skill library no
-// longer stores a meaningful minutes value; the coach adjusts it per-row
-// in the plan itself.
+// Minutes always defaults to 5 regardless of entry point (the Builder's
+// inline search, Dive Drills results) — the skill library no longer
+// stores a meaningful minutes value; the coach adjusts it per-row in the
+// plan itself.
 function addSkillToPlan(planId,skillId){
   const plan=findPlanById(planId);
   const d=DB.skills.find(d=>d.id===skillId);
