@@ -1894,6 +1894,14 @@ function wireSearchAddField(id){
   input.oninput=()=>drawSearchAddResults(id);
   input.onfocus=()=>drawSearchAddResults(id);
   input.onkeydown=(e)=>searchAddKeydown(e,id);
+  // Commits synchronously, not inside the dropdown-hide's own setTimeout
+  // below — blur always fires before the click that follows it (e.g.
+  // tapping Save Practice right after typing a quote), so committing here
+  // immediately is what makes plan.quote actually hold the typed value by
+  // the time that click's handler runs. Delaying this the same way the
+  // dropdown-hide is delayed would let a fast click reach saveBuilderDraft
+  // before the commit ever happened — exactly the bug this fixes.
+  input.addEventListener('blur',()=>commitSearchAddSingleValue(id));
   input.addEventListener('blur',()=>setTimeout(()=>{const r=document.getElementById(id+'_results');if(r)r.style.display='none';},150));
 }
 function drawSearchAddResults(id){
@@ -1966,6 +1974,33 @@ function searchAddRemove(id,idx){
   cfg.selected=(cfg.selected||[]).filter((_,i)=>i!==idx);
   cfg.onChange();
 }
+// Single-select fields (Location, Quote, Coach) show the selection as raw
+// input text, not a chip — so typing a new value and then clicking
+// straight to another field or the Save button (without pressing Enter or
+// clicking a suggestion row) never went through searchAddPick/Create, and
+// cfg.selected/plan.* was never updated. The next unrelated redraw then
+// rebuilds this same input from cfg.selected and silently reverts it to
+// whatever was last actually committed — text the coach typed just
+// vanishes. Wired from wireSearchAddField's blur handler above to commit
+// on any blur, matching what Enter already does. Never called for multi
+// fields — their chips already are the value, and a stray in-progress
+// search term isn't meant to auto-add itself as a chip.
+function commitSearchAddSingleValue(id){
+  const cfg=SEARCHADD[id];
+  const input=document.getElementById(id+'_input');
+  if(!cfg||cfg.multi||!input)return;
+  const text=input.value.trim();
+  const currentText=(cfg.selected&&cfg.selected[0])?cfg.getText(cfg.selected[0]):'';
+  if(text===currentText)return;
+  if(!text){ cfg.selected=[]; cfg.onChange(); return; }
+  const exactIdx=cfg.items.findIndex(item=>cfg.getText(item).toLowerCase()===text.toLowerCase());
+  if(exactIdx!==-1){ cfg.selected=[cfg.items[exactIdx]]; cfg.onChange(); }
+  else if(!cfg.noCreate){ cfg.selected=[cfg.onCreate(text)]; cfg.onChange(); }
+  // else (noCreate, e.g. the Coach field, and no exact match): leave
+  // cfg.selected untouched — the redraw this triggers-on-blur reverts the
+  // input to the last real selection rather than accepting free text a
+  // coach picker was never meant to allow.
+}
 
 /* ============================= PRACTICE BUILDER ============================= */
 // A plan is only written into DB.plans (and synced) when the coach taps
@@ -2017,6 +2052,20 @@ function loadBuilderDraft(id){
 }
 function saveBuilderDraft(){
   if(!builderDraft)return;
+  // Flush any single-select search-add field (Quote, Location, Group,
+  // Coach) the coach typed into but never committed by picking a
+  // suggestion or pressing Enter — clicking straight from that input to
+  // this Save button never ran searchAddPick/Create, so plan.quote etc.
+  // would still hold the OLD value at this point without this. See
+  // commitSearchAddSingleValue's own comment for the full failure mode
+  // (this was the root cause of "Quote of the Day sometimes doesn't
+  // save"). Scoped to !cfg.multi — Announcements/Practice Points chips
+  // are already the real value, so a leftover search term there is
+  // correctly just discarded, not auto-added.
+  Object.keys(SEARCHADD).forEach(id=>{
+    const cfg=SEARCHADD[id];
+    if(cfg && !cfg.multi) commitSearchAddSingleValue(id);
+  });
   const {__sourceId,...fields}=builderDraft;
   if(__sourceId){
     const real=DB.plans.find(p=>p.id===__sourceId);
