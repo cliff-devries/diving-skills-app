@@ -2075,24 +2075,45 @@ function sharePracticePlan(){
     toast('Save this practice first, then share it');
     return;
   }
-  setPlanShared(true, 'Link copied! Anyone with this link can view this practice');
+  setPlanShared(true);
 }
 function unsharePracticePlan(){
   if(!builderDraft || !builderDraft.__sourceId) return;
-  setPlanShared(false, 'Practice is now private');
+  setPlanShared(false);
 }
 // Flips is_shared on both the live builder draft and its saved DB.plans
 // row, then pushes to Supabase immediately — bypassing the usual 500ms
-// scheduleSync() debounce — because a copied share link needs to work
-// the instant the coach copies it, not half a second later.
-async function setPlanShared(shared, message){
+// scheduleSync() debounce — because a copied share link needs to work the
+// instant the coach copies it, not half a second later.
+//
+// isShared/is_shared itself was never the bug — it's set locally and
+// persisted via saveDB() unconditionally below, same as before. The real
+// bug was in the feedback: the old code awaited runSync() but never
+// checked what it returned, then unconditionally showed "Link copied!"
+// regardless of whether that sync actually reached Supabase. runSync()
+// can legitimately no-op and return false — not yet initialized
+// (lastSyncedSnapshot/SYNC_COACH_ID unset), or already mid-sync from an
+// earlier autosave (syncInFlight, queued for later) — and on spotty
+// poolside wifi a real network failure is common too; runSync() reports
+// that itself with its own "Sync failed…" toast. But .toast is a single
+// fixed-position element with no stacking, so that failure toast got
+// visually clobbered milliseconds later by this function's own "Link
+// copied!" toast, making a silent/queued/failed sync look identical to a
+// successful one. Fix: check runSync()'s return value and word the one
+// toast this function shows accordingly, and pass {silent:true} so
+// runSync() doesn't also fire its own competing toast underneath it.
+async function setPlanShared(shared){
+  console.log('Sharing plan:', builderDraft.id, 'isShared:', shared);
   builderDraft.isShared=shared;
   const real=DB.plans.find(p=>p.id===builderDraft.__sourceId);
   if(real) real.isShared=shared;
   saveDB();
-  await runSync();
+  const synced = await runSync({silent:true});
   if(shared){
     const url=window.location.origin+'/practice.html#/view/'+builderDraft.id;
+    const message = synced
+      ? 'Link copied! Anyone with this link can view this practice'
+      : 'Link copied — will finish syncing once back online';
     const done=()=>toast(message);
     const fail=()=>toast('Could not copy — link: '+url);
     if(navigator.clipboard && navigator.clipboard.writeText){
@@ -2101,7 +2122,7 @@ async function setPlanShared(shared, message){
       fail();
     }
   } else {
-    toast(message);
+    toast(synced ? 'Practice is now private' : 'Practice set to private — will finish syncing once back online');
   }
   if(window.__currentPlanDraw) window.__currentPlanDraw();
 }
