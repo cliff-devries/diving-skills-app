@@ -510,6 +510,11 @@ const Reports = {
           logging: false,
           imageTimeout: 15000,
           removeContainer: true,
+          // html2canvas clones the whole live page for every capture. On
+          // stats.html that's the full reports list (plus nav, animations),
+          // re-cloned per block — enough extra work to stall mobile Safari.
+          // Blocks are fully inline-styled, so nothing else is needed.
+          ignoreElements: el => el.parentNode === document.body && el !== container,
         }),
         timeoutMs,
         `Capture timed out after ${timeoutMs / 1000}s`
