@@ -386,6 +386,51 @@ const Reports = {
   },
 
   // =============================================
+  // PDF DEBUG OVERLAY — ?debugpdf=1 only. html2canvas can stall
+  // indefinitely on mobile Safari (see PDF_TIMEOUT_MS above) with nothing
+  // in Safari's own UI to show which section it was on when it happened,
+  // and reproducing it live under USB/Web Inspector on an iPhone in the
+  // field isn't always possible. This renders each section's
+  // start/done/fail directly on the page as it happens, so whichever
+  // section's "⏳ Starting" line never gets a matching "✅ Done" is the
+  // one that stalled — no cable needed.
+  // =============================================
+  _debugPdf: {
+    enabled() {
+      try { return new URLSearchParams(location.search).get('debugpdf') === '1'; }
+      catch { return false; }
+    },
+    _el: null,
+    _logEl: null,
+    start(meta) {
+      if (!this.enabled()) return;
+      if (!this._el) {
+        this._el = document.createElement('div');
+        this._el.id = 'pdfDebugOverlay';
+        this._el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45vh;'
+          + 'overflow-y:auto;-webkit-overflow-scrolling:touch;background:rgba(0,0,0,.85);'
+          + 'color:#fff;font:12px/1.5 monospace;padding:10px 14px;z-index:999999;';
+        document.body.appendChild(this._el);
+      }
+      this._el.innerHTML = '<div style="display:flex;justify-content:space-between;'
+        + 'align-items:center;font-weight:bold;margin-bottom:6px;gap:10px;">'
+        + `<span>Scale: ${meta.scale} | Mobile: ${meta.isMobile ? 'yes' : 'no'} | Sections: ${meta.sectionCount}</span>`
+        + '<span style="cursor:pointer;padding:0 4px;" onclick="document.getElementById(\'pdfDebugOverlay\').remove()">✕</span>'
+        + '</div><div id="pdfDebugLog"></div>';
+      this._logEl = this._el.querySelector('#pdfDebugLog');
+    },
+    log(status, label) {
+      if (!this.enabled() || !this._logEl) return;
+      const icon = status === 'start' ? '⏳' : status === 'done' ? '✅' : '❌';
+      const word = status === 'start' ? 'Starting' : status === 'done' ? 'Done' : 'Failed';
+      const line = document.createElement('div');
+      line.textContent = `${icon} ${word}: ${label}`;
+      this._logEl.appendChild(line);
+      this._el.scrollTop = this._el.scrollHeight;
+    },
+  },
+
+  // =============================================
   // PDF ASSEMBLY — one html2canvas capture per block, placed with a running
   // Y-position tracker (see page-break strategy note at the top of the file)
   // =============================================
@@ -508,13 +553,22 @@ const Reports = {
 
     console.log('[PDF] Level', data.level, '—', sectionCount, 'sections,', data.skills.length, 'total skills,',
       blocks.length, 'capture blocks. isLargeLevel:', isLargeLevel, 'isManySections:', isManySections);
+    this._debugPdf.start({ scale: this._captureScale(isHighMemoryRisk), isMobile, sectionCount });
 
     let y = margin;
     let firstBlockOnPage = true;
     for (const block of blocks) {
       console.log('[PDF] Starting section:', block.label, 'row count:', block.skillCount);
-      let canvas = await this._captureBlock(block.html, blockWidthPx, isHighMemoryRisk);
+      this._debugPdf.log('start', block.label);
+      let canvas;
+      try {
+        canvas = await this._captureBlock(block.html, blockWidthPx, isHighMemoryRisk);
+      } catch (err) {
+        this._debugPdf.log('fail', block.label);
+        throw err;
+      }
       console.log('[PDF] Completed section:', block.label);
+      this._debugPdf.log('done', block.label);
 
       const pxPerPt  = canvas.width / contentWidth;
       const blockHeightPt = canvas.height / pxPerPt;
