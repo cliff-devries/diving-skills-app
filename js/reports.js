@@ -41,7 +41,22 @@ const Reports = {
   // indefinitely rather than throw). This caps how long generation is
   // allowed to hang before we give up and surface a clear error instead of
   // leaving the UI spinning forever.
-  PDF_TIMEOUT_MS: 30000,
+  // Whole-report backstop only — per-block timeouts below are what actually
+  // catch a stall, so this has to leave room for a block's first attempt,
+  // its retry, and the rest of the report.
+  PDF_TIMEOUT_MS: 90000,
+
+  // A single stalled capture is abandoned after this long and retried once
+  // at a lower scale; if the retry also fails the block is drawn as plain
+  // text so one bad section can't sink the whole report.
+  BLOCK_TIMEOUT_MS: 10000,
+  RETRY_BLOCK_TIMEOUT_MS: 15000,
+  RETRY_SCALE: 0.75,
+
+  // Sections observed stalling on iPhone Safari (Flexibility on Level 1)
+  // get the conservative retry settings up front on iOS.
+  IOS_SENSITIVE_SECTIONS: ['Flexibility'],
+  IOS_SENSITIVE_DELAY_MS: 300,
 
   // A level with more total skills than this gets extra mobile memory
   // management (lower capture scale, longer inter-capture delay) — sized
@@ -213,6 +228,18 @@ const Reports = {
       </div>`;
   },
 
+  // Degree signs and invisible/control Unicode in coach-entered skill names
+  // are a suspected html2canvas stall trigger on iOS; plain ASCII renders
+  // identically for our purposes.
+  _pdfSafeText(str) {
+    return String(str ?? '')
+      .replace(/°/g, ' deg')
+      .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF]/g, '')
+      .replace(/[‘’]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/[–—]/g, '-');
+  },
+
   _skillRowHtml(skill, idx) {
     const c = this.COLORS;
     const bg = idx % 2 === 0 ? '#ffffff' : c.rowAlt;
@@ -229,7 +256,7 @@ const Reports = {
     const icon = !tested ? '' : (skill.latestScore >= 5.0 ? '✅' : '❌');
     return `
       <tr style="background:${bg}">
-        <td style="padding:6px 10px;font-size:11px;color:${c.textPrimary};border-bottom:1px solid ${c.border}">${App.escHtml(skill.name)}</td>
+        <td style="padding:6px 10px;font-size:11px;color:${c.textPrimary};border-bottom:1px solid ${c.border}">${App.escHtml(this._pdfSafeText(skill.name))}</td>
         <td style="padding:6px 10px;border-bottom:1px solid ${c.border};text-align:center;width:60px;${scoreStyle}">${scoreText}</td>
         <td style="padding:6px 10px;font-size:13px;border-bottom:1px solid ${c.border};text-align:center;width:40px">${icon}</td>
       </tr>`;
@@ -282,29 +309,34 @@ const Reports = {
   // chunk], then further row-chunks, then the average footer.
   _buildSectionBlocks(group) {
     const chunkSize = this.SECTION_CHUNK_SIZE;
+    const type = group.type;
     if (group.skills.length <= chunkSize) {
-      return [{ html: this._sectionBlockHtml(group), label: group.type, skillCount: group.skills.length }];
+      return [{ html: this._sectionBlockHtml(group), label: type, skillCount: group.skills.length,
+        type, skills: group.skills, withHeader: true }];
     }
 
     const blocks = [];
     const firstChunk = group.skills.slice(0, chunkSize);
     blocks.push({
       html: `${this._sectionHeaderHtml(group)}${this._sectionRowsHtml(firstChunk, 0)}`,
-      label: `${group.type} (rows 1-${firstChunk.length})`,
+      label: `${type} (rows 1-${firstChunk.length})`,
       skillCount: firstChunk.length,
+      type, skills: firstChunk, withHeader: true,
     });
     for (let i = chunkSize; i < group.skills.length; i += chunkSize) {
       const chunk = group.skills.slice(i, i + chunkSize);
       blocks.push({
         html: this._sectionRowsHtml(chunk, i),
-        label: `${group.type} (rows ${i + 1}-${i + chunk.length})`,
+        label: `${type} (rows ${i + 1}-${i + chunk.length})`,
         skillCount: chunk.length,
+        type, skills: chunk, withHeader: false,
       });
     }
     blocks.push({
       html: this._sectionFooterHtml(group),
-      label: `${group.type} (average)`,
+      label: `${type} (average)`,
       skillCount: group.skills.length,
+      type, skills: [], withHeader: false,
     });
     return blocks;
   },
@@ -404,7 +436,7 @@ const Reports = {
     _logEl: null,
     start(meta) {
       if (!this.enabled()) return;
-      if (!this._el) {
+      if (!this._el || !this._el.isConnected) {
         this._el = document.createElement('div');
         this._el.id = 'pdfDebugOverlay';
         this._el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45vh;'
@@ -419,12 +451,16 @@ const Reports = {
         + '</div><div id="pdfDebugLog"></div>';
       this._logEl = this._el.querySelector('#pdfDebugLog');
     },
-    log(status, label) {
+    log(status, label, detail) {
       if (!this.enabled() || !this._logEl) return;
-      const icon = status === 'start' ? '⏳' : status === 'done' ? '✅' : '❌';
-      const word = status === 'start' ? 'Starting' : status === 'done' ? 'Done' : 'Failed';
+      const [icon, word] = {
+        start:    ['⏳', 'Starting'],
+        done:     ['✅', 'Done'],
+        retry:    ['🔁', 'Retrying'],
+        fallback: ['⚠️', 'Text fallback'],
+      }[status] || ['❌', 'Failed'];
       const line = document.createElement('div');
-      line.textContent = `${icon} ${word}: ${label}`;
+      line.textContent = `${icon} ${word}: ${label}${detail ? ` (${detail})` : ''}`;
       this._logEl.appendChild(line);
       this._el.scrollTop = this._el.scrollHeight;
     },
@@ -451,24 +487,104 @@ const Reports = {
     return isHighMemoryRisk ? 1.0 : 1.5;
   },
 
-  async _captureBlock(html, blockWidthPx, isHighMemoryRisk) {
+  _isIOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  },
+
+  // The container is removed on timeout too — otherwise a hung capture
+  // leaves its offscreen DOM (and html2canvas's clone of it) pinned in
+  // memory for the rest of the report.
+  async _captureBlock(html, blockWidthPx, scale, timeoutMs) {
     const container = document.createElement('div');
     container.style.cssText = `position:fixed;left:-99999px;top:0;width:${blockWidthPx}px;background:#ffffff`;
     container.innerHTML = html;
     document.body.appendChild(container);
     try {
-      return await html2canvas(container, {
-        scale: this._captureScale(isHighMemoryRisk),
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        imageTimeout: 15000,
-        removeContainer: true,
-      });
+      return await this._withTimeout(
+        html2canvas(container, {
+          scale,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          imageTimeout: 15000,
+          removeContainer: true,
+        }),
+        timeoutMs,
+        `Capture timed out after ${timeoutMs / 1000}s`
+      );
     } finally {
-      document.body.removeChild(container);
+      container.remove();
     }
+  },
+
+  // Returns a canvas, or null if both attempts failed — the caller then
+  // draws the block as plain text instead of aborting the report.
+  async _captureBlockWithRetry(block, blockWidthPx, isHighMemoryRisk) {
+    const sensitive = this._isIOS() && this.IOS_SENSITIVE_SECTIONS.includes(block.type);
+    const attempts = [
+      sensitive
+        ? { scale: this.RETRY_SCALE, timeoutMs: this.RETRY_BLOCK_TIMEOUT_MS, delayMs: this.IOS_SENSITIVE_DELAY_MS }
+        : { scale: this._captureScale(isHighMemoryRisk), timeoutMs: this.BLOCK_TIMEOUT_MS, delayMs: 0 },
+      { scale: this.RETRY_SCALE, timeoutMs: this.RETRY_BLOCK_TIMEOUT_MS, delayMs: this.IOS_SENSITIVE_DELAY_MS },
+    ];
+    for (let i = 0; i < attempts.length; i++) {
+      const { scale, timeoutMs, delayMs } = attempts[i];
+      if (i > 0) this._debugPdf.log('retry', block.label, `scale ${scale}`);
+      if (delayMs) await new Promise(r => setTimeout(r, delayMs));
+      try {
+        return await this._captureBlock(block.html, blockWidthPx, scale, timeoutMs);
+      } catch (err) {
+        console.warn('[PDF] Capture failed:', block.label, `attempt ${i + 1}`, err);
+        this._debugPdf.log('fail', block.label, err.message);
+      }
+    }
+    return null;
+  },
+
+  // Plain-text stand-in for a block html2canvas couldn't capture, so the
+  // parent still gets every skill and score even if one section's styling
+  // is lost.
+  _placeTextFallback(doc, block, x, startY, widthPt, pageHeight, margin, footerReserve) {
+    const bottom = pageHeight - margin - footerReserve;
+    const lineH = 15;
+    let y = startY;
+    const ensureRoom = (h) => {
+      if (y + h > bottom) { doc.addPage(); y = margin; }
+    };
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+
+    if (block.withHeader && block.type) {
+      ensureRoom(lineH + 6);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(block.type.toUpperCase(), x, y + 11);
+      doc.setFont('helvetica', 'normal');
+      y += lineH + 6;
+    }
+
+    doc.setFontSize(10);
+    if (block.skills?.length) {
+      for (const s of block.skills) {
+        ensureRoom(lineH);
+        const score = s.latestScore != null ? Number(s.latestScore).toFixed(1) : 'Not tested';
+        const name = doc.splitTextToSize(this._pdfSafeText(s.name), widthPt - 90)[0];
+        doc.text(name, x + 4, y + 10);
+        doc.text(score, x + widthPt - 4, y + 10, { align: 'right' });
+        y += lineH;
+      }
+    } else if (block.type && !block.withHeader) {
+      // A chunked section's average footer — skip rather than print a stub.
+    } else {
+      ensureRoom(lineH);
+      doc.setTextColor(102, 102, 102);
+      doc.text(`${block.label} could not be rendered on this device.`, x, y + 10);
+      y += lineH;
+    }
+    return y;
   },
 
   // Races a promise against a timeout so a stalled html2canvas call (which
@@ -560,12 +676,14 @@ const Reports = {
     for (const block of blocks) {
       console.log('[PDF] Starting section:', block.label, 'row count:', block.skillCount);
       this._debugPdf.log('start', block.label);
-      let canvas;
-      try {
-        canvas = await this._captureBlock(block.html, blockWidthPx, isHighMemoryRisk);
-      } catch (err) {
-        this._debugPdf.log('fail', block.label);
-        throw err;
+      let canvas = await this._captureBlockWithRetry(block, blockWidthPx, isHighMemoryRisk);
+
+      if (!canvas) {
+        this._debugPdf.log('fallback', block.label);
+        y = this._placeTextFallback(doc, block, margin, y, contentWidth, pageHeight, margin, footerReserve);
+        y += blockGap;
+        firstBlockOnPage = false;
+        continue;
       }
       console.log('[PDF] Completed section:', block.label);
       this._debugPdf.log('done', block.label);
