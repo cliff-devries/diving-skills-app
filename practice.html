@@ -439,6 +439,8 @@ body.view-mode #content{padding:0;max-width:none;}
 .view-badge-practice{background:rgba(0,201,167,.12);color:#00a88c;}
 .view-badge-comp{background:rgba(245,166,35,.15);color:#c97f00;}
 .view-badge-dd{background:rgba(0,201,167,.12);color:#00a88c;}
+.view-scf-btn{display:block;width:100%;box-sizing:border-box;background:#F76900;color:#ffffff;text-align:center;text-decoration:none;font-size:1rem;font-weight:700;padding:16px 20px;border-radius:12px;margin-bottom:14px;box-shadow:0 2px 6px rgba(247,105,0,.3);}
+.view-scf-btn:active{background:#d95c00;}
 .view-skill-count{font-size:.82rem;color:#666666;font-style:italic;margin-bottom:14px;}
 .view-skill-list{display:flex;flex-direction:column;gap:10px;}
 .view-skill-card{background:#fafafa;border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
@@ -3318,6 +3320,9 @@ function buildPlanViewHtml(plan){
       <div class="view-body-text" style="white-space:pre-wrap;">${esc(plan.notes)}</div>
     </div>`:'';
 
+  const scfLink=c.isRIT?`
+    <a class="view-scf-btn" href="https://forms.gle/8tfJtzWx3XDUbU1W7" target="_blank" rel="noopener noreferrer">📊 Submit SCF Numbers</a>`:'';
+
   const footer=`
     <div class="view-footer">
       <div>Created by ${esc(plan.coachName||'Coach')}</div>
@@ -3326,7 +3331,7 @@ function buildPlanViewHtml(plan){
     </div>`;
 
   return `<div class="view-page"><div class="view-shell">
-    ${headerCard}${infoRow}${announcementsCard}${quoteCard}${pointsCard}${skillsSection}${donutSection}${notesCard}${footer}
+    ${headerCard}${infoRow}${announcementsCard}${quoteCard}${pointsCard}${skillsSection}${donutSection}${notesCard}${scfLink}${footer}
   </div></div>`;
 }
 async function renderPlanViewPage(planId, container){
