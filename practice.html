@@ -2088,34 +2088,72 @@ function unsharePracticePlan(){
 // scheduleSync() debounce — because a copied share link needs to work the
 // instant the coach copies it, not half a second later.
 //
-// isShared/is_shared itself was never the bug — it's set locally and
-// persisted via saveDB() unconditionally below, same as before. The real
-// bug was in the feedback: the old code awaited runSync() but never
-// checked what it returned, then unconditionally showed "Link copied!"
-// regardless of whether that sync actually reached Supabase. runSync()
-// can legitimately no-op and return false — not yet initialized
-// (lastSyncedSnapshot/SYNC_COACH_ID unset), or already mid-sync from an
-// earlier autosave (syncInFlight, queued for later) — and on spotty
-// poolside wifi a real network failure is common too; runSync() reports
-// that itself with its own "Sync failed…" toast. But .toast is a single
-// fixed-position element with no stacking, so that failure toast got
-// visually clobbered milliseconds later by this function's own "Link
-// copied!" toast, making a silent/queued/failed sync look identical to a
-// successful one. Fix: check runSync()'s return value and word the one
-// toast this function shows accordingly, and pass {silent:true} so
-// runSync() doesn't also fire its own competing toast underneath it.
+// runSync() alone can't be trusted as proof the flag landed: it returns
+// true when diffAndPush() had nothing to push — including when isMine()
+// filtered this plan out entirely — and false (queued) when an autosave
+// is mid-flight. So after the normal sync, is_shared is written directly
+// to this one row and read back; only that read-back decides the toast.
+// An RLS-blocked UPDATE returns zero rows rather than an error, which is
+// why .select() is required here.
+async function waitForSyncIdle(maxMs){
+  const start=Date.now();
+  while(syncInFlight && Date.now()-start<maxMs) await new Promise(r=>setTimeout(r,150));
+}
+async function pushPlanSharedFlag(planId, shared){
+  const sb=window.supabaseClient;
+  const payload={is_shared:shared};
+  console.log('[share] UPDATE dive_practice_plans', payload, 'WHERE id =', planId);
+  const {data,error}=await sb.from('dive_practice_plans').update(payload).eq('id',planId).select('id,is_shared,coach_id');
+  console.log('[share] result:', {data, error});
+  if(error) throw error;
+  return data && data[0] ? data[0] : null;
+}
 async function setPlanShared(shared){
-  console.log('Sharing plan:', builderDraft.id, 'isShared:', shared);
+  const planId=builderDraft.__sourceId;
   builderDraft.isShared=shared;
-  const real=DB.plans.find(p=>p.id===builderDraft.__sourceId);
+  const real=DB.plans.find(p=>p.id===planId);
   if(real) real.isShared=shared;
+  console.log('[share] plan:', planId, 'isShared:', shared,
+    '| isMine:', real?isMine(real):'(not in DB.plans)', '| plan.coachId:', real&&real.coachId, '| SYNC_COACH_ID:', SYNC_COACH_ID,
+    '| upsert row:', real?toSnakeRow(real, SYNC_CFG.find(c=>c.key==='plans'), SYNC_COACH_ID):null);
   saveDB();
-  const synced = await runSync({silent:true});
+
+  // A brand-new plan may not exist server-side yet, so the regular sync
+  // has to insert it first or the direct UPDATE below matches nothing.
+  await waitForSyncIdle(8000);
+  await runSync({silent:true});
+
+  let row=null, errMsg='';
+  try{
+    row=await pushPlanSharedFlag(planId, shared);
+  }catch(e){
+    console.error('[share] direct is_shared update failed', e);
+    errMsg=e.message||e.code||'unknown error';
+  }
+  const synced=!!row && row.is_shared===shared;
+  if(synced && lastSyncedSnapshot && Array.isArray(lastSyncedSnapshot.plans)){
+    const snap=lastSyncedSnapshot.plans.find(p=>p.id===planId);
+    if(snap) snap.isShared=shared;
+  }
+  if(!synced){
+    const reason = errMsg ? errMsg
+      : (real && !isMine(real)) ? 'this practice belongs to another coach'
+      : 'not saved to the cloud yet — check your connection';
+    // Offline: keep the local flag so the next regular sync pushes it.
+    // Rejected/not ours: roll back so the UI doesn't claim it's shared.
+    if(errMsg || (real && !isMine(real))){
+      builderDraft.isShared=!shared;
+      if(real) real.isShared=!shared;
+      saveDB();
+    }
+    toast(`Could not ${shared?'share':'unshare'} — ${reason}`);
+    if(window.__currentPlanDraw) window.__currentPlanDraw();
+    return;
+  }
+
   if(shared){
-    const url=window.location.origin+'/practice.html#/view/'+builderDraft.id;
-    const message = synced
-      ? 'Link copied! Anyone with this link can view this practice'
-      : 'Link copied — will finish syncing once back online';
+    const url=window.location.origin+'/practice.html#/view/'+planId;
+    const message = 'Link copied! Anyone with this link can view this practice';
     const done=()=>toast(message);
     const fail=()=>toast('Could not copy — link: '+url);
     if(navigator.clipboard && navigator.clipboard.writeText){
@@ -2124,7 +2162,7 @@ async function setPlanShared(shared){
       fail();
     }
   } else {
-    toast(synced ? 'Practice is now private' : 'Practice set to private — will finish syncing once back online');
+    toast('Practice is now private');
   }
   if(window.__currentPlanDraw) window.__currentPlanDraw();
 }
