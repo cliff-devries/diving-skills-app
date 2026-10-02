@@ -3213,10 +3213,26 @@ async function generatePracticePDF(id){
 // row when the coach has explicitly set is_shared = true.
 async function fetchSharedPracticePlan(planId){
   const sb=window.supabaseClient;
+  console.log('Fetching plan:', planId, 'client ready:', !!sb);
+  if(!sb) throw new Error('Supabase client not initialized');
   const { data, error } = await sb.rpc('get_shared_practice_plan', { p_plan_id: planId });
+  console.log('Result:', { data, error });
   if(error) throw new Error(error.message);
   const row = data && data[0];
-  return row ? fromSnakeRow(row, {key:'plans'}) : null;
+  if(!row) return null;
+  const plan = fromSnakeRow(row, {key:'plans'});
+  if(typeof plan.rows==='string'){
+    try{ plan.rows=JSON.parse(plan.rows); }catch{ plan.rows=null; }
+  }
+  return plan;
+}
+// Share links pasted through messaging apps can come back with tracking
+// params (?fbclid=…), a trailing slash, or percent-encoding glued onto the
+// hash — any of which makes the RPC's exact id match miss.
+function cleanPlanViewId(raw){
+  let id=String(raw||'');
+  try{ id=decodeURIComponent(id); }catch{}
+  return id.split(/[?&#\/\s]/)[0].trim();
 }
 function planViewSkeletonHtml(){
   return `<div class="view-page"><div class="view-shell">
@@ -3334,8 +3350,10 @@ function buildPlanViewHtml(plan){
     ${headerCard}${infoRow}${announcementsCard}${quoteCard}${pointsCard}${skillsSection}${donutSection}${notesCard}${scfLink}${footer}
   </div></div>`;
 }
-async function renderPlanViewPage(planId, container){
+async function renderPlanViewPage(rawPlanId, container){
   container.innerHTML=planViewSkeletonHtml();
+  const planId=cleanPlanViewId(rawPlanId);
+  console.log('[renderPlanViewPage] route id:', rawPlanId, '-> planId:', planId);
   // Local lookup still has to honor is_shared — a coach's own DB.plans
   // cache holds every club plan, shared or not, and this route is public.
   let plan=(DB && DB.plans) ? DB.plans.find(p=>p.id===planId && p.isShared) : null;
@@ -3348,6 +3366,7 @@ async function renderPlanViewPage(planId, container){
     }
   }
   if(!plan || !Array.isArray(plan.rows)){
+    console.warn('[renderPlanViewPage] not found:', planId, plan ? 'rows is not an array: '+typeof plan.rows : 'no row returned (missing id or is_shared=false)');
     container.innerHTML=planViewNotFoundHtml();
     return;
   }
@@ -4188,6 +4207,7 @@ function saveBuilderSettings(){
     // session. router()'s #/view/:id branch -> renderPlanViewPage() hits
     // get_shared_practice_plan directly, which is anon-granted and
     // itself enforces is_shared=true (supabase-migration-v50.sql).
+    console.log('[initPracticePlanner] view route — skipping auth, client ready:', !!window.supabaseClient);
     router();
     return;
   }
