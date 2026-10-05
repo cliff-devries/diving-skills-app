@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dive Drills — CRM</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css?v=10">
+  <style>
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
+    .crm-stats {
+      display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px;
+      margin-bottom: 16px; -webkit-overflow-scrolling: touch;
+    }
+    .crm-stat {
+      flex: 0 0 auto; min-width: 104px; text-align: left; color: inherit; font: inherit;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 10px 14px; cursor: pointer;
+      transition: var(--transition);
+    }
+    .crm-stat:hover { border-color: rgba(0,201,167,0.4); }
+    .crm-stat.active { border-color: var(--accent); background: var(--accent-dim); }
+    .crm-stat-num { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
+    .crm-stat-label { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; }
+    .crm-stat.due .crm-stat-num { color: var(--pending); }
+
+    .crm-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .crm-controls .form-group { margin-bottom: 0; min-width: 140px; }
+    .crm-controls .grow { flex: 1 1 220px; }
+
+    .crm-row {
+      display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
+      cursor: pointer; transition: var(--transition);
+    }
+    .crm-row:hover { border-color: rgba(0,201,167,0.4); background: var(--bg-surface-2); }
+    .crm-row-main { min-width: 0; flex: 1; }
+    .crm-name { font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .crm-meta { display: flex; flex-wrap: wrap; gap: 3px 14px; margin-top: 4px; font-size: 0.8rem; color: var(--text-secondary); }
+    .crm-meta a { color: var(--text-secondary); }
+    .crm-meta a:hover { color: var(--accent); }
+    .crm-due { color: var(--pending); font-weight: 600; }
+    .crm-dnc { color: var(--danger); font-weight: 600; }
+    .crm-stage {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px;
+      border-radius: 20px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.3px;
+      text-transform: uppercase; white-space: nowrap;
+      color: var(--c); border: 1px solid var(--c); background: rgba(255,255,255,0.03);
+    }
+    .crm-row-actions { flex: 0 0 auto; }
+    @media (max-width: 560px) {
+      .crm-row { flex-direction: column; }
+      .crm-row-actions { width: 100%; }
+      .crm-row-actions .btn { width: 100%; min-height: 40px; }
+    }
+
+    .crm-stage-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .crm-stage-chip {
+      background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-secondary);
+      border-radius: 20px; padding: 5px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    }
+    .crm-stage-chip:hover:not(:disabled) { border-color: var(--c); color: var(--c); }
+    .crm-stage-chip.current { border-color: var(--c); color: var(--c); background: rgba(255,255,255,0.05); }
+    .crm-stage-chip:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .crm-section-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin: 18px 0 8px; }
+    .crm-activity { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .crm-activity:last-child { border-bottom: none; }
+    .crm-activity-meta { color: var(--text-secondary); font-size: 0.75rem; display: flex; gap: 8px; justify-content: space-between; }
+    .crm-activity-meta button { background: none; border: none; color: var(--text-secondary); font-size: 0.75rem; padding: 0; }
+    .crm-activity-meta button:hover { color: var(--danger); }
+    .crm-activity-body { white-space: pre-wrap; margin-top: 2px; }
+    .crm-history { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.7; }
+    .crm-banner {
+      background: var(--accent-dim); border: 1px solid rgba(0,201,167,0.35);
+      border-radius: var(--radius-md); padding: 10px 12px; font-size: 0.85rem; margin-bottom: 14px;
+    }
+    .crm-modal-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin-top: 18px; }
+    .crm-map-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 12px; }
+    .crm-map-table td, .crm-map-table th { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    .crm-map-table select { width: 100%; }
+    .crm-preview { overflow-x: auto; margin-bottom: 12px; }
+    .crm-results-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .crm-results-table th, .crm-results-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+    .crm-results-table th:first-child, .crm-results-table td:first-child { text-align: left; white-space: normal; }
+    .crm-results-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px; }
+    details.crm-results > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+
+    @media (max-width: 767px) {
+      .page-header .flex.items-center.justify-between { flex-direction: column; align-items: stretch; gap: 12px; }
+      .page-header .flex.gap-2 { width: 100%; flex-wrap: wrap; }
+      .page-header .flex.gap-2 .btn { min-height: 44px; }
+      .page-header .flex.gap-2 .btn-primary { order: -1; flex: 1 1 100%; }
+      .page-header .flex.gap-2 .btn-ghost { order: 1; flex: 1 1 0; min-width: 0; white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content fade-in">
+    <div class="page-header">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1>CRM</h1>
+          <p>Leads and families, from first contact to the pool deck.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" onclick="exportCsv()">⬇ Export</button>
+          <button class="btn btn-ghost" onclick="openImport()">⬆ Import CSV</button>
+          <button class="btn btn-primary" onclick="openAdd()">+ Add Lead</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="crm-alert" class="alert mb-4"></div>
+
+    <div class="crm-stats" id="crm-stats"></div>
+
+    <div class="content-section">
+      <div class="flex items-center justify-between mb-2" style="flex-wrap:wrap;gap:8px">
+        <div class="section-title" style="margin-bottom:0">Leads</div>
+        <div class="text-secondary text-sm" id="crm-count-label"></div>
+      </div>
+      <div class="crm-controls">
+        <div class="form-group grow">
+          <label class="form-label">Search</label>
+          <input type="text" id="f-search" class="form-input" placeholder="Name, parent, email, phone, source…" oninput="onFilterChange()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stage</label>
+          <select id="f-stage" class="form-select" onchange="onFilterChange()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Source</label>
+          <select id="f-source" class="form-select" onchange="onFilterChange()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Campaign</label>
+          <select id="f-campaign" class="form-select" onchange="onFilterChange()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sort</label>
+          <select id="f-sort" class="form-select" onchange="onFilterChange()">
+            <option value="newest">Newest first</option>
+            <option value="followup">Follow-up date</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+      </div>
+      <div id="crm-list">
+        <div class="loading-overlay">
+          <div class="loading-spinner loading-spinner-lg"></div>
+          <span>Loading leads…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-section">
+      <details class="crm-results" id="results-panel" ontoggle="onResultsToggle()">
+        <summary>📊 Marketing results — which sources turn into divers</summary>
+        <div class="mt-3">
+          <div class="flex gap-2 mb-3">
+            <button class="btn btn-secondary btn-sm" id="res-by-source" onclick="setResultsGroup('source')">By source</button>
+            <button class="btn btn-ghost btn-sm" id="res-by-campaign" onclick="setResultsGroup('campaign')">By campaign</button>
+          </div>
+          <div id="results-body" class="text-secondary text-sm">Open to load.</div>
+        </div>
+      </details>
+    </div>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+
+<!-- ADD LEAD -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Lead</h2>
+      <button class="modal-close" onclick="App.closeModal('add-modal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Diver first name <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="a-first" class="form-input" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diver last name</label>
+        <input type="text" id="a-last" class="form-input" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date of birth</label>
+        <input type="date" id="a-dob" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender</label>
+        <select id="a-gender" class="form-select">
+          <option value="">—</option><option value="Male">Male</option>
+          <option value="Female">Female</option><option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Parent / guardian name</label>
+      <input type="text" id="a-pname" class="form-input" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Parent email</label>
+        <input type="email" id="a-pemail" class="form-input" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Parent phone</label>
+        <input type="tel" id="a-pphone" class="form-input" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Source</label>
+        <input type="text" id="a-source" class="form-input" list="dl-source" placeholder="Flyer, Website, Referral…" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Campaign</label>
+        <input type="text" id="a-campaign" class="form-input" list="dl-campaign" placeholder="Fall 2026" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Starting stage</label>
+      <select id="a-stage" class="form-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes (internal)</label>
+      <textarea id="a-notes" class="form-input" rows="2" style="resize:vertical"></textarea>
+    </div>
+    <datalist id="dl-source"></datalist>
+    <datalist id="dl-campaign"></datalist>
+    <div id="add-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('add-modal')">Cancel</button>
+      <button class="btn btn-primary" id="add-btn" onclick="submitAdd()">Add Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEAD DETAIL -->
+<div class="modal-overlay" id="lead-modal">
+  <div class="modal" style="max-width:640px" id="lead-modal-body"></div>
+</div>
+
+<!-- CONVERT TO DIVER -->
+<div class="modal-overlay" id="convert-modal">
+  <div class="modal" style="max-width:480px" id="convert-modal-body"></div>
+</div>
+
+<!-- IMPORT -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal" style="max-width:680px" id="import-modal-body"></div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=37"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js?v=11"></script>
+
+<script>
+/* CRM-PURE-START — no DOM access in this block; it is unit-tested in Node. */
+
+const STAGES = [
+  { key: 'lead',            code: '1', label: 'Lead',           color: '#6ea8fe' },
+  { key: 'registered',      code: '2', label: 'Registered',     color: '#f5a623' },
+  { key: 'trial_completed', code: '3', label: 'Trial Completed', color: '#b388ff' },
+  { key: 'member',          code: '4', label: 'Member',         color: '#00c9a7' },
+  { key: 'graduated',       code: '5', label: 'Graduated',      color: '#4cc38a' },
+  { key: 'dropped',         code: 'D', label: 'Dropped / Quit', color: '#e05252' },
+  { key: 'no_contact',      code: 'N', label: 'No Contact',     color: '#8a8a8a' },
+];
+const STAGE_BY_KEY = Object.fromEntries(STAGES.map(s => [s.key, s]));
+const OPEN_STAGES = new Set(['lead', 'registered', 'trial_completed']);
+const STAGE_RANK  = { lead: 0, registered: 1, trial_completed: 2, member: 3, graduated: 4 };
+
+const IMPORT_FIELDS = [
+  ['',              '— ignore —'],
+  ['first_name',    'First name'],
+  ['last_name',     'Last name'],
+  ['full_name',     'Full name (will be split)'],
+  ['parent_name',   'Parent / guardian name'],
+  ['parent_email',  'Parent email'],
+  ['parent_phone',  'Parent phone'],
+  ['diver_email',   'Diver email'],
+  ['diver_phone',   'Diver phone'],
+  ['date_of_birth', 'Date of birth'],
+  ['gender',        'Gender'],
+  ['source',        'Source'],
+  ['campaign',      'Campaign'],
+  ['notes',         'Notes'],
+  ['stage',         'Stage'],
+];
+
+const HEADER_ALIASES = {
+  first_name:    ['first name', 'firstname', 'first', 'given name', 'child first name', 'diver first name', 'athlete first name', 'student first name'],
+  last_name:     ['last name', 'lastname', 'last', 'surname', 'family name', 'child last name', 'diver last name', 'athlete last name', 'student last name'],
+  full_name:     ['name', 'full name', 'child name', 'diver name', 'athlete name', 'student name', 'child'],
+  parent_name:   ['parent name', 'parent', 'guardian', 'guardian name', 'parent guardian', 'parent guardian name', 'parent full name'],
+  parent_email:  ['parent email', 'email', 'e mail', 'email address', 'guardian email', 'parent e mail', 'parent email address', 'contact email'],
+  parent_phone:  ['parent phone', 'phone', 'phone number', 'mobile', 'cell', 'guardian phone', 'parent cell', 'parent mobile', 'contact phone'],
+  diver_email:   ['diver email', 'child email', 'athlete email', 'student email'],
+  diver_phone:   ['diver phone', 'child phone', 'athlete phone'],
+  date_of_birth: ['date of birth', 'dob', 'birthdate', 'birth date', 'birthday'],
+  gender:        ['gender', 'sex'],
+  source:        ['source', 'lead source', 'how did you hear', 'how did you hear about us', 'referral', 'referred by'],
+  campaign:      ['campaign', 'promo', 'marketing campaign'],
+  notes:         ['notes', 'note', 'comments', 'comment', 'message'],
+  stage:         ['stage'],
+};
+
+function normalizeHeader(h) {
+  return String(h || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Guess a field for each CSV column; a field is only used once (first match wins).
+function mapHeaders(headers) {
+  const used = new Set();
+  return headers.map(h => {
+    const n = normalizeHeader(h);
+    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
+      if (!used.has(field) && aliases.includes(n)) { used.add(field); return field; }
+    }
+    return '';
+  });
+}
+
+// Comma- or tab-separated (spreadsheet pastes are tab-separated).
+function parseDelimited(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const firstLine = text.split(/\r\n|\n|\r/, 1)[0] || '';
+  const delim = (firstLine.match(/\t/g) || []).length > (firstLine.match(/,/g) || []).length ? '\t' : ',';
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"' && field === '') {
+      inQuotes = true;
+    } else if (c === delim) {
+      row.push(field); field = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = ''; rows.push(row); row = [];
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ''));
+}
+
+function stageFromText(t) {
+  const k = String(t || '').toLowerCase().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '');
+  if (k === 'lead' || k === 'new') return 'lead';
+  if (k === 'registered') return 'registered';
+  if (k === 'trial_completed' || k === 'trial_complete' || k === 'trial') return 'trial_completed';
+  if (k === 'dropped' || k === 'dropped_quit' || k === 'quit') return 'dropped';
+  if (k === 'no_contact') return 'no_contact';
+  return '';
+}
+
+function splitFullName(full) {
+  const s = String(full || '').trim();
+  if (!s) return { first: '', last: '' };
+  if (s.includes(',')) {
+    const [last, ...rest] = s.split(',');
+    return { first: rest.join(',').trim(), last: last.trim() };
+  }
+  const i = s.search(/\s/);
+  return i === -1 ? { first: s, last: '' } : { first: s.slice(0, i), last: s.slice(i + 1).trim() };
+}
+
+// rows[0] is the header row. Returns plain objects ready for crm_import_leads.
+function buildImportRows(rows, mapping) {
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const o = {};
+    mapping.forEach((field, c) => {
+      if (!field) return;
+      const v = String(rows[r][c] ?? '').trim();
+      if (v) o[field] = v;
+    });
+    if (!o.first_name && o.full_name) {
+      const { first, last } = splitFullName(o.full_name);
+      if (first) o.first_name = first;
+      if (last && !o.last_name) o.last_name = last;
+    }
+    delete o.full_name;
+    if (o.stage) { const st = stageFromText(o.stage); if (st) o.stage = st; else delete o.stage; }
+    out.push(o);
+  }
+  return out;
+}
+
+// "Reached" stage counts per group, using stage history so a lead that later
+// dropped out still counts for the stages it reached.
+function computeFunnel(leads, history, keyFn) {
+  const reached = new Map();
+  for (const h of history) {
+    const rk = STAGE_RANK[h.to_stage];
+    if (rk !== undefined) reached.set(h.lead_id, Math.max(reached.get(h.lead_id) ?? -1, rk));
+  }
+  const groups = new Map();
+  for (const l of leads) {
+    const key = keyFn(l) || '(none)';
+    if (!groups.has(key)) groups.set(key, { key, total: 0, registered: 0, trial: 0, members: 0, dropped: 0 });
+    const g = groups.get(key);
+    const rk = Math.max(reached.get(l.id) ?? -1, STAGE_RANK[l.stage] ?? -1);
+    g.total++;
+    if (rk >= 1) g.registered++;
+    if (rk >= 2) g.trial++;
+    if (rk >= 3) g.members++;
+    if (l.stage === 'dropped') g.dropped++;
+  }
+  return [...groups.values()].sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
+}
+
+function isFollowUpDue(lead, today) {
+  return !!lead.follow_up_date && lead.follow_up_date <= today && OPEN_STAGES.has(lead.stage);
+}
+
+function leadSearchText(l) {
+  const c = l.contact || {};
+  return [l.first_name, l.last_name, c.full_name, c.email, c.phone, l.diver_email, l.source, l.campaign, l.notes]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+
+// Leading = + - @ can be run as a formula by spreadsheet apps.
+function csvCell(v) {
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function nextStageAction(lead) {
+  if (lead.converted_diver_id) return null;
+  if (lead.stage === 'lead')            return { to: 'registered',      label: 'Mark Registered' };
+  if (lead.stage === 'registered')      return { to: 'trial_completed', label: 'Trial Completed' };
+  if (lead.stage === 'trial_completed') return { to: 'member',          label: 'Make Member →' };
+  return null;
+}
+
+// Stages a lead may be moved to from the picker.
+function allowedStages(lead) {
+  return lead.converted_diver_id
+    ? ['member', 'graduated', 'dropped']
+    : ['lead', 'registered', 'trial_completed', 'member', 'dropped', 'no_contact'];
+}
+/* CRM-PURE-END */
+</script>
+
+<script>
+let currentUser = null;
+let leads = [];
+let coaches = null;
+let currentLeadId = null;
+let convertLeadId = null;
+let visibleCount = 100;
+let resultsGroup = 'source';
+let stageHistoryAll = null;
+const filters = { search: '', stage: 'open', source: '', campaign: '', due: false, sort: 'newest' };
+const esc = s => App.escHtml(s);
+
+(async function initCrmPage() {
+  initSupabase();
+  const user = await Auth.init(true);
+  if (!user) return;
+  currentUser = user;
+  Auth.requireRole('coach');
+  App.renderNav(user);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.visible').forEach(m => m.classList.remove('visible'));
+  });
+
+  document.getElementById('a-stage').innerHTML = ['lead', 'registered', 'trial_completed', 'no_contact']
+    .map(k => `<option value="${k}">${esc(STAGE_BY_KEY[k].code + ' · ' + STAGE_BY_KEY[k].label)}</option>`).join('');
+
+  await loadLeads();
+})();
+
+/* ---------- helpers ---------- */
+
+function todayLocal() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Date-only strings must not go through new Date('YYYY-MM-DD') (parsed as UTC,
+// shows the previous day in US time zones).
+function fmtDay(s) {
+  if (!s) return '—';
+  const [y, m, d] = String(s).split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const opts = y === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' };
+  return dt.toLocaleDateString('en-US', opts);
+}
+
+function leadName(l) { return [l.first_name, l.last_name].filter(Boolean).join(' '); }
+function findLead(id) { return leads.find(l => l.id === id); }
+
+function stageBadge(key) {
+  const s = STAGE_BY_KEY[key] || { code: '?', label: key, color: '#888' };
+  return `<span class="crm-stage" style="--c:${s.color}">${esc(s.code)} · ${esc(s.label)}</span>`;
+}
+
+async function loadCoaches() {
+  if (!coaches) coaches = await SupabaseDB.getActiveCoaches();
+  return coaches;
+}
+
+function showSetupError(err) {
+  const missing = /crm_|schema cache|does not exist/i.test(err.message || '');
+  App.showAlert('crm-alert', missing
+    ? 'CRM tables not found. Run supabase-migration-v53.sql in the Supabase SQL editor, then reload this page.'
+    : 'Could not load leads: ' + err.message, 'error');
+}
+
+/* ---------- load + render ---------- */
+
+async function loadLeads() {
+  try {
+    leads = await SupabaseDB.crmGetLeads();
+    App.hideAlert('crm-alert');
+  } catch (err) {
+    leads = [];
+    showSetupError(err);
+  }
+  stageHistoryAll = null;
+  renderAll();
+  if (document.getElementById('results-panel').open) onResultsToggle();
+}
+
+function renderAll() {
+  renderStats();
+  renderFilterOptions();
+  renderList();
+}
+
+function renderStats() {
+  const today = todayLocal();
+  const counts = Object.fromEntries(STAGES.map(s => [s.key, 0]));
+  let due = 0;
+  leads.forEach(l => { counts[l.stage]++; if (isFollowUpDue(l, today)) due++; });
+  const openTotal = counts.lead + counts.registered + counts.trial_completed;
+
+  const card = (id, num, label, extra = '') =>
+    `<button class="crm-stat ${extra} ${isStatActive(id) ? 'active' : ''}" onclick="applyStatFilter('${id}')">
+       <div class="crm-stat-num">${num}</div><div class="crm-stat-label">${esc(label)}</div></button>`;
+
+  document.getElementById('crm-stats').innerHTML =
+    card('open', openTotal, 'Open pipeline') +
+    STAGES.map(s => card(s.key, counts[s.key], s.code + ' · ' + s.label)).join('') +
+    card('due', due, 'Follow-ups due', 'due');
+}
+
+function isStatActive(id) {
+  if (id === 'due') return filters.due;
+  return !filters.due && filters.stage === id;
+}
+
+function applyStatFilter(id) {
+  if (id === 'due') { filters.due = !filters.due; if (filters.due) filters.stage = 'open'; }
+  else { filters.due = false; filters.stage = id; }
+  syncControlValues();
+  visibleCount = 100;
+  renderStats();
+  renderList();
+}
+
+function syncControlValues() {
+  document.getElementById('f-stage').value = filters.stage;
+}
+
+function fillSelect(id, firstLabel, values, current) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<option value="">${esc(firstLabel)}</option>` +
+    values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  el.value = values.includes(current) ? current : '';
+  return el.value;
+}
+
+function renderFilterOptions() {
+  const stageSel = document.getElementById('f-stage');
+  stageSel.innerHTML = `<option value="open">Open pipeline (1–3)</option><option value="">All stages</option>` +
+    STAGES.map(s => `<option value="${s.key}">${esc(s.code + ' · ' + s.label)}</option>`).join('');
+  stageSel.value = filters.stage;
+
+  const sources = [...new Set(leads.map(l => l.source).filter(Boolean))].sort();
+  const camps   = [...new Set(leads.map(l => l.campaign).filter(Boolean))].sort();
+  filters.source   = fillSelect('f-source', 'All sources', sources, filters.source);
+  filters.campaign = fillSelect('f-campaign', 'All campaigns', camps, filters.campaign);
+  document.getElementById('dl-source').innerHTML   = sources.map(s => `<option value="${esc(s)}">`).join('');
+  document.getElementById('dl-campaign').innerHTML = camps.map(s => `<option value="${esc(s)}">`).join('');
+}
+
+function onFilterChange() {
+  filters.search   = document.getElementById('f-search').value;
+  filters.stage    = document.getElementById('f-stage').value;
+  filters.source   = document.getElementById('f-source').value;
+  filters.campaign = document.getElementById('f-campaign').value;
+  filters.sort     = document.getElementById('f-sort').value;
+  filters.due      = false;
+  visibleCount = 100;
+  renderStats();
+  renderList();
+}
+
+function filteredLeads() {
+  const q = filters.search.trim().toLowerCase();
+  const today = todayLocal();
+  const out = leads.filter(l => {
+    if (filters.due && !isFollowUpDue(l, today)) return false;
+    if (filters.stage === 'open' ? !OPEN_STAGES.has(l.stage) : (filters.stage && l.stage !== filters.stage)) return false;
+    if (filters.source && (l.source || '') !== filters.source) return false;
+    if (filters.campaign && (l.campaign || '') !== filters.campaign) return false;
+    if (q && !leadSearchText(l).includes(q)) return false;
+    return true;
+  });
+  if (filters.sort === 'name') {
+    out.sort((a, b) => App.compareNames(a, b));
+  } else if (filters.sort === 'followup') {
+    out.sort((a, b) => (a.follow_up_date || '9999-12-31').localeCompare(b.follow_up_date || '9999-12-31'));
+  }
+  return out;
+}
+
+function renderList() {
+  const el = document.getElementById('crm-list');
+  const all = filteredLeads();
+  document.getElementById('crm-count-label').textContent =
+    leads.length ? `${all.length} of ${leads.length}` : '';
+
+  if (!leads.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📇</div>
+        <p>No leads yet. Import a list from your marketing or add one by hand.</p>
+        <div class="flex gap-2 justify-center" style="flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="openImport()">⬆ Import CSV</button>
+          <button class="btn btn-ghost" onclick="openAdd()">+ Add Lead</button>
+        </div>
+      </div>`;
+    return;
+  }
+  if (!all.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>No leads match these filters.</p></div>`;
+    return;
+  }
+
+  const today = todayLocal();
+  const shown = all.slice(0, visibleCount);
+  el.innerHTML = shown.map(l => rowHtml(l, today)).join('') +
+    (all.length > shown.length
+      ? `<button class="btn btn-ghost w-full" onclick="showMore()">Show more (${all.length - shown.length} remaining)</button>`
+      : '');
+}
+
+function showMore() { visibleCount += 100; renderList(); }
+
+function rowHtml(l, today) {
+  const c = l.contact || {};
+  const next = nextStageAction(l);
+  const due = isFollowUpDue(l, today);
+  const bits = [];
+  if (c.full_name) bits.push(`<span>👤 ${esc(c.full_name)}</span>`);
+  if (c.email) bits.push(`<span>✉️ <a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a></span>`);
+  if (c.phone) bits.push(`<span>📞 <a href="tel:${esc(c.phone)}" onclick="event.stopPropagation()">${esc(c.phone)}</a></span>`);
+  const tag = [l.source, l.campaign].filter(Boolean).join(' · ');
+  const meta2 = [];
+  if (tag) meta2.push(`<span>📣 ${esc(tag)}</span>`);
+  if (l.last_contacted_at) meta2.push(`<span>Last contact ${esc(App.formatRelative(l.last_contacted_at))}</span>`);
+  if (l.follow_up_date) meta2.push(`<span class="${due ? 'crm-due' : ''}">${due ? '⏰ Follow up' : 'Follow up'} ${esc(fmtDay(l.follow_up_date))}</span>`);
+  if (c.do_not_contact) meta2.push(`<span class="crm-dnc">🚫 Do not contact</span>`);
+  return `
+    <div class="crm-row" onclick="openLead('${l.id}')">
+      <div class="crm-row-main">
+        <div class="crm-name">${esc(leadName(l))} ${stageBadge(l.stage)}</div>
+        ${bits.length ? `<div class="crm-meta">${bits.join('')}</div>` : ''}
+        ${meta2.length ? `<div class="crm-meta">${meta2.join('')}</div>` : ''}
+      </div>
+      ${next ? `<div class="crm-row-actions"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();quickAdvance('${l.id}')">${esc(next.label)}</button></div>` : ''}
+    </div>`;
+}
+
+/* ---------- stage changes ---------- */
+
+async function quickAdvance(id) {
+  const l = findLead(id);
+  const next = l && nextStageAction(l);
+  if (!next) return;
+  await changeStage(id, next.to);
+}
+
+async function changeStage(id, to) {
+  const l = findLead(id);
+  if (!l || l.stage === to) return;
+  if (to === 'member' && !l.converted_diver_id) { openConvert(id); return; }
+  try {
+    await SupabaseDB.crmUpdateLead(id, { stage: to });
+    l.stage = to;
+    App.showToast(`${leadName(l)} → ${STAGE_BY_KEY[to].label}`);
+    renderAll();
+    if (currentLeadId === id) renderLeadModal(l);
+  } catch (err) {
+    App.showToast(err.message, 'error');
+  }
+}
+
+/* ---------- add lead ---------- */
+
+function openAdd() {
+  ['a-first', 'a-last', 'a-dob', 'a-pname', 'a-pemail', 'a-pphone', 'a-source', 'a-campaign', 'a-notes']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('a-gender').value = '';
+  document.getElementById('a-stage').value = 'lead';
+  App.hideAlert('add-alert');
+  App.openModal('add-modal');
+  document.getElementById('a-first').focus();
+}
+
+async function submitAdd() {
+  const v = id => document.getElementById(id).value.trim();
+  const first = v('a-first');
+  if (!first) { App.showAlert('add-alert', 'Diver first name is required.'); return; }
+  const email = v('a-pemail');
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { App.showAlert('add-alert', 'That email address does not look right.'); return; }
+
+  const btn = document.getElementById('add-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    const res = await SupabaseDB.crmImportLeads([{
+      first_name: first, last_name: v('a-last'), date_of_birth: v('a-dob'), gender: v('a-gender'),
+      parent_name: v('a-pname'), parent_email: email, parent_phone: v('a-pphone'),
+      source: v('a-source'), campaign: v('a-campaign'), notes: v('a-notes'), stage: v('a-stage'),
+    }]);
+    if (!res.inserted) {
+      App.showAlert('add-alert', 'This diver is already a lead for that family.');
+      return;
+    }
+    App.closeModal('add-modal');
+    App.showToast('Lead added');
+    await loadLeads();
+  } catch (err) {
+    App.showAlert('add-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+/* ---------- lead detail ---------- */
+
+async function openLead(id) {
+  const l = findLead(id);
+  if (!l) return;
+  currentLeadId = id;
+  await loadCoaches();
+  renderLeadModal(l);
+  App.openModal('lead-modal');
+  loadLeadExtras(id);
+}
+
+function opt(value, label, selected) {
+  return `<option value="${esc(value)}" ${selected ? 'selected' : ''}>${esc(label)}</option>`;
+}
+
+function renderLeadModal(l) {
+  const c = l.contact || {};
+  const converted = !!l.converted_diver_id;
+  const allowed = allowedStages(l);
+  const chips = STAGES.map(s => {
+    const isCur = s.key === l.stage;
+    const can = allowed.includes(s.key) || isCur;
+    return `<button class="crm-stage-chip ${isCur ? 'current' : ''}" style="--c:${s.color}" ${can ? '' : 'disabled'} onclick="changeStage('${l.id}','${s.key}')">${esc(s.code + ' · ' + s.label)}</button>`;
+  }).join('');
+
+  const coachOpts = opt('', 'Unassigned', !l.assigned_coach_id) +
+    (coaches || []).map(co => opt(co.id, co.full_name || co.email, co.id === l.assigned_coach_id)).join('');
+
+  document.getElementById('lead-modal-body').innerHTML = `
+    <div class="modal-header">
+      <h2 class="modal-title">${esc(leadName(l))}</h2>
+      <button class="modal-close" onclick="closeLead()">✕</button>
+    </div>
+    ${converted ? `<div class="crm-banner">✅ In DivePractice. <a href="progress.html?diver=${esc(l.converted_diver_id)}">Open diver profile →</a><br>
+      <span class="text-secondary text-xs">Changes to name or parent details here do not sync to the diver profile after conversion — edit those in DivePractice.</span></div>` : ''}
+    <div class="crm-stage-picker">${chips}</div>
+
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">First name</label><input id="lf-first" class="form-input" value="${esc(l.first_name)}"></div>
+      <div class="form-group"><label class="form-label">Last name</label><input id="lf-last" class="form-input" value="${esc(l.last_name)}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date of birth</label><input type="date" id="lf-dob" class="form-input" value="${esc(l.date_of_birth)}"></div>
+      <div class="form-group"><label class="form-label">Gender</label>
+        <select id="lf-gender" class="form-select">${opt('', '—', !l.gender)}${['Male', 'Female', 'Other'].map(g => opt(g, g, l.gender === g)).join('')}</select></div>
+    </div>
+
+    <div class="crm-section-title">Parent / guardian</div>
+    <div class="form-group"><label class="form-label">Name</label><input id="lf-pname" class="form-input" value="${esc(c.full_name)}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Email</label><input type="email" id="lf-pemail" class="form-input" value="${esc(c.email)}"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="lf-pphone" class="form-input" value="${esc(c.phone)}"></div>
+    </div>
+    <label class="flex items-center gap-2 text-sm mb-3" style="cursor:pointer">
+      <input type="checkbox" id="lf-dnc" ${c.do_not_contact ? 'checked' : ''}> Do not contact (opted out)
+    </label>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Diver email (if they have their own)</label><input type="email" id="lf-demail" class="form-input" value="${esc(l.diver_email)}"></div>
+      <div class="form-group"><label class="form-label">Diver phone</label><input type="tel" id="lf-dphone" class="form-input" value="${esc(l.diver_phone)}"></div>
+    </div>
+
+    <div class="crm-section-title">Marketing &amp; follow-up</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Source</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
+      <div class="form-group"><label class="form-label">Campaign</label><input id="lf-campaign" class="form-input" list="dl-campaign" value="${esc(l.campaign)}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Trial date</label><input type="date" id="lf-trial" class="form-input" value="${esc(l.trial_date)}"></div>
+      <div class="form-group"><label class="form-label">Follow up on</label><input type="date" id="lf-follow" class="form-input" value="${esc(l.follow_up_date)}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Assigned coach</label><select id="lf-coach" class="form-select">${coachOpts}</select></div>
+    <div class="form-group"><label class="form-label">Notes (internal — never copied to the diver profile)</label>
+      <textarea id="lf-notes" class="form-input" rows="3" style="resize:vertical">${esc(l.notes)}</textarea></div>
+
+    <div id="lead-alert" class="alert mb-2"></div>
+    <div class="crm-modal-actions">
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        ${converted ? '' : `<button class="btn btn-secondary" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
+        ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete</button>` : ''}
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost" onclick="closeLead()">Close</button>
+        <button class="btn btn-primary" id="lead-save-btn" onclick="saveLead()">Save</button>
+      </div>
+    </div>
+
+    <div class="crm-section-title">Activity</div>
+    <div class="form-row" style="grid-template-columns:140px 1fr">
+      <div class="form-group"><select id="act-kind" class="form-select">
+        <option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email">✉️ Email</option>
+        <option value="text">💬 Text</option><option value="in_person">🤝 In person</option><option value="trial">🏊 Trial</option></select></div>
+      <div class="form-group"><input id="act-body" class="form-input" placeholder="What happened?" onkeydown="if(event.key==='Enter')addActivity()"></div>
+    </div>
+    <button class="btn btn-secondary btn-sm mb-3" onclick="addActivity()">Log activity</button>
+    <div id="act-list" class="text-secondary text-sm">Loading…</div>
+
+    <div class="crm-section-title">Stage history</div>
+    <div id="hist-list" class="crm-history">Loading…</div>`;
+}
+
+function closeLead() { currentLeadId = null; App.closeModal('lead-modal'); }
+
+const ACT_ICON = { note: '📝', call: '📞', email: '✉️', text: '💬', in_person: '🤝', trial: '🏊', other: '•' };
+
+async function loadLeadExtras(id) {
+  try {
+    const [acts, hist] = await Promise.all([SupabaseDB.crmGetActivities(id), SupabaseDB.crmGetStageHistory(id)]);
+    if (currentLeadId !== id) return;
+    const actEl = document.getElementById('act-list');
+    const histEl = document.getElementById('hist-list');
+    if (!actEl || !histEl) return;
+    actEl.innerHTML = acts.length ? acts.map(a => `
+      <div class="crm-activity">
+        <div class="crm-activity-meta"><span>${ACT_ICON[a.kind] || '•'} ${esc(App.formatDate(a.occurred_at))}</span>
+          <button onclick="removeActivity('${a.id}')" title="Delete">✕</button></div>
+        <div class="crm-activity-body">${esc(a.body)}</div></div>`).join('')
+      : 'Nothing logged yet.';
+    histEl.innerHTML = hist.length ? hist.map(h => {
+      const to = STAGE_BY_KEY[h.to_stage]?.label || h.to_stage;
+      const from = h.from_stage ? (STAGE_BY_KEY[h.from_stage]?.label || h.from_stage) : null;
+      return `<div>${esc(App.formatDate(h.changed_at))} — ${from ? `${esc(from)} → ${esc(to)}` : `Added as ${esc(to)}`}</div>`;
+    }).join('') : '—';
+  } catch (err) {
+    const actEl = document.getElementById('act-list');
+    if (actEl) actEl.textContent = 'Could not load: ' + err.message;
+  }
+}
+
+async function addActivity() {
+  const id = currentLeadId;
+  const body = document.getElementById('act-body').value.trim();
+  if (!id || !body) return;
+  const kind = document.getElementById('act-kind').value;
+  try {
+    await SupabaseDB.crmAddActivity(id, kind, body);
+    document.getElementById('act-body').value = '';
+    const l = findLead(id);
+    if (l && ['call', 'email', 'text', 'in_person'].includes(kind)) { l.last_contacted_at = new Date().toISOString(); renderList(); }
+    loadLeadExtras(id);
+  } catch (err) {
+    App.showToast(err.message, 'error');
+  }
+}
+
+async function removeActivity(actId) {
+  try {
+    await SupabaseDB.crmDeleteActivity(actId);
+    loadLeadExtras(currentLeadId);
+  } catch (err) {
+    App.showToast(err.message, 'error');
+  }
+}
+
+async function saveLead() {
+  const l = findLead(currentLeadId);
+  if (!l) return false;
+  const v = id => document.getElementById(id).value.trim();
+  const nn = x => (x === '' ? null : x);
+  const first = v('lf-first');
+  if (!first) { App.showAlert('lead-alert', 'First name is required.'); return false; }
+  const pemail = v('lf-pemail').toLowerCase();
+  const demail = v('lf-demail');
+  const bad = [pemail, demail].find(e => e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  if (bad) { App.showAlert('lead-alert', `"${bad}" does not look like an email address.`); return false; }
+
+  const fields = {
+    first_name: first, last_name: nn(v('lf-last')), date_of_birth: nn(v('lf-dob')), gender: nn(v('lf-gender')),
+    diver_email: nn(demail), diver_phone: nn(v('lf-dphone')),
+    source: nn(v('lf-source')), campaign: nn(v('lf-campaign')),
+    trial_date: nn(v('lf-trial')), follow_up_date: nn(v('lf-follow')),
+    assigned_coach_id: nn(v('lf-coach')), notes: nn(v('lf-notes')),
+  };
+  const contactFields = {
+    full_name: v('lf-pname'), email: nn(pemail), phone: nn(v('lf-pphone')),
+    do_not_contact: document.getElementById('lf-dnc').checked,
+  };
+  const hasContact = !!(contactFields.full_name || contactFields.email || contactFields.phone);
+
+  const btn = document.getElementById('lead-save-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    let contact = l.contact || null;
+    if (l.contact_id && hasContact) {
+      await SupabaseDB.crmUpdateContact(l.contact_id, contactFields);
+      contact = { ...contact, ...contactFields };
+    } else if (!l.contact_id && hasContact) {
+      contact = await SupabaseDB.crmCreateContact(contactFields);
+      fields.contact_id = contact.id;
+    } else if (l.contact_id && !hasContact) {
+      fields.contact_id = null;
+      contact = null;
+    }
+    await SupabaseDB.crmUpdateLead(l.id, fields);
+    Object.assign(l, fields, { contact });
+    if (!('contact_id' in fields)) l.contact_id = contact ? contact.id : null;
+    App.showToast('Saved');
+    renderAll();
+    renderLeadModal(l);
+    loadLeadExtras(l.id);
+    return true;
+  } catch (err) {
+    App.showAlert('lead-alert', err.message);
+    return false;
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+async function deleteLead(id) {
+  const l = findLead(id);
+  if (!l || !confirm(`Permanently delete ${leadName(l)} from the CRM? This does not touch any DivePractice diver profile.`)) return;
+  try {
+    await SupabaseDB.crmDeleteLead(id);
+    leads = leads.filter(x => x.id !== id);
+    closeLead();
+    renderAll();
+    App.showToast('Lead deleted');
+  } catch (err) {
+    App.showToast(err.message, 'error');
+  }
+}
+
+/* ---------- convert to diver (the DivePractice handoff) ---------- */
+
+async function openConvert(id) {
+  const l = findLead(id);
+  if (!l) return;
+  convertLeadId = id;
+  await loadCoaches();
+  const c = l.contact || {};
+  const levelOpts = Array.from({ length: 13 }, (_, n) => `<option value="${n}">${n === 0 ? 'Level 0 — Beginner' : 'Level ' + n}</option>`).join('');
+  const defaultCoach = l.assigned_coach_id || currentUser.id;
+  const coachOpts = (coaches || []).map(co => opt(co.id, co.full_name || co.email, co.id === defaultCoach)).join('');
+  const missing = [];
+  if (!l.gender) missing.push('gender');
+  if (!l.date_of_birth) missing.push('date of birth');
+  if (!c.email) missing.push('parent email');
+
+  document.getElementById('convert-modal-body').innerHTML = `
+    <div class="modal-header">
+      <h2 class="modal-title">Convert to Diver</h2>
+      <button class="modal-close" onclick="App.closeModal('convert-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      This creates <strong>${esc(leadName(l))}</strong> on the DivePractice roster, just like “Add Diver” does,
+      and moves the lead to <strong>4 · Member</strong>. Invite the family from the roster afterwards.
+    </p>
+    <div class="crm-banner">
+      <div><strong>Copied to the diver profile</strong></div>
+      <div class="text-sm">Parent: ${esc(c.full_name || '—')} · ${esc(c.email || 'no email')} · ${esc(c.phone || 'no phone')}</div>
+      <div class="text-sm">Date of birth: ${esc(l.date_of_birth ? fmtDay(l.date_of_birth) : '—')} · Gender: ${esc(l.gender || '—')}</div>
+      <div class="text-xs text-secondary mt-1">Internal CRM notes are not copied.</div>
+    </div>
+    ${missing.length ? `<div class="alert alert-warning visible mb-4">Missing ${esc(missing.join(', '))}. You can add it here first, or fill it in on the diver profile after.</div>` : ''}
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Starting level</label><select id="cv-level" class="form-select">${levelOpts}</select></div>
+      <div class="form-group"><label class="form-label">Coach</label><select id="cv-coach" class="form-select">${coachOpts}</select></div>
+    </div>
+    <div id="convert-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('convert-modal')">Cancel</button>
+      <button class="btn btn-primary" id="convert-btn" onclick="submitConvert()">Create Diver</button>
+    </div>`;
+  App.openModal('convert-modal');
+}
+
+async function submitConvert() {
+  const id = convertLeadId;
+  const l = findLead(id);
+  if (!l) return;
+  const level = Number(document.getElementById('cv-level').value);
+  const coachId = document.getElementById('cv-coach').value;
+  const btn = document.getElementById('convert-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    // Unsaved edits in the open detail panel must land before the copy.
+    if (currentLeadId === id && document.getElementById('lf-first')) {
+      if (!(await saveLead())) {
+        App.showAlert('convert-alert', 'Fix the problem shown on the lead first (it could not be saved), then convert.');
+        return;
+      }
+    }
+    const diverId = await SupabaseDB.crmConvertLead(id, level, coachId);
+    l.converted_diver_id = diverId;
+    l.converted_at = new Date().toISOString();
+    l.assigned_coach_id = coachId;
+    l.stage = 'member';
+    App.closeModal('convert-modal');
+    App.showToast(`${leadName(l)} is now on the roster`);
+    renderAll();
+    if (currentLeadId === id) { renderLeadModal(l); loadLeadExtras(id); }
+  } catch (err) {
+    App.showAlert('convert-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+/* ---------- CSV import ---------- */
+
+let imp = { rows: [], mapping: [], defSource: '', defCampaign: '' };
+
+function openImport() {
+  imp = { rows: [], mapping: [], defSource: '', defCampaign: '' };
+  renderImportStart();
+  App.openModal('import-modal');
+}
+
+function renderImportStart(msg) {
+  document.getElementById('import-modal-body').innerHTML = `
+    <div class="modal-header">
+      <h2 class="modal-title">Import Leads</h2>
+      <button class="modal-close" onclick="App.closeModal('import-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Upload a CSV, or paste rows copied from a spreadsheet (first row = column headings).
+      Leads for the same parent email are grouped into one family; anyone already in the CRM is skipped.
+    </p>
+    <div class="form-group"><label class="form-label">CSV file</label>
+      <input type="file" id="imp-file" class="form-input" accept=".csv,.tsv,.txt,text/csv" onchange="onImportFile(this)"></div>
+    <div class="form-group"><label class="form-label">…or paste here</label>
+      <textarea id="imp-paste" class="form-input" rows="5" style="resize:vertical;font-family:monospace;font-size:0.8rem" placeholder="First Name,Last Name,Parent Email,Parent Phone&#10;Ava,Smith,pat@example.com,585-555-0100"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Default source</label>
+        <input id="imp-source" class="form-input" list="dl-source" placeholder="Used when a row has none"></div>
+      <div class="form-group"><label class="form-label">Default campaign</label>
+        <input id="imp-campaign" class="form-input" list="dl-campaign" placeholder="Fall 2026"></div>
+    </div>
+    <div id="imp-alert" class="alert ${msg ? 'alert-error visible' : ''} mb-4">${esc(msg || '')}</div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('import-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="readImport()">Next</button>
+    </div>`;
+}
+
+async function onImportFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  document.getElementById('imp-paste').value = await f.text();
+}
+
+function readImport() {
+  const text = document.getElementById('imp-paste').value;
+  imp.defSource = document.getElementById('imp-source').value.trim();
+  imp.defCampaign = document.getElementById('imp-campaign').value.trim();
+  const rows = parseDelimited(text);
+  if (rows.length < 2) { renderImportStart('Need a header row and at least one data row.'); document.getElementById('imp-paste').value = text; return; }
+  imp.rows = rows;
+  imp.mapping = mapHeaders(rows[0]);
+  renderImportMap();
+}
+
+function renderImportMap() {
+  const headers = imp.rows[0];
+  const objs = buildImportRows(imp.rows, imp.mapping);
+  const ready = objs.filter(o => o.first_name);
+  const noName = objs.length - ready.length;
+  const hasName = imp.mapping.includes('first_name') || imp.mapping.includes('full_name');
+
+  const mapRows = headers.map((h, i) => `
+    <tr><td>${esc(h || '(blank)')}</td><td>
+      <select class="form-select" onchange="setMap(${i}, this.value)">
+        ${IMPORT_FIELDS.map(([k, label]) => opt(k, label, imp.mapping[i] === k)).join('')}
+      </select></td></tr>`).join('');
+
+  const cols = [...new Set(imp.mapping.filter(Boolean))].filter(k => k !== 'full_name');
+  const prevCols = ['first_name', 'last_name', ...cols.filter(k => k !== 'first_name' && k !== 'last_name')];
+  const preview = ready.slice(0, 5).map(o => `<tr>${prevCols.map(k => `<td>${esc(o[k] || '')}</td>`).join('')}</tr>`).join('');
+
+  document.getElementById('import-modal-body').innerHTML = `
+    <div class="modal-header">
+      <h2 class="modal-title">Match columns</h2>
+      <button class="modal-close" onclick="App.closeModal('import-modal')">✕</button>
+    </div>
+    <table class="crm-map-table"><thead><tr><th>Column in your file</th><th>Goes to</th></tr></thead><tbody>${mapRows}</tbody></table>
+    ${hasName ? '' : '<div class="alert alert-warning visible mb-4">Pick a First name (or Full name) column — every lead needs a name.</div>'}
+    <div class="crm-section-title">Preview</div>
+    <div class="crm-preview"><table class="crm-map-table"><thead><tr>${prevCols.map(k => `<th>${esc(IMPORT_FIELDS.find(f => f[0] === k)?.[1] || k)}</th>`).join('')}</tr></thead><tbody>${preview || '<tr><td>No rows with a name yet.</td></tr>'}</tbody></table></div>
+    <p class="text-sm mb-4"><strong>${ready.length}</strong> lead${ready.length === 1 ? '' : 's'} ready to import${noName ? ` · ${noName} row${noName === 1 ? '' : 's'} skipped (no first name)` : ''}</p>
+    <div id="imp-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="renderImportStart()">Back</button>
+      <button class="btn btn-primary" id="imp-run" ${ready.length ? '' : 'disabled'} onclick="runImport()">Import ${ready.length} lead${ready.length === 1 ? '' : 's'}</button>
+    </div>`;
+}
+
+function setMap(i, field) {
+  if (field) imp.mapping = imp.mapping.map((f, j) => (j !== i && f === field ? '' : f));
+  imp.mapping[i] = field;
+  renderImportMap();
+}
+
+async function runImport() {
+  const objs = buildImportRows(imp.rows, imp.mapping).filter(o => o.first_name);
+  const btn = document.getElementById('imp-run');
+  btn.disabled = true;
+  const total = { inserted: 0, skipped: 0, contacts_created: 0, dupes: 0 };
+  try {
+    for (let i = 0; i < objs.length; i += 500) {
+      btn.textContent = `Importing… ${Math.min(i + 500, objs.length)}/${objs.length}`;
+      const res = await SupabaseDB.crmImportLeads(objs.slice(i, i + 500), imp.defSource, imp.defCampaign);
+      total.inserted += res.inserted;
+      total.skipped += res.skipped;
+      total.contacts_created += res.contacts_created;
+      total.dupes += (res.skipped_rows || []).filter(r => r.reason === 'Duplicate lead').length;
+    }
+  } catch (err) {
+    App.showAlert('imp-alert', `Stopped after ${total.inserted} leads: ${err.message}`);
+    btn.disabled = false;
+    btn.textContent = 'Retry';
+    await loadLeads();
+    return;
+  }
+  document.getElementById('import-modal-body').innerHTML = `
+    <div class="modal-header"><h2 class="modal-title">Import complete</h2>
+      <button class="modal-close" onclick="App.closeModal('import-modal')">✕</button></div>
+    <div class="crm-banner">
+      <div><strong>${total.inserted}</strong> new lead${total.inserted === 1 ? '' : 's'} added</div>
+      <div>${total.contacts_created} new famil${total.contacts_created === 1 ? 'y' : 'ies'}</div>
+      <div>${total.dupes} already in the CRM (skipped)</div>
+      ${total.skipped - total.dupes > 0 ? `<div>${total.skipped - total.dupes} skipped for other reasons</div>` : ''}
+    </div>
+    <div class="flex justify-end"><button class="btn btn-primary" onclick="App.closeModal('import-modal')">Done</button></div>`;
+  await loadLeads();
+}
+
+/* ---------- export ---------- */
+
+function exportCsv() {
+  const rows = filteredLeads();
+  if (!rows.length) { App.showToast('Nothing to export for these filters', 'error'); return; }
+  const header = ['First name', 'Last name', 'Stage', 'Parent name', 'Parent email', 'Parent phone', 'Source', 'Campaign', 'Follow up', 'Last contacted', 'Do not contact'];
+  const lines = [header.map(csvCell).join(',')];
+  rows.forEach(l => {
+    const c = l.contact || {};
+    lines.push([l.first_name, l.last_name, STAGE_BY_KEY[l.stage]?.label, c.full_name, c.email, c.phone, l.source, l.campaign,
+      l.follow_up_date, l.last_contacted_at ? l.last_contacted_at.slice(0, 10) : '', c.do_not_contact ? 'yes' : ''].map(csvCell).join(','));
+  });
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `crm-leads-${todayLocal()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- marketing results ---------- */
+
+async function onResultsToggle() {
+  if (!document.getElementById('results-panel').open) return;
+  if (!stageHistoryAll) {
+    document.getElementById('results-body').textContent = 'Loading…';
+    try { stageHistoryAll = await SupabaseDB.crmGetAllStageHistory(); }
+    catch (err) { document.getElementById('results-body').textContent = 'Could not load: ' + err.message; return; }
+  }
+  renderResults();
+}
+
+function setResultsGroup(g) {
+  resultsGroup = g;
+  document.getElementById('res-by-source').className = 'btn btn-sm ' + (g === 'source' ? 'btn-secondary' : 'btn-ghost');
+  document.getElementById('res-by-campaign').className = 'btn btn-sm ' + (g === 'campaign' ? 'btn-secondary' : 'btn-ghost');
+  if (stageHistoryAll) renderResults();
+}
+
+function renderResults() {
+  if (!leads.length) { document.getElementById('results-body').textContent = 'No leads yet.'; return; }
+  const groups = computeFunnel(leads, stageHistoryAll, l => l[resultsGroup]);
+  const pct = (n, d) => (d ? Math.round((n / d) * 100) + '%' : '—');
+  document.getElementById('results-body').innerHTML = `
+    <div style="overflow-x:auto"><table class="crm-results-table">
+      <thead><tr><th>${resultsGroup === 'source' ? 'Source' : 'Campaign'}</th><th>Leads</th><th>Registered</th><th>Trial done</th><th>Members</th><th>Lead → Member</th><th>Dropped</th></tr></thead>
+      <tbody>${groups.map(g => `<tr><td>${esc(g.key)}</td><td>${g.total}</td><td>${g.registered}</td><td>${g.trial}</td><td>${g.members}</td><td>${pct(g.members, g.total)}</td><td>${g.dropped}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="text-xs mt-2">Counts include everyone who ever reached that stage, even if they later dropped.</p>`;
+}
+</script>
+</body>
+</html>

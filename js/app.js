@@ -24,6 +24,7 @@ const App = {
       { href: 'progress.html',  icon: '📊', label: 'Progress',      roles: ['diver'] },
       { href: 'skills.html',    icon: '🎯', label: 'Skills',         roles: ['coach', 'diver', 'parent'] },
       { href: 'roster.html',    icon: '👥', label: 'Roster',        roles: ['coach'] },
+      { href: 'crm.html',       icon: '📇', label: 'CRM',           roles: ['coach'] },
       { href: 'testing.html',   icon: '📋', label: 'Testing',       roles: ['coach'] },
     ].filter(l => l.roles.includes(role));
 
