@@ -1248,4 +1248,133 @@ const SupabaseDB = {
       .eq('id', scoreId);
     if (error) throw new Error(error.message);
   },
+
+  // =============================================
+  // CRM — leads, contacts, activities (migration v53)
+  // Coach-only; RLS enforces it. Lead -> diver handoff is the
+  // crm_convert_lead_to_diver RPC, never a direct stage write.
+  // =============================================
+
+  // PostgREST caps a response at 1000 rows, so page through everything.
+  async _crmFetchAll(buildQuery) {
+    const PAGE = 1000;
+    const rows = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []));
+      if (!data || data.length < PAGE) break;
+    }
+    return rows;
+  },
+
+  async crmGetLeads() {
+    return this._crmFetchAll(() => this.db
+      .from('crm_leads')
+      .select('*, contact:crm_contacts(id, full_name, email, phone, relationship, notes, do_not_contact)')
+      .order('created_at', { ascending: false })
+      .order('id'));
+  },
+
+  // rows: [{ first_name, last_name, parent_name, parent_email, parent_phone,
+  //          diver_email, diver_phone, date_of_birth, gender, source, campaign,
+  //          notes, stage }]. Used by both the CSV import and "Add lead".
+  async crmImportLeads(rows, defaultSource, defaultCampaign) {
+    const { data, error } = await this.db.rpc('crm_import_leads', {
+      p_rows:             rows,
+      p_default_source:   defaultSource   || null,
+      p_default_campaign: defaultCampaign || null,
+    });
+    if (error) throw new Error(error.message);
+    return data; // { inserted, skipped, contacts_created, lead_ids, skipped_rows }
+  },
+
+  async crmUpdateLead(leadId, fields) {
+    const { error } = await this.db.from('crm_leads').update(fields).eq('id', leadId);
+    if (error) throw new Error(error.message);
+  },
+
+  // Hard delete — RLS only allows super users.
+  async crmDeleteLead(leadId) {
+    const { error } = await this.db.from('crm_leads').delete().eq('id', leadId);
+    if (error) throw new Error(error.message);
+  },
+
+  async crmCreateContact(fields) {
+    const { data, error } = await this.db
+      .from('crm_contacts')
+      .insert({ ...fields, created_by: Auth.currentUser?.id ?? null })
+      .select('id, full_name, email, phone, relationship, notes, do_not_contact')
+      .single();
+    if (error) {
+      if (error.code === '23505') throw new Error('Another family contact already uses that email address.');
+      throw new Error(error.message);
+    }
+    return data;
+  },
+
+  async crmUpdateContact(contactId, fields) {
+    const { error } = await this.db.from('crm_contacts').update(fields).eq('id', contactId);
+    if (error) {
+      if (error.code === '23505') throw new Error('Another family contact already uses that email address.');
+      throw new Error(error.message);
+    }
+  },
+
+  // Creates the DivePractice diver (unclaimed profile + roster row) and
+  // moves the lead to Member. Returns the new diver's profile id.
+  async crmConvertLead(leadId, currentLevel, assignedCoachId) {
+    const { data, error } = await this.db.rpc('crm_convert_lead_to_diver', {
+      p_lead_id:           leadId,
+      p_current_level:     currentLevel ?? null,
+      p_assigned_coach_id: assignedCoachId || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async crmGetActivities(leadId) {
+    const { data, error } = await this.db
+      .from('crm_activities')
+      .select('id, kind, body, occurred_at, created_by')
+      .eq('lead_id', leadId)
+      .order('occurred_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  async crmAddActivity(leadId, kind, body, occurredAt) {
+    const { error } = await this.db.from('crm_activities').insert({
+      lead_id:     leadId,
+      kind,
+      body,
+      occurred_at: occurredAt || new Date().toISOString(),
+      created_by:  Auth.currentUser?.id ?? null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async crmDeleteActivity(activityId) {
+    const { error } = await this.db.from('crm_activities').delete().eq('id', activityId);
+    if (error) throw new Error(error.message);
+  },
+
+  async crmGetStageHistory(leadId) {
+    const { data, error } = await this.db
+      .from('crm_stage_history')
+      .select('from_stage, to_stage, changed_at')
+      .eq('lead_id', leadId)
+      .order('changed_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  // Every stage a lead has ever been in — drives the source/campaign results.
+  async crmGetAllStageHistory() {
+    return this._crmFetchAll(() => this.db
+      .from('crm_stage_history')
+      .select('lead_id, to_stage')
+      .order('changed_at')
+      .order('id'));
+  },
 };

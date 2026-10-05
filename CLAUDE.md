@@ -28,6 +28,7 @@ bumped across ALL HTML files before pushing to GitHub.
 - claim.html
 - coach-signup.html
 - leaderboard.html
+- crm.html
 - practice.html (no `css/styles.css` link — it's self-contained; only bump its JS versions)
 - Any new HTML files added to the project
 
@@ -61,8 +62,8 @@ This has caused repeated bugs throughout development.
 
 | File | Version |
 |------|---------|
-| js/app.js | v=10 |
-| js/supabase.js | v=36 |
+| js/app.js | v=11 |
+| js/supabase.js | v=37 |
 | js/auth.js | v=2 |
 | js/skills.js | v=4 |
 | js/reports.js | v=11 |
@@ -76,7 +77,7 @@ Pure HTML/CSS/JS — no bundler, no build step. Supabase (auth + DB). Netlify (d
 
 **3 roles:** coach (full access), diver (own profile), parent (read-only linked diver)
 
-**DB tables:** profiles, roster, parent_diver, skill_completions, skill_test_attempts, level_completions, club_settings, skill_ratings
+**DB tables:** profiles, roster, parent_diver, skill_completions, skill_test_attempts, level_completions, club_settings, skill_ratings, crm_contacts, crm_leads, crm_activities, crm_stage_history
 
 **Script load order matters (no bundler):** config → supabase → auth → [skills] → app → [reports] → page inline script
 
@@ -97,6 +98,22 @@ Any migration that sets `status` must use one of these values.
 
 The constraint was widened to this full set in `supabase-migration-v34.sql` — the original
 `supabase-migration-v3.sql` only allowed `('unclaimed', 'pending', 'active')`.
+
+---
+
+## CRM (crm.html, migration v53)
+
+Upstate Diving's pre-membership pipeline lives in the same Supabase project as DivePractice.
+
+- Stages (`crm_leads.stage`): `lead` (1) → `registered` (2) → `trial_completed` (3) → `member` (4) → `graduated` (5),
+  plus `dropped` (D) and `no_contact` (N).
+- `member` / `graduated` are only reachable through the `crm_convert_lead_to_diver` RPC (a trigger enforces it). It creates
+  the diver exactly like `create_unclaimed_diver` (unclaimed profile + roster row) and copies parent name/email/phone from
+  the CRM contact. CRM notes are deliberately NOT copied: `profiles.notes` is readable by the diver and linked parents.
+- After conversion the CRM row keeps a link (`converted_diver_id`) but parent/name edits do not sync — DivePractice owns the diver.
+- Access is active coaches/super users only (`crm_is_coach()`); anon has no table or RPC access; hard delete is super-user only.
+- All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
+  sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.
 
 ---
 
