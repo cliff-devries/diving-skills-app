@@ -1,5 +1,5 @@
 // =============================================
-// DIVE DRILLS — Authentication
+// DIVEDRILLS — Authentication
 // Handles login, logout, session management,
 // and role-based access control.
 // =============================================

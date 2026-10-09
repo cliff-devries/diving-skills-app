@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DivePractice — Dive Drills</title>
+<title>DivePractice — DiveDrills</title>
 <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
 <style>
 /* =============================================
-   Design tokens — matched to Dive Drills (divedrills.com)
+   Design tokens — matched to DiveDrills (divedrills.com)
    ============================================= */
 :root{
   --bg-primary:#0f0f0f;
@@ -463,7 +463,7 @@ body.view-mode #content{padding:0;max-width:none;}
   <nav id="sidebar"></nav>
   <div id="mainWrap">
     <div id="debugBar"></div>
-    <div class="pp-mobile-backbar"><a href="dashboard.html">← Dive Drills</a></div>
+    <div class="pp-mobile-backbar"><a href="dashboard.html">← DiveDrills</a></div>
     <div id="statusBanner"></div>
     <main><div id="content"><div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Loading your practice data…</span></div></div></main>
   </div>
@@ -474,17 +474,17 @@ body.view-mode #content{padding:0;max-width:none;}
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=37"></script>
-<script src="js/auth.js?v=3"></script>
-<script src="js/skills.js?v=4"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/supabase.js?v=38"></script>
+<script src="js/auth.js?v=4"></script>
+<script src="js/skills.js?v=5"></script>
+<script src="js/app.js?v=12"></script>
 
 <!-- PDF generation (practice plan report) — same libs as progress.html/stats.html -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-/* ============================= ICONS (emoji, matching Dive Drills style) ============================= */
+/* ============================= ICONS (emoji, matching DiveDrills style) ============================= */
 const ICONS = {
   home:'🏠', planner:'📋', skill:'🎯', settings:'⚙️',
   plus:'➕', chevDown:'▾', chevRight:'▸', menuL:'‹', menuR:'›', edit:'✏️', trash:'🗑️',
@@ -1602,7 +1602,7 @@ function renderDashboard(container){
       </div>
     </div>
     <a class="card dashboard-backcard" href="dashboard.html">
-      <span class="nav-icon">←</span><span>Dive Drills</span>
+      <span class="nav-icon">←</span><span>DiveDrills</span>
     </a>`;
   mountMiniMonthCalendar(document.getElementById('dashCalHost'));
   const upcoming=[...DB.plans].sort((a,b)=>a.date.localeCompare(b.date)).filter(p=>p.date>=todayISO()).slice(0,5);
@@ -2420,7 +2420,7 @@ function renderPracticeBuilder(id,container){
                 <td class="drag-handle">${readOnly?'':ic('drag')}</td>
                 <td>${idx+1}</td>
                 <td>${r.rotationGroupId?`<div class="rotation-group-label">${ic('rotation')} ${esc(r.rotationName||'Rotation')}</div>`:''}${r.ddSkillId
-                  ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from Dive Drills">🔒 Dive Drills</span>`
+                  ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from DiveDrills">🔒 DiveDrills</span>`
                   : `<input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)" ${dis}>`}</td>
                 <td>${minutesInputPairHtml('row_min_'+r.id, r.min, `updatePlanRow('${plan.id}','${r.id}','min',this.value)`, readOnly)}</td>
                 <td class="mutedtext" style="white-space:nowrap;">${fromMinutes(t.start)} - ${fromMinutes(t.end)}</td>
@@ -2447,7 +2447,7 @@ function renderPracticeBuilder(id,container){
                   <div class="skill-card-activity">
                     ${r.rotationGroupId?`<div class="rotation-group-label">${ic('rotation')} ${esc(r.rotationName||'Rotation')}</div>`:''}
                     ${r.ddSkillId
-                      ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from Dive Drills">🔒 DD</span>`
+                      ? `<span style="font-weight:600;">${esc(r.activity)}</span> <span class="badge badge-secondary" title="Read-only — from DiveDrills">🔒 DD</span>`
                       : `<input value="${escAttr(r.activity)}" onchange="updatePlanRow('${plan.id}','${r.id}','activity',this.value)" ${dis}>`}
                   </div>
                   ${readOnly?'':`<details class="row-action-menu">
@@ -2534,7 +2534,7 @@ function updateBuilderMeta(){
   draw();
 }
 // Searches both the coach's own library (DB.skills, "Custom") and the
-// read-only Dive Drills catalog (DD_SKILLS, already cached by
+// read-only DiveDrills catalog (DD_SKILLS, already cached by
 // loadDiveDrillsSkills() for the Skills page — reused as-is, no second
 // fetch). onmousedown+preventDefault instead of onclick for the same
 // reason as the search-add widget: clicking a result blurs this input
@@ -2557,7 +2557,7 @@ function drawBuilderSkillSearch(planId){
   const resultsHtml = matches.length ? matches.map((m,i)=>{
     const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
     const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
-    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
+    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">DiveDrills</span>':'<span class="searchadd-badge custom">Custom</span>';
     const stationsFlagBadge=m.stations?' <span class="searchadd-badge practice">Stations</span>':'';
     return `<div class="searchadd-result" onmousedown="event.preventDefault();pickBuilderSkillSearchResult('${planId}',${i})" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${esc(m.name)}</strong>${stationPart}${levelPart}</span>
@@ -2863,7 +2863,7 @@ function rowTouchEnd(){
   if(window.__currentPlanDraw)window.__currentPlanDraw();
 }
 // Minutes always defaults to 5 regardless of entry point (the Builder's
-// inline search, Dive Drills results) — the skill library no longer
+// inline search, DiveDrills results) — the skill library no longer
 // stores a meaningful minutes value; the coach adjusts it per-row in the
 // plan itself.
 function addSkillToPlan(planId,skillId){
@@ -3413,10 +3413,10 @@ async function renderPlanViewPage(rawPlanId, container){
 
 /* ============================= SKILL DIRECTORY ============================= */
 // Unified list (stationsOnly===false): DB.skills (Custom) + DD_SKILLS
-// (Dive Drills, already cached by loadDiveDrillsSkills() — reused as-is,
+// (DiveDrills, already cached by loadDiveDrillsSkills() — reused as-is,
 // no separate fetch here) merged into one alphabetical list. stationsOnly
 // stays custom-only, since "stations" is a per-custom-skill flag with no
-// Dive Drills equivalent.
+// DiveDrills equivalent.
 // Split shell-vs-table on purpose: renderShell() (page load, and whenever
 // DD_SKILLS finishes loading) rebuilds the sorted base list and the whole
 // page including the search <input>. renderTable() (every keystroke) only
@@ -3579,7 +3579,7 @@ function drawRotationForm(){
             <input class="input" id="rotskill_input_${i}" placeholder="Search for a skill…" autocomplete="off" value="${escAttr(st.skillName||'')}">
             <div class="searchadd-results" id="rotskill_results_${i}" style="display:none;"></div>
           </div>
-          ${st.skillId?`<div class="mutedtext" style="font-size:.72rem;margin-top:4px;">${st.skillSource==='dd'?'Dive Drills':'Custom'}${st.skillStation?' &middot; '+esc(st.skillStation):''} &middot; <a onclick="rotationClearStationSkill(${i})">Clear</a></div>`:''}
+          ${st.skillId?`<div class="mutedtext" style="font-size:.72rem;margin-top:4px;">${st.skillSource==='dd'?'DiveDrills':'Custom'}${st.skillStation?' &middot; '+esc(st.skillStation):''} &middot; <a onclick="rotationClearStationSkill(${i})">Clear</a></div>`:''}
         </td>
         <td><input class="input" type="number" value="${st.minutes||5}" oninput="rotationUpdateStation(${i},'minutes',this.value)"></td>
         <td><button class="icon-btn" onclick="rotationRemoveStation(${i})">${ic('trash')}</button></td>
@@ -3626,7 +3626,7 @@ function drawRotationSkillSearch(i){
   const resultsHtml = matches.length ? matches.map((m,idx)=>{
     const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
     const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
-    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
+    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">DiveDrills</span>':'<span class="searchadd-badge custom">Custom</span>';
     const stationsFlagBadge=m.stations?' <span class="searchadd-badge practice">Stations</span>':'';
     return `<div class="searchadd-result" onmousedown="event.preventDefault();pickRotationSkillSearchResult(${i},${idx})" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${esc(m.name)}</strong>${stationPart}${levelPart}</span>
@@ -3725,8 +3725,8 @@ function loadActiveCoaches(){
     });
 }
 
-/* ============================= DIVE DRILLS SKILLS (read-only, Supabase) ============================= */
-let DD_SKILLS=[];          // cached Dive Drills skills, fetched once from Supabase — reused by both
+/* ============================= DIVEDRILLS SKILLS (read-only, Supabase) ============================= */
+let DD_SKILLS=[];          // cached DiveDrills skills, fetched once from Supabase — reused by both
                             // the unified Skill List and Practice Builder's inline search
 let ddSkillsLoading=false;
 let ddSkillsError=null;
@@ -3738,7 +3738,7 @@ let pendingSkillToAdd=null; // {type:'dd', id} | null
 // category (station) is deliberately left blank here rather than
 // defaulting to the DD skill's skill_type — the coach picks the actual
 // station this skill is being run at for this plan, which often isn't
-// the same as where the skill lives in the Dive Drills library (e.g. a
+// the same as where the skill lives in the DiveDrills library (e.g. a
 // 1m Springboard skill drilled on Dryboard during this practice).
 function ddSkillToRow(skill){
   return {id:uid('row'),activity:skill.name,min:5,category:'',notes:'',image:null,stations:false,ddSkillId:skill.id,ddSkillLevel:skill.level};
@@ -3757,7 +3757,7 @@ function loadDiveDrillsSkills(){
 }
 
 // Called from both the Skills page's "+ Add to Plan" button and Practice
-// Builder's own inline skill search (Dive Drills results). If a Builder
+// Builder's own inline skill search (DiveDrills results). If a Builder
 // draft is already active (even from a different page — see router()'s
 // unsaved-draft handling), add straight to it and jump to the Builder. If
 // not, queue it in pendingSkillToAdd and start a fresh draft — Practice
@@ -3869,7 +3869,7 @@ function renderSkillBlockForm(id, container){
             b.skills.map((s,idx)=>`<tr draggable="true" data-idx="${idx}" ondragstart="blockRowDragStart(event)" ondragover="blockRowDragOver(event)" ondrop="blockRowDrop(event)">
               <td class="drag-handle">${ic('drag')}</td>
               <td>${idx+1}</td>
-              <td><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}${s.source==='dd'?' <span class="badge badge-secondary">Dive Drills</span>':' <span class="badge badge-secondary">Custom</span>'}</td>
+              <td><strong>${esc(s.name)}</strong>${s.station?` <span class="mutedtext">&middot; ${esc(s.station)}</span>`:''}${s.source==='dd'?' <span class="badge badge-secondary">DiveDrills</span>':' <span class="badge badge-secondary">Custom</span>'}</td>
               <td>${minutesInputPairHtml('blkmin_'+idx, s.minutes, `updateBlockSkillMinutes(${idx},this.value)`, false)}</td>
               <td><input value="${escAttr(s.notes||'')}" placeholder="Add coaching notes..." oninput="updateBlockSkillNotes(${idx},this.value)"></td>
               <td><div class="row-actions"><button class="icon-btn" title="Remove" onclick="deleteBlockSkill(${idx})">${ic('trash')}</button></div></td>
@@ -3997,7 +3997,7 @@ function drawBlockSkillSearch(){
   const resultsHtml = matches.length ? matches.map((m,i)=>{
     const stationPart=m.station?` <span class="mutedtext">&middot; ${esc(m.station)}</span>`:'';
     const levelPart=m.kind==='dd'&&m.level!=null?` <span class="searchadd-badge level">L${esc(String(m.level))}</span>`:'';
-    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">Dive Drills</span>':'<span class="searchadd-badge custom">Custom</span>';
+    const kindBadge=m.kind==='dd'?'<span class="searchadd-badge dd">DiveDrills</span>':'<span class="searchadd-badge custom">Custom</span>';
     const stationsFlagBadge=m.stations?' <span class="searchadd-badge practice">Stations</span>':'';
     return `<div class="searchadd-result" onmousedown="event.preventDefault();pickBlockSkillSearchResult(${i})" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${esc(m.name)}</strong>${stationPart}${levelPart}</span>
@@ -4290,7 +4290,7 @@ function saveBuilderSettings(){
 })();
 
 function finishInit(user){
-  // Coach identity always comes from Dive Drills auth, not the planner's
+  // Coach identity always comes from DiveDrills auth, not the planner's
   // own (locally-stored, and never synced to Supabase) coach settings.
   DB.coach.firstName = App.firstName(user) || DB.coach.firstName;
   DB.coach.lastName  = user.last_name || (user.full_name||'').trim().split(/\s+/).slice(1).join(' ');

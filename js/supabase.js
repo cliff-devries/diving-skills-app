@@ -1,5 +1,5 @@
 // =============================================
-// DIVE DRILLS — Supabase Database Functions
+// DIVEDRILLS — Supabase Database Functions
 // All database reads/writes go through this module.
 // Uses the global `window.supabaseClient` set by config.js.
 // =============================================

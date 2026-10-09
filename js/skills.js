@@ -1,5 +1,5 @@
 // =============================================
-// DIVE DRILLS — Skills Library (Supabase)
+// DIVEDRILLS — Skills Library (Supabase)
 // Reads from the public.skills table.
 // No external API dependencies.
 // =============================================

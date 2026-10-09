@@ -1,4 +1,4 @@
-# Dive Drills — Claude Code Standing Instructions
+# DiveDrills — Claude Code Standing Instructions
 
 ## CACHE BUSTING — MUST DO ON EVERY PUSH
 
@@ -63,12 +63,12 @@ This has caused repeated bugs throughout development.
 
 | File | Version |
 |------|---------|
-| js/app.js | v=11 |
-| js/supabase.js | v=37 |
-| js/auth.js | v=3 |
-| js/skills.js | v=4 |
-| js/reports.js | v=11 |
-| css/styles.css | v=10 |
+| js/app.js | v=12 |
+| js/supabase.js | v=38 |
+| js/auth.js | v=4 |
+| js/skills.js | v=5 |
+| js/reports.js | v=12 |
+| css/styles.css | v=11 |
 
 ---
 

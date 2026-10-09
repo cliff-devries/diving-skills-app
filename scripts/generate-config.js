@@ -41,7 +41,7 @@ const config = `// Auto-generated at build time from Netlify environment variabl
 const CONFIG = {
   SUPABASE_URL:      ${JSON.stringify(supabaseUrl)},
   SUPABASE_ANON_KEY: ${JSON.stringify(supabaseAnonKey)},
-  APP_NAME:          'Dive Drills',
+  APP_NAME:          'DiveDrills',
   APP_VERSION:       '1.0.0',
 };
 

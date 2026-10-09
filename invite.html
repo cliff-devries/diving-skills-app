@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dive Drills — Accept Invite</title>
+  <title>DiveDrills — Accept Invite</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=10">
+  <link rel="stylesheet" href="css/styles.css?v=11">
   <style>
     .invite-card {
       max-width: 480px;
@@ -43,7 +43,7 @@
 
     <!-- Brand -->
     <div class="login-brand" style="margin-bottom:24px">
-      <img src="assets/icons/diver-icon.svg" alt="Dive Drills" class="login-logo">
+      <img src="assets/icons/diver-icon.svg" alt="DiveDrills" class="login-logo">
       <div class="login-app-name">Dive<span>Drills</span></div>
     </div>
 
@@ -74,7 +74,7 @@
         Already Signed In
       </h2>
       <p class="text-secondary text-sm mb-4" style="text-align:center">
-        You're currently signed in to a Dive Drills account. To accept this invite, please sign out first.
+        You're currently signed in to a DiveDrills account. To accept this invite, please sign out first.
       </p>
       <button class="btn btn-primary btn-full" onclick="signOutAndReload()">Sign Out</button>
     </div>
@@ -83,7 +83,7 @@
     <div id="step-form" class="invite-step">
       <div class="invite-welcome">
         <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px">
-          Welcome to Dive Drills! <img src="assets/icons/diver-icon.svg" alt="" class="inline-icon"></h2>
+          Welcome to DiveDrills! <img src="assets/icons/diver-icon.svg" alt="" class="inline-icon"></h2>
         <p class="text-secondary text-sm">
           This account gives you and your diver access to track progress, view skills, and stay connected
           with the coaching staff.
@@ -150,9 +150,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=37"></script>
-<script src="js/auth.js?v=3"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/supabase.js?v=38"></script>
+<script src="js/auth.js?v=4"></script>
+<script src="js/app.js?v=12"></script>
 
 <script>
   let inviteToken = null;
@@ -207,7 +207,7 @@
 
     // Email confirmation is off, so signup completes in one step — the only
     // reason someone would already have a session here is being logged in
-    // to a different Dive Drills account.
+    // to a different DiveDrills account.
     const { data: { session } } = await window.supabaseClient.auth.getSession();
     if (session) {
       showStep('signed-in');

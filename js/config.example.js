@@ -1,5 +1,5 @@
 // =============================================
-// DIVE DRILLS — Configuration Template
+// DIVEDRILLS — Configuration Template
 // Copy this file to js/config.js and fill in your real values.
 // js/config.js is excluded from git — never commit real credentials.
 // =============================================
@@ -21,7 +21,7 @@ const CONFIG = {
   AIRTABLE_SKILLS_TABLE: 'Skills',
 
   // ---- App Settings ----------------------------------------
-  APP_NAME:    'Dive Drills',
+  APP_NAME:    'DiveDrills',
   APP_VERSION: '1.0.0',
 };
 

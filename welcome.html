@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dive Drills — Welcome</title>
+  <title>DiveDrills — Welcome</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=10">
+  <link rel="stylesheet" href="css/styles.css?v=11">
   <style>
     .welcome-card {
       max-width: 540px;
@@ -37,7 +37,7 @@
 
     <!-- Brand -->
     <div class="login-brand" style="margin-bottom:20px">
-      <img src="assets/icons/diver-icon.svg" alt="Dive Drills" class="login-logo">
+      <img src="assets/icons/diver-icon.svg" alt="DiveDrills" class="login-logo">
       <div class="login-app-name">Dive<span>Drills</span></div>
     </div>
 
@@ -53,9 +53,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=37"></script>
-<script src="js/auth.js?v=3"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/supabase.js?v=38"></script>
+<script src="js/auth.js?v=4"></script>
+<script src="js/app.js?v=12"></script>
 
 <script>
   (async function initWelcomePage() {
@@ -80,7 +80,7 @@
       content.innerHTML = `
         <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:8px">Welcome, ${App.escHtml(firstName)}! 🎉</h1>
         <p class="text-secondary text-sm">
-          Your Dive Drills family account is ready. You're not linked to a diver yet —
+          Your DiveDrills family account is ready. You're not linked to a diver yet —
           ask your coach for an invite link.
         </p>
         <a href="dashboard.html" class="btn btn-ghost btn-full mt-3">Go to Dashboard</a>
@@ -95,7 +95,7 @@
     content.innerHTML = `
       <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:8px">Welcome, ${App.escHtml(firstName)}! 🎉</h1>
       <p class="text-secondary text-sm">
-        You and ${App.escHtml(diverNames)} now have access to Dive Drills. You can log in anytime to check
+        You and ${App.escHtml(diverNames)} now have access to DiveDrills. You can log in anytime to check
         progress, view test scores, and watch skill videos.
       </p>
 

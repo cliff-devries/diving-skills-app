@@ -1,5 +1,5 @@
 // =============================================
-// Netlify Function — email a Dive Drills test report PDF to a diver's parent.
+// Netlify Function — email a DiveDrills test report PDF to a diver's parent.
 // Sends via Brevo's REST API (not SMTP) so we can attach the PDF directly.
 //
 // Required Netlify environment variable:
@@ -37,7 +37,7 @@ exports.handler = async (event) => {
   }
 
   const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@divedrills.com';
-  const senderName  = process.env.BREVO_SENDER_NAME  || 'Dive Drills';
+  const senderName  = process.env.BREVO_SENDER_NAME  || 'DiveDrills';
 
   const greeting = parentName ? `Hi ${escapeHtml(parentName)},` : 'Hi,';
   const messageParagraph = coachMessage
@@ -47,10 +47,10 @@ exports.handler = async (event) => {
   const htmlContent = `
     <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.6">
       <p>${greeting}</p>
-      <p>Attached is ${escapeHtml(diverName)}'s Level ${escapeHtml(String(level))} test report from Dive Drills.</p>
+      <p>Attached is ${escapeHtml(diverName)}'s Level ${escapeHtml(String(level))} test report from DiveDrills.</p>
       ${messageParagraph}
       <p>— ${escapeHtml(coachName || 'Your coach')}</p>
-      <p style="color:#666666;font-size:12px;margin-top:24px">Sent via Dive Drills — divedrills.com</p>
+      <p style="color:#666666;font-size:12px;margin-top:24px">Sent via DiveDrills — divedrills.com</p>
     </div>`;
 
   try {
@@ -64,7 +64,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         sender:  { name: senderName, email: senderEmail },
         to:      [{ email: parentEmail, name: parentName || undefined }],
-        subject: `Dive Drills Test Report — ${diverName} Level ${level}`,
+        subject: `DiveDrills Test Report — ${diverName} Level ${level}`,
         htmlContent,
         attachment: [{ content: pdfBase64, name: fileName }],
       }),

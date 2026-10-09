@@ -1,5 +1,5 @@
 // =============================================
-// Netlify Function — email a Dive Drills parent/family account invite link.
+// Netlify Function — email a DiveDrills parent/family account invite link.
 // Sends via Brevo's REST API, matching send-report-email.js.
 //
 // Required Netlify environment variable:
@@ -33,18 +33,18 @@ exports.handler = async (event) => {
   }
 
   const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@divedrills.com';
-  const senderName  = process.env.BREVO_SENDER_NAME  || 'Dive Drills';
+  const senderName  = process.env.BREVO_SENDER_NAME  || 'DiveDrills';
 
   const htmlContent = `
     <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.6">
       <p>Hi,</p>
-      <p>${escapeHtml(coachName || 'Your coach')} has invited you to create a Dive Drills family account for
+      <p>${escapeHtml(coachName || 'Your coach')} has invited you to create a DiveDrills family account for
       ${escapeHtml(diverName)}. This account gives you and your diver access to track progress, view skills,
       and stay connected with the coaching staff.</p>
       <p><a href="${escapeHtml(inviteLink)}" style="display:inline-block;padding:10px 20px;background:#00c9a7;color:#0f0f0f;font-weight:700;text-decoration:none;border-radius:6px">Set Up Your Account</a></p>
       <p style="color:#666666;font-size:12px">Or copy and paste this link into your browser:<br>${escapeHtml(inviteLink)}</p>
       <p style="color:#666666;font-size:12px">This link expires in 7 days and can only be used once.</p>
-      <p style="color:#666666;font-size:12px;margin-top:24px">Sent via Dive Drills — divedrills.com</p>
+      <p style="color:#666666;font-size:12px;margin-top:24px">Sent via DiveDrills — divedrills.com</p>
     </div>`;
 
   try {
@@ -58,7 +58,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         sender:  { name: senderName, email: senderEmail },
         to:      [{ email: parentEmail }],
-        subject: `You're invited to Dive Drills — ${diverName}`,
+        subject: `You're invited to DiveDrills — ${diverName}`,
         htmlContent,
       }),
     });

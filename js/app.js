@@ -1,5 +1,5 @@
 // =============================================
-// DIVE DRILLS — App Utilities & Navigation
+// DIVEDRILLS — App Utilities & Navigation
 // Shared helpers used across all pages.
 // =============================================
 
