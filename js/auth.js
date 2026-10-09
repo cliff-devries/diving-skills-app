@@ -12,7 +12,7 @@ const Auth = {
   // =============================================
   // init() — Call at the top of every protected page.
   //   requireAuth: true  → redirect to login if not signed in
-  //   requireAuth: false → used on index.html (redirect *away* if already signed in)
+  //   requireAuth: false → used on login.html (redirect *away* if already signed in)
   // Returns the user profile object, or null.
   // =============================================
   async init(requireAuth = true) {
@@ -34,9 +34,9 @@ const Auth = {
     if (!session) {
       if (requireAuth) {
         // Protected page — send to login
-        if (!window.location.pathname.endsWith('index.html') &&
+        if (!window.location.pathname.endsWith('login.html') &&
             window.location.pathname !== '/') {
-          window.location.href = '/index.html';
+          window.location.href = '/login.html';
         }
       }
       return null;
@@ -56,9 +56,9 @@ const Auth = {
       // Redirect to login so Auth.login() can create the pending_coach profile.
       if (session.user.user_metadata?.requested_role === 'coach') {
         await window.supabaseClient.auth.signOut();
-        if (!window.location.pathname.endsWith('index.html') &&
+        if (!window.location.pathname.endsWith('login.html') &&
             window.location.pathname !== '/') {
-          window.location.href = '/index.html';
+          window.location.href = '/login.html';
         }
         return null;
       }
@@ -73,9 +73,9 @@ const Auth = {
     // before migration v18. Block access and redirect to login.
     if (profile.role === 'diver' && session.user.user_metadata?.requested_role === 'coach') {
       await window.supabaseClient.auth.signOut();
-      if (!window.location.pathname.endsWith('index.html') &&
+      if (!window.location.pathname.endsWith('login.html') &&
           window.location.pathname !== '/') {
-        window.location.href = '/index.html?status=pending_coach';
+        window.location.href = '/login.html?status=pending_coach';
       }
       return null;
     }
@@ -83,9 +83,9 @@ const Auth = {
     // Pending/rejected coaches never get access to any protected page
     if (profile.role === 'pending_coach') {
       await window.supabaseClient.auth.signOut();
-      if (!window.location.pathname.endsWith('index.html') &&
+      if (!window.location.pathname.endsWith('login.html') &&
           window.location.pathname !== '/') {
-        window.location.href = '/index.html?status=pending_coach';
+        window.location.href = '/login.html?status=pending_coach';
       }
       return null;
     }
@@ -106,7 +106,7 @@ const Auth = {
       this.currentSession = newSession;
       if (event === 'SIGNED_OUT') {
         this.currentUser = null;
-        window.location.href = '/index.html';
+        window.location.href = '/login.html';
       }
     });
 
@@ -227,7 +227,7 @@ const Auth = {
     }
     this.currentUser    = null;
     this.currentSession = null;
-    window.location.href = '/index.html';
+    window.location.href = '/login.html';
   },
 
   // =============================================

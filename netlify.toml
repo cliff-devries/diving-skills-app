@@ -41,8 +41,8 @@
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
-# Redirect bare domain → index.html (Netlify handles this automatically,
-# but explicit rules here ensure it works for sub-paths too)
+# Bare domain → index.html, the public DiveCentral hub. The sign-in page
+# lives at login.html (js/auth.js redirects signed-out users there).
 [[redirects]]
   from   = "/"
   to     = "/index.html"

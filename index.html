@@ -3,210 +3,284 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Dive Drills — Track your journey from Level 0 to Level 12">
-  <title>Dive Drills — Sign In</title>
+  <meta name="description" content="DiveCentral — the central hub for all Upstate Diving apps.">
+  <title>DiveCentral — Upstate Diving</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=10">
+  <script>
+    // Sign-in moved to login.html when this hub took over the root URL.
+    // Supabase email links (confirm, magic link, reset) and old
+    // ?status=pending_coach links still land here — hand them to the
+    // sign-in page intact so it can finish the auth flow.
+    (function () {
+      var q = location.search, h = location.hash;
+      if (/[?&](code|token_hash|status|error)=/.test(q) || /(access_token|refresh_token|error_description|type=)/.test(h)) {
+        location.replace('/login.html' + q + h);
+      }
+    })();
+  </script>
   <style>
-    /* Extra styles specific to the login page */
-    .login-divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 20px 0;
-      color: var(--text-secondary);
-      font-size: 0.75rem;
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface-raised: #202020;
+      --border: #2a2a2a;
+      --text: #f5f5f5;
+      --muted: #9a9a9a;
+      --teal: #00c9a7;
+      --purple: #7C3AED;
+      --orange: #F76900;
+      --radius: 20px;
     }
-    .login-divider::before,
-    .login-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-    .login-footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-    }
-    .login-footer a { color: var(--text-secondary); }
-    .login-footer a:hover { color: var(--accent); }
-    .notice-pending-coach {
-      display: none;
-      align-items: flex-start;
-      gap: 10px;
-      background: rgba(13, 148, 136, 0.12);
-      border: 1px solid rgba(13, 148, 136, 0.35);
-      border-radius: 8px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-      font-size: 0.875rem;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.5;
-      color: #5eead4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
-    .notice-pending-coach.visible { display: flex; }
-    .notice-pending-coach .notice-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
-    .notice-pending-coach p { margin: 0; }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(0, 201, 167, .14), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 72px 24px 40px;
+      flex: 1;
+    }
+
+    /* ---- Header ---- */
+    .hero { text-align: center; margin-bottom: 56px; }
+    .wordmark {
+      font-size: clamp(2.6rem, 8vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .wordmark .dive { color: var(--text); }
+    .wordmark .central { color: var(--teal); }
+    .tagline {
+      font-size: clamp(1.05rem, 3vw, 1.25rem);
+      color: var(--text);
+      font-weight: 500;
+      margin-top: 14px;
+    }
+    .subtitle {
+      font-size: .88rem;
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: .01em;
+    }
+
+    /* ---- Cards ---- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+    }
+    .card {
+      --accent: var(--teal);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px 28px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 28px; right: 28px;
+      height: 3px;
+      border-radius: 0 0 3px 3px;
+      background: var(--accent);
+    }
+    .card.live:hover {
+      transform: translateY(-3px);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+    }
+    .card.purple { --accent: var(--purple); }
+    .card.orange { --accent: var(--orange); }
+    .card.soon { opacity: .7; }
+
+    .icon {
+      width: 64px; height: 64px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      margin-bottom: 20px;
+    }
+    .name { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
+    .app-sub {
+      font-size: .82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--accent);
+      margin-top: 2px;
+    }
+    .desc {
+      color: var(--muted);
+      font-size: .95rem;
+      margin: 14px 0 26px;
+      flex: 1;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent);
+      color: #0f0f0f;
+      cursor: pointer;
+      transition: filter .15s ease;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+    .btn[disabled] {
+      background: var(--surface-raised);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      cursor: not-allowed;
+      filter: none;
+    }
+    .badge {
+      position: absolute;
+      top: 18px; right: 18px;
+      font-size: .66rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+    .badge.live {
+      color: var(--teal);
+      background: rgba(0, 201, 167, .12);
+      border: 1px solid rgba(0, 201, 167, .3);
+    }
+    .badge.live::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+      margin-right: 6px;
+      vertical-align: 1px;
+    }
+    .badge.soon {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 25%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+
+    /* ---- Footer ---- */
+    footer {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px 36px;
+      text-align: center;
+    }
+    .divider {
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--teal), transparent);
+      margin-bottom: 22px;
+      opacity: .7;
+    }
+    .copy { font-size: .88rem; color: var(--text); }
+    .powered { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+
+    @media (max-width: 680px) {
+      .wrap { padding: 48px 16px 32px; }
+      .hero { margin-bottom: 36px; }
+      .grid { grid-template-columns: 1fr; gap: 18px; }
+      .card { padding: 28px 22px 22px; }
+      footer { padding: 0 16px 28px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card, .btn { transition: none; }
+      .card.live:hover { transform: none; }
+    }
   </style>
 </head>
 <body>
 
-<div class="login-page">
-  <div class="login-card fade-in">
+<main class="wrap">
+  <header class="hero">
+    <h1 class="wordmark"><span class="dive">Dive</span><span class="central">Central</span></h1>
+    <p class="tagline">Your complete diving platform</p>
+    <p class="subtitle">Upstate Diving &middot; Rochester Institute of Technology</p>
+  </header>
 
-    <!-- Brand -->
-    <div class="login-brand">
-      <img src="assets/icons/diver-icon.svg" alt="Dive Drills" class="login-logo">
-      <div class="login-app-name">Dive<span>Drills</span></div>
-      <div class="login-subtitle">Skills tracker for competitive divers</div>
-    </div>
+  <section class="grid" aria-label="Apps">
+    <article class="card live">
+      <span class="badge live">Live</span>
+      <div class="icon" aria-hidden="true">🎯</div>
+      <h2 class="name">Dive Drills</h2>
+      <div class="app-sub">Skills Tracker</div>
+      <p class="desc">Track skill progression, run testing sessions, and monitor diver development across all levels.</p>
+      <a class="btn" href="dashboard.html">Open Dive Drills</a>
+    </article>
 
-    <!-- Pending-coach notice — shown after email confirmation or re-login attempt -->
-    <div id="pending-coach-notice" class="notice-pending-coach" role="status">
-      <span class="notice-icon">✅</span>
-      <p>Email confirmed! Your coach account request has been submitted. The head coach will review your application and you will receive access shortly. You do not need to log in again until you are approved.</p>
-    </div>
+    <article class="card live">
+      <span class="badge live">Live</span>
+      <div class="icon" aria-hidden="true">📋</div>
+      <h2 class="name">DivePractice</h2>
+      <div class="app-sub">Practice Planner</div>
+      <p class="desc">Build and share professional practice plans with your coaching staff and divers.</p>
+      <a class="btn" href="practice.html">Open DivePractice</a>
+    </article>
 
-    <!-- Alert -->
-    <div id="login-alert" class="alert alert-error mb-4" role="alert"></div>
+    <article class="card soon purple" aria-disabled="true">
+      <span class="badge soon">Coming Soon</span>
+      <div class="icon" aria-hidden="true">🎬</div>
+      <h2 class="name">DiveLibrary</h2>
+      <div class="app-sub">Video Database</div>
+      <p class="desc">Browse thousands of competitive diving videos organized by skill, level, and diver.</p>
+      <button class="btn" type="button" disabled>Coming Soon</button>
+    </article>
 
-    <!-- Form -->
-    <form id="login-form" novalidate>
+    <article class="card soon orange" aria-disabled="true">
+      <span class="badge soon">Coming Soon</span>
+      <div class="icon" aria-hidden="true">🏆</div>
+      <h2 class="name">DiveTrainer</h2>
+      <div class="app-sub">Training Plans</div>
+      <p class="desc">Set goals and build a personalized year-long training program across all five areas of diving.</p>
+      <button class="btn" type="button" disabled>Coming Soon</button>
+    </article>
+  </section>
+</main>
 
-      <div class="form-group">
-        <label class="form-label" for="email">Email address</label>
-        <input
-          id="email"
-          type="email"
-          class="form-input"
-          placeholder="you@example.com"
-          autocomplete="email"
-          inputmode="email"
-          required
-        >
-        <div class="form-error" id="email-error">Please enter a valid email address.</div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          class="form-input"
-          placeholder="••••••••"
-          autocomplete="current-password"
-          required
-          minlength="6"
-        >
-        <div class="form-error" id="password-error">Password must be at least 6 characters.</div>
-      </div>
-
-      <button type="submit" id="login-btn" class="btn btn-primary btn-full btn-lg mt-2">
-        Sign In
-      </button>
-
-    </form>
-
-    <div class="login-footer">
-      <p>No account yet? Ask your coach to set one up for you.</p>
-      <p style="margin-top: 10px">
-        Coach? <a href="coach-signup.html">Sign up for access</a>
-      </p>
-    </div>
-
-  </div>
-</div>
-
-<!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<!-- App scripts -->
-<script src="js/config.js"></script>
-<script src="js/supabase.js?v=37"></script>
-<script src="js/auth.js?v=2"></script>
-<script src="js/app.js?v=11"></script>
-
-<script>
-  (async function initLoginPage() {
-    initSupabase();
-
-    // If already signed in, skip login and go straight to dashboard
-    const { data: { session } } = await window.supabaseClient.auth.getSession();
-    if (session) {
-      window.location.href = '/dashboard.html';
-      return;
-    }
-
-    // Show pending-coach notice if redirected here after signup confirmation
-    // or after a login attempt by an unapproved pending coach.
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('status') === 'pending_coach') {
-      document.getElementById('pending-coach-notice').classList.add('visible');
-    }
-
-    // ---- Form submission ----
-    const form       = document.getElementById('login-form');
-    const loginBtn   = document.getElementById('login-btn');
-    const alertEl    = document.getElementById('login-alert');
-    const emailInput = document.getElementById('email');
-    const passInput  = document.getElementById('password');
-
-    function showError(message) {
-      alertEl.className   = 'alert alert-error visible mb-4';
-      alertEl.textContent = message;
-    }
-
-    function clearError() {
-      alertEl.className = 'alert alert-error mb-4';
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      clearError();
-
-      const email    = emailInput.value.trim();
-      const password = passInput.value;
-
-      // Basic front-end validation
-      if (!email || !/\S+@\S+\.\S+/.test(email)) {
-        document.getElementById('email-error').classList.add('visible');
-        emailInput.focus();
-        return;
-      }
-      document.getElementById('email-error').classList.remove('visible');
-
-      if (!password || password.length < 6) {
-        document.getElementById('password-error').classList.add('visible');
-        passInput.focus();
-        return;
-      }
-      document.getElementById('password-error').classList.remove('visible');
-
-      App.setBtnLoading(loginBtn, true);
-
-      try {
-        await Auth.login(email, password);
-        // Redirect to dashboard on success
-        window.location.href = '/dashboard.html';
-      } catch (err) {
-        if (err.pendingCoach) {
-          window.location.href = '/index.html?status=pending_coach';
-          return;
-        }
-        showError(err.message);
-        App.setBtnLoading(loginBtn, false);
-      }
-    });
-
-    // Clear field-level errors on input
-    emailInput.addEventListener('input', () => {
-      document.getElementById('email-error').classList.remove('visible');
-    });
-    passInput.addEventListener('input', () => {
-      document.getElementById('password-error').classList.remove('visible');
-    });
-  })();
-</script>
+<footer>
+  <div class="divider"></div>
+  <div class="copy">&copy; 2026 Upstate Diving &middot; DiveCentral</div>
+  <div class="powered">Powered by Dive Drills</div>
+</footer>
 
 </body>
 </html>

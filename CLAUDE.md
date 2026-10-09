@@ -15,7 +15,8 @@ bumped across ALL HTML files before pushing to GitHub.
 - `css/styles.css?v=X` — bump when styles.css changes
 
 ### HTML files to update (ALL of them):
-- index.html
+- index.html (DiveCentral hub — self-contained, loads no project JS/CSS; nothing to bump)
+- login.html (sign-in page — auth.js redirects here)
 - dashboard.html
 - skills.html
 - progress.html
@@ -64,7 +65,7 @@ This has caused repeated bugs throughout development.
 |------|---------|
 | js/app.js | v=11 |
 | js/supabase.js | v=37 |
-| js/auth.js | v=2 |
+| js/auth.js | v=3 |
 | js/skills.js | v=4 |
 | js/reports.js | v=11 |
 | css/styles.css | v=10 |
