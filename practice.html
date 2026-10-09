@@ -2057,6 +2057,10 @@ function saveBuilderDraft(){
     fields.coachName=coachDisplayName(); // set once, at creation — never overwritten by later edits
     DB.plans.push(fields);
     builderDraft.__sourceId=builderDraft.id;
+    // Keep the URL in step with the now-saved plan. replaceState doesn't
+    // fire hashchange, so this can't re-render or trip the nav guard.
+    lastFullRoute='builder/'+builderDraft.id;
+    history.replaceState(null,'','#/'+lastFullRoute);
   }
   saveDB();
   builderDirty=false;
@@ -3770,13 +3774,15 @@ function addDDSkillToPlan(skillId){
     builderDirty=true;
     if(window.__currentPlanDraw)window.__currentPlanDraw();
     toast('Skill added to Practice Builder');
-    const targetRoute=builderDraft.__sourceId?'builder/'+builderDraft.__sourceId:'builder';
-    // Only navigate if we're not already there (e.g. called from the
-    // Skills page) — navigating to the route we're already on would
-    // trigger a second, redundant full re-render via router(), which
-    // would clobber pickBuilderSkillSearchResult()'s scroll/focus on the
-    // fresh search bar since hashchange fires asynchronously right after.
-    if(currentRoute()!==targetRoute) navigate(targetRoute);
+    // Adding a skill is never navigation when we're already in the
+    // Builder. Comparing against the exact builder/<id> route used to
+    // miss after a new plan's first save (URL still #/builder), so the
+    // navigate() here hit router()'s unsaved-changes guard with
+    // builderDirty just set above. Only jump when coming from another page
+    // (e.g. Skills), where router() has no dirty builder to guard.
+    if(currentRoute().split('/')[0]!=='builder'){
+      navigate(builderDraft.__sourceId?'builder/'+builderDraft.__sourceId:'builder');
+    }
   } else {
     pendingSkillToAdd={type:'dd',id:skill.id};
     toast('Skill added to Practice Builder');
