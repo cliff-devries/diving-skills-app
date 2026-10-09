@@ -4193,7 +4193,11 @@ function saveProfile(){
 /* ============================= BUILDER SETTINGS ============================= */
 function renderBuilderSettings(container){
   const p=DB.prefs;
-  container.innerHTML = `<div class="crumb"><a onclick="navigate('builder')">‹ Practice Builder</a></div>` +
+  // Back to whatever plan the Builder had open — builderDraft survives the
+  // hop here. An unsaved new draft has no __sourceId and reopens fine at
+  // plain #/builder (renderPracticeBuilder keeps it since null===null).
+  const backRoute = builderDraft && builderDraft.__sourceId ? 'builder/'+builderDraft.__sourceId : 'builder';
+  container.innerHTML = `<div class="crumb"><a onclick="navigate('${escAttr(backRoute)}')">‹ Practice Builder</a></div>` +
     pageHeader('Builder Settings') +
     `<div class="settings-section">
       <h4>General</h4>
