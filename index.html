@@ -29,6 +29,7 @@
       --teal: #00c9a7;
       --purple: #7C3AED;
       --orange: #F76900;
+      --blue: #2196F3;
       --radius: 20px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,11 +85,16 @@
     }
 
     /* ---- Cards ---- */
+    /* 3 + 2 layout on a 6-track grid: every card spans 2 tracks, and the
+       two second-row cards start at tracks 2 and 4 so they sit centered. */
     .grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 22px;
     }
+    .grid > .card { grid-column: span 2; }
+    .grid > .card:nth-child(4) { grid-column: 2 / span 2; }
+    .grid > .card:nth-child(5) { grid-column: 4 / span 2; }
     .card {
       --accent: var(--teal);
       position: relative;
@@ -116,6 +122,7 @@
     }
     .card.purple { --accent: var(--purple); }
     .card.orange { --accent: var(--orange); }
+    .card.blue { --accent: var(--blue); }
     .card.soon { opacity: .7; }
 
     .icon {
@@ -177,16 +184,16 @@
       border-radius: 999px;
     }
     .badge.live {
-      color: var(--teal);
-      background: rgba(0, 201, 167, .12);
-      border: 1px solid rgba(0, 201, 167, .3);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
     }
     .badge.live::before {
       content: '';
       display: inline-block;
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: var(--teal);
+      background: var(--accent);
       margin-right: 6px;
       vertical-align: 1px;
     }
@@ -215,10 +222,13 @@
     .copy { font-size: .88rem; color: var(--text); }
     .powered { font-size: .75rem; color: var(--muted); margin-top: 4px; }
 
-    @media (max-width: 680px) {
+    @media (max-width: 760px) {
       .wrap { padding: 48px 16px 32px; }
       .hero { margin-bottom: 36px; }
       .grid { grid-template-columns: 1fr; gap: 18px; }
+      .grid > .card,
+      .grid > .card:nth-child(4),
+      .grid > .card:nth-child(5) { grid-column: auto; }
       .card { padding: 28px 22px 22px; }
       footer { padding: 0 16px 28px; }
     }
@@ -254,6 +264,15 @@
       <div class="app-sub">Practice Planner</div>
       <p class="desc">Build and share professional practice plans with your coaching staff and divers.</p>
       <a class="btn" href="practice.html">Open DivePractice</a>
+    </article>
+
+    <article class="card live blue">
+      <span class="badge live">Live</span>
+      <div class="icon" aria-hidden="true">📇</div>
+      <h2 class="name">DiveCRM</h2>
+      <div class="app-sub">Club Management</div>
+      <p class="desc">Manage leads, track diver recruitment, and convert prospects into registered club members.</p>
+      <a class="btn" href="crm.html">Open DiveCRM</a>
     </article>
 
     <article class="card soon purple" aria-disabled="true">
