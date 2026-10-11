@@ -303,7 +303,7 @@
   </div>
   <nav class="dcrm-tabs" aria-label="DiveCRM">
     <a href="#dashboard" data-view="dashboard">Dashboard</a>
-    <a href="#leads" data-view="leads">Leads</a>
+    <a href="#leads" data-view="leads">Contacts</a>
     <a href="#services" data-view="services">Services</a>
     <a href="#activities" data-view="activities">Activities</a>
     <a href="#reports" data-view="reports">Reports</a>
@@ -331,7 +331,7 @@
     <div class="page-header">
       <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
         <div>
-          <h1>Leads</h1>
+          <h1>Contacts</h1>
           <p>Every lead with its family contact, from first contact to the pool deck.</p>
         </div>
         <div class="flex gap-2" style="flex-wrap:wrap">
@@ -464,7 +464,7 @@
 
 <nav class="dcrm-bottom-nav" aria-label="DiveCRM">
   <a href="#dashboard" data-view="dashboard"><span aria-hidden="true">🏠</span>Dashboard</a>
-  <a href="#leads" data-view="leads"><span aria-hidden="true">📇</span>Leads</a>
+  <a href="#leads" data-view="leads"><span aria-hidden="true">📇</span>Contacts</a>
   <a href="#services" data-view="services"><span aria-hidden="true">🧾</span>Services</a>
   <a href="#activities" data-view="activities"><span aria-hidden="true">🕒</span>Activities</a>
   <a href="#reports" data-view="reports"><span aria-hidden="true">📊</span>Reports</a>
@@ -1243,7 +1243,7 @@ function requestStageChange(id, to) {
   } else {
     showConfirm({
       title: 'Change stage',
-      body: `Move <strong>${esc(leadName(l))}</strong> to <strong>${esc(label)}</strong>?${ARCHIVED_STAGES.has(to) ? '<br><span class="text-secondary text-sm">This moves the lead to Archived (Leads → Show archived).</span>' : ''}`,
+      body: `Move <strong>${esc(leadName(l))}</strong> to <strong>${esc(label)}</strong>?${ARCHIVED_STAGES.has(to) ? '<br><span class="text-secondary text-sm">This moves the lead to Archived (Contacts → Show archived).</span>' : ''}`,
       confirmLabel: 'Confirm',
       onConfirm: () => changeStage(id, to),
     });
