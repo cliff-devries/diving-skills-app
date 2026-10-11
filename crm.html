@@ -10,21 +10,6 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
 
-    .crm-stats {
-      display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px;
-      margin-bottom: 16px; -webkit-overflow-scrolling: touch;
-    }
-    .crm-stat {
-      flex: 0 0 auto; min-width: 104px; text-align: left; color: inherit; font: inherit;
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: var(--radius-md); padding: 10px 14px; cursor: pointer;
-      transition: var(--transition);
-    }
-    .crm-stat:hover { border-color: rgba(33,150,243,0.4); }
-    .crm-stat.active { border-color: var(--accent); background: var(--accent-dim); }
-    .crm-stat-num { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
-    .crm-stat-label { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; }
-    .crm-stat.due .crm-stat-num { color: var(--pending); }
 
     .crm-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
     .crm-controls .form-group { margin-bottom: 0; min-width: 140px; }
@@ -111,6 +96,7 @@
     .dcrm-tabs a:hover { color: var(--text-primary); }
     .dcrm-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
     .dcrm-main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
+    body.dcrm-wide .dcrm-header-inner, body.dcrm-wide .dcrm-tabs, body.dcrm-wide .dcrm-main { max-width: 1480px; }
     .dcrm-bottom-nav { display: none; }
 
     .crm-contact-divers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -119,6 +105,71 @@
       background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; cursor: pointer;
     }
     .crm-contact-diver:hover { border-color: var(--accent); }
+
+    /* ---- Dashboard kanban ---- */
+    .dcrm-board-title { font-size: 1.4rem; font-weight: 800; }
+    .kb-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .kb-stat {
+      display: inline-flex; align-items: baseline; gap: 6px; font: inherit; color: var(--text-secondary);
+      background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 5px 12px; font-size: 0.78rem; cursor: pointer;
+    }
+    .kb-stat:hover { border-color: var(--accent); }
+    .kb-stat b { color: var(--text-primary); font-size: 0.95rem; }
+    .kb-stat.warn b { color: var(--pending); }
+    .kb-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; align-items: flex-start; }
+    .kb-col {
+      flex: 1 1 0; min-width: 220px; max-width: 280px; display: flex; flex-direction: column;
+      background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+      max-height: calc(100vh - 230px);
+    }
+    .kb-col-head {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-top: 3px solid var(--c); border-radius: var(--radius-md) var(--radius-md) 0 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .kb-col-name { font-weight: 800; font-size: 0.92rem; color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .kb-count {
+      min-width: 22px; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 10px;
+      color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
+    }
+    .kb-add {
+      margin-left: auto; background: none; border: 1px solid var(--border); color: var(--text-secondary);
+      font: inherit; font-size: 0.72rem; font-weight: 600; border-radius: 6px; padding: 2px 8px; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .kb-add:hover { color: var(--c); border-color: var(--c); }
+    .kb-col-body { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
+    .kb-empty { color: var(--text-secondary); font-size: 0.8rem; text-align: center; padding: 14px 4px; }
+    .kb-card {
+      text-align: left; font: inherit; color: inherit; width: 100%;
+      background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 11px; cursor: pointer; transition: var(--transition);
+    }
+    .kb-card:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--border)); }
+    .kb-card-top { display: flex; align-items: flex-start; gap: 8px; }
+    .kb-card-name { font-weight: 700; font-size: 0.95rem; line-height: 1.25; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .kb-avatar {
+      flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; background: #00c9a7; color: #0f0f0f;
+      font-size: 0.62rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
+    }
+    .kb-card-parent { color: var(--text-secondary); font-size: 0.78rem; margin-top: 2px; }
+    .kb-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.72rem; }
+    .kb-pill { padding: 1px 8px; border-radius: 10px; font-weight: 600; color: var(--pc); background: color-mix(in srgb, var(--pc) 16%, transparent); }
+    .kb-follow { color: var(--text-secondary); }
+    .kb-follow.today { color: var(--pending); font-weight: 600; }
+    .kb-follow.overdue { color: var(--danger); font-weight: 700; }
+    .kb-mobile-nav { display: none; }
+
+    /* ---- Lead modal: stage advancement ---- */
+    .crm-advance { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 14px; }
+    .crm-advance-current { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px; }
+    .crm-advance-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn-advance { background: #00c9a7; color: #0f0f0f; font-weight: 700; }
+    .btn-advance:hover:not(:disabled) { background: #00b596; color: #0f0f0f; }
+
+    /* ---- Archived ---- */
+    .ar-row-actions { flex: 0 0 auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
     @media (max-width: 768px) {
       .dcrm-tabs { display: none; }
@@ -136,6 +187,15 @@
       }
       .dcrm-bottom-nav a span { font-size: 1.15rem; }
       .dcrm-bottom-nav a.active { color: var(--accent); }
+
+      .kb-mobile-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      .kb-mobile-title { font-weight: 800; font-size: 1.05rem; text-align: center; flex: 1; }
+      .kb-board { display: block; overflow: visible; }
+      .kb-col { display: none; max-width: none; min-width: 0; max-height: none; }
+      .kb-col.is-current { display: flex; }
+      .kb-col-body { overflow: visible; }
+      .kb-col-name { font-size: 1.1rem; }
+      .ar-row-actions { width: 100%; }
     }
     .crm-map-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 12px; }
     .crm-map-table td, .crm-map-table th { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
@@ -171,6 +231,7 @@
     <a href="#leads" data-view="leads">Leads</a>
     <a href="#contacts" data-view="contacts">Contacts</a>
     <a href="#reports" data-view="reports">Reports</a>
+    <a href="#archived" data-view="archived">Archived</a>
   </nav>
 </header>
 
@@ -178,24 +239,17 @@
   <div id="crm-alert" class="alert mb-4"></div>
 
   <section class="dcrm-view" id="view-dashboard" hidden>
-    <div class="page-header">
-      <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
-        <div>
-          <h1>Dashboard</h1>
-          <p>Your recruiting pipeline at a glance. Tap a number to see those leads.</p>
-        </div>
-        <button class="btn btn-primary" onclick="openAdd()">+ Add Lead</button>
-      </div>
+    <div class="flex items-center justify-between mb-3" style="flex-wrap:wrap;gap:10px">
+      <h1 class="dcrm-board-title">Pipeline</h1>
+      <button class="btn btn-primary btn-sm" onclick="openAdd()">+ Add Lead</button>
     </div>
-    <div class="crm-stats" id="crm-stats"></div>
-    <div class="content-section">
-      <div class="section-title">⏰ Follow-ups due</div>
-      <div id="dash-due"></div>
+    <div class="kb-stats" id="kb-stats"></div>
+    <div class="kb-mobile-nav">
+      <button class="btn btn-ghost btn-sm" id="kb-prev" onclick="kbStep(-1)">← Prev</button>
+      <div class="kb-mobile-title" id="kb-mobile-title"></div>
+      <button class="btn btn-ghost btn-sm" id="kb-next" onclick="kbStep(1)">Next →</button>
     </div>
-    <div class="content-section">
-      <div class="section-title">🆕 Recently added</div>
-      <div id="dash-recent"></div>
-    </div>
+    <div class="kb-board" id="kb-board"></div>
   </section>
 
   <section class="dcrm-view" id="view-leads" hidden>
@@ -283,6 +337,35 @@
       <div id="results-body" class="text-secondary text-sm">Loading…</div>
     </div>
   </section>
+
+  <section class="dcrm-view" id="view-archived" hidden>
+    <div class="page-header">
+      <h1>Archived</h1>
+      <p>Dropped and No Contact leads. Restore one to put it back in the pipeline.</p>
+    </div>
+    <div class="content-section">
+      <div class="crm-controls">
+        <div class="form-group grow">
+          <label class="form-label">Search</label>
+          <input type="text" id="ar-search" class="form-input" placeholder="Diver, parent, email, phone…" oninput="renderArchived()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stage</label>
+          <select id="ar-stage" class="form-select" onchange="renderArchived()">
+            <option value="">Dropped + No Contact</option>
+            <option value="dropped">Dropped / Quit</option>
+            <option value="no_contact">No Contact</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Coach</label>
+          <select id="ar-coach" class="form-select" onchange="renderArchived()"></select>
+        </div>
+      </div>
+      <div class="text-secondary text-sm mb-2" id="ar-count-label"></div>
+      <div id="archived-list"></div>
+    </div>
+  </section>
 </main>
 
 <nav class="dcrm-bottom-nav" aria-label="DiveCRM">
@@ -290,6 +373,7 @@
   <a href="#leads" data-view="leads"><span aria-hidden="true">📇</span>Leads</a>
   <a href="#contacts" data-view="contacts"><span aria-hidden="true">👪</span>Contacts</a>
   <a href="#reports" data-view="reports"><span aria-hidden="true">📊</span>Reports</a>
+  <a href="#archived" data-view="archived"><span aria-hidden="true">🗄️</span>Archived</a>
 </nav>
 
 
@@ -610,7 +694,10 @@ const esc = s => App.escHtml(s);
   document.getElementById('a-stage').innerHTML = ['lead', 'registered', 'trial_completed', 'no_contact']
     .map(k => `<option value="${k}">${esc(STAGE_BY_KEY[k].code + ' · ' + STAGE_BY_KEY[k].label)}</option>`).join('');
 
-  await loadLeads();
+  await Promise.all([loadCoaches().catch(() => []), loadLeads()]);
+  renderDashboard();
+  renderArchived();
+  setupKanbanSwipe();
 })();
 
 /* ---------- helpers ---------- */
@@ -666,22 +753,23 @@ async function loadLeads() {
 }
 
 function renderAll() {
-  renderStats();
   renderFilterOptions();
   renderList();
   renderDashboard();
   renderContacts();
+  renderArchived();
 }
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
 
-const VIEWS = ['dashboard', 'leads', 'contacts', 'reports'];
+const VIEWS = ['dashboard', 'leads', 'contacts', 'reports', 'archived'];
 let currentView = 'leads';
 
 function showView() {
   const want = location.hash.replace('#', '');
   currentView = VIEWS.includes(want) ? want : 'leads';
   VIEWS.forEach(v => { document.getElementById('view-' + v).hidden = v !== currentView; });
+  document.body.classList.toggle('dcrm-wide', currentView === 'dashboard');
   document.querySelectorAll('[data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === currentView));
   if (currentView === 'reports') loadReports();
   window.scrollTo(0, 0);
@@ -692,19 +780,207 @@ function goToView(v) {
   else location.hash = v;
 }
 
+// Active pipeline only — dropped / no_contact live on the Archived tab.
+const KANBAN = [
+  { key: 'lead',            label: 'Lead',            color: '#2196F3' },
+  { key: 'registered',      label: 'Registered',      color: '#FF9800' },
+  { key: 'trial_completed', label: 'Trial Completed', color: '#9C27B0' },
+  { key: 'member',          label: 'Member',          color: '#00c9a7' },
+  { key: 'graduated',       label: 'Graduated',       color: '#4CAF50' },
+];
+// Member/Graduated are conversion-only (crm_leads_stage_guard), so those
+// columns get no quick-add.
+const KANBAN_ADDABLE = new Set(['lead', 'registered', 'trial_completed']);
+const ARCHIVED_STAGES = new Set(['dropped', 'no_contact']);
+const SOURCE_COLORS = ['#2196F3', '#FF9800', '#9C27B0', '#00c9a7', '#4CAF50', '#E91E63', '#FFC107', '#03A9F4'];
+let kbIndex = 0;
+
+function localDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function sourceColor(src) {
+  let h = 0;
+  for (const ch of String(src)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return SOURCE_COLORS[h % SOURCE_COLORS.length];
+}
+
+function coachById(id) { return (coaches || []).find(c => c.id === id); }
+
+function coachInitials(id) {
+  const c = coachById(id);
+  return c ? Auth.getInitials(c.full_name || c.email || '') : '';
+}
+
+function renderKanbanStats(today) {
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const weekStart = localDateStr(monday), weekEnd = localDateStr(sunday);
+  const monthPrefix = today.slice(0, 7);
+
+  const active = leads.filter(l => OPEN_STAGES.has(l.stage)).length;
+  const due = leads.filter(l => isFollowUpDue(l, today)).length;
+  const trials = leads.filter(l => l.trial_date && l.trial_date >= weekStart && l.trial_date <= weekEnd).length;
+  const newThisMonth = leads.filter(l => l.created_at && localDateStr(new Date(l.created_at)).slice(0, 7) === monthPrefix).length;
+
+  document.getElementById('kb-stats').innerHTML = `
+    <button class="kb-stat" onclick="applyStatFilter('open')"><b>${active}</b> active leads</button>
+    <button class="kb-stat ${due ? 'warn' : ''}" onclick="applyStatFilter('due')"><b>${due}</b> follow-ups due</button>
+    <span class="kb-stat" style="cursor:default"><b>${trials}</b> trials this week</span>
+    <span class="kb-stat" style="cursor:default"><b>${newThisMonth}</b> new this month</span>`;
+}
+
+function kanbanCardHtml(l, today, color) {
+  const c = l.contact || {};
+  const initials = coachInitials(l.assigned_coach_id);
+  const coachName = coachById(l.assigned_coach_id)?.full_name || '';
+  let follow = '';
+  if (l.follow_up_date) {
+    const overdue = l.follow_up_date < today;
+    const isToday = l.follow_up_date === today;
+    follow = `<span class="kb-follow ${overdue ? 'overdue' : isToday ? 'today' : ''}">${overdue ? '⚠️' : '📅'} ${isToday ? 'Today' : esc(fmtDay(l.follow_up_date))}</span>`;
+  }
+  return `
+    <button class="kb-card" style="--c:${color}" onclick="openLead('${l.id}')">
+      <div class="kb-card-top">
+        <div class="kb-card-name">${esc(leadName(l))}</div>
+        ${initials ? `<span class="kb-avatar" title="${esc(coachName)}">${esc(initials)}</span>` : ''}
+      </div>
+      ${c.full_name ? `<div class="kb-card-parent">${esc(c.full_name)}</div>` : ''}
+      ${(l.source || follow || l.notes) ? `<div class="kb-card-meta">
+        ${l.source ? `<span class="kb-pill" style="--pc:${sourceColor(l.source)}">${esc(l.source)}</span>` : ''}
+        ${follow}
+        ${l.notes ? '<span title="Has notes">📝</span>' : ''}
+      </div>` : ''}
+    </button>`;
+}
+
 function renderDashboard() {
   const today = todayLocal();
-  const empty = msg => `<div class="text-secondary text-sm">${esc(msg)}</div>`;
-  const due = leads.filter(l => isFollowUpDue(l, today))
-    .sort((a, b) => (a.follow_up_date || '').localeCompare(b.follow_up_date || ''));
-  document.getElementById('dash-due').innerHTML = due.length
-    ? due.slice(0, 10).map(l => rowHtml(l, today)).join('') +
-      (due.length > 10 ? `<button class="btn btn-ghost w-full" onclick="applyStatFilter('due')">See all ${due.length} follow-ups</button>` : '')
-    : empty(leads.length ? 'Nothing due — you are all caught up.' : 'No leads yet.');
-  const recent = leads.slice(0, 5);
-  document.getElementById('dash-recent').innerHTML = recent.length
-    ? recent.map(l => rowHtml(l, today)).join('')
-    : empty('No leads yet. Add one or import a list from the Leads tab.');
+  renderKanbanStats(today);
+  document.getElementById('kb-board').innerHTML = KANBAN.map((col, i) => {
+    const items = leads.filter(l => l.stage === col.key);
+    if (col.key === 'lead' || col.key === 'registered' || col.key === 'trial_completed') {
+      items.sort((a, b) => (a.follow_up_date || '9999-12-31').localeCompare(b.follow_up_date || '9999-12-31'));
+    }
+    return `
+      <div class="kb-col ${i === kbIndex ? 'is-current' : ''}" style="--c:${col.color}" data-col="${i}">
+        <div class="kb-col-head">
+          <span class="kb-col-name" title="${esc(col.label)}">${esc(col.label)}</span>
+          <span class="kb-count">${items.length}</span>
+          ${KANBAN_ADDABLE.has(col.key) ? `<button class="kb-add" onclick="openAdd('${col.key}')" title="Add a lead to ${esc(col.label)}">+ Add</button>` : ''}
+        </div>
+        <div class="kb-col-body">
+          ${items.length ? items.map(l => kanbanCardHtml(l, today, col.color)).join('') : '<div class="kb-empty">No leads</div>'}
+        </div>
+      </div>`;
+  }).join('');
+  updateKanbanMobileNav();
+}
+
+function updateKanbanMobileNav() {
+  const col = KANBAN[kbIndex];
+  const count = leads.filter(l => l.stage === col.key).length;
+  document.getElementById('kb-mobile-title').innerHTML =
+    `<span style="color:${col.color}">${esc(col.label)}</span> <span class="text-secondary text-sm">(${kbIndex + 1} of ${KANBAN.length}) · ${count}</span>`;
+  document.getElementById('kb-prev').disabled = kbIndex === 0;
+  document.getElementById('kb-next').disabled = kbIndex === KANBAN.length - 1;
+}
+
+function kbStep(dir) {
+  const next = Math.max(0, Math.min(KANBAN.length - 1, kbIndex + dir));
+  if (next === kbIndex) return;
+  kbIndex = next;
+  document.querySelectorAll('.kb-col').forEach(el => el.classList.toggle('is-current', Number(el.dataset.col) === kbIndex));
+  updateKanbanMobileNav();
+  window.scrollTo(0, 0);
+}
+
+// Horizontal swipe switches columns on mobile; mostly-vertical drags are
+// left alone so the column still scrolls normally.
+function setupKanbanSwipe() {
+  const board = document.getElementById('kb-board');
+  let x0 = null, y0 = null;
+  board.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  board.addEventListener('touchend', e => {
+    if (x0 === null || !window.matchMedia('(max-width: 768px)').matches) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = y0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) kbStep(dx < 0 ? 1 : -1);
+  }, { passive: true });
+}
+
+/* ---------- archived (dropped / no_contact) ---------- */
+
+function renderArchived() {
+  const coachSel = document.getElementById('ar-coach');
+  const curCoach = coachSel.value;
+  coachSel.innerHTML = '<option value="">All coaches</option><option value="none">Unassigned</option>' +
+    (coaches || []).map(c => `<option value="${esc(c.id)}">${esc(c.full_name || c.email)}</option>`).join('');
+  coachSel.value = [...coachSel.options].some(o => o.value === curCoach) ? curCoach : '';
+
+  const q = document.getElementById('ar-search').value.trim().toLowerCase();
+  const stage = document.getElementById('ar-stage').value;
+  const all = leads.filter(l => ARCHIVED_STAGES.has(l.stage));
+  const shown = all.filter(l => {
+    if (stage && l.stage !== stage) return false;
+    if (coachSel.value === 'none' ? l.assigned_coach_id : (coachSel.value && l.assigned_coach_id !== coachSel.value)) return false;
+    if (q && !leadSearchText(l).includes(q)) return false;
+    return true;
+  }).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+
+  document.getElementById('ar-count-label').textContent = all.length ? `${shown.length} of ${all.length} archived` : '';
+  const el = document.getElementById('archived-list');
+  if (!all.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🗄️</div><p>Nothing archived. Leads moved to Dropped or No Contact show up here.</p></div>';
+    return;
+  }
+  if (!shown.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>No archived leads match these filters.</p></div>';
+    return;
+  }
+  el.innerHTML = shown.map(l => {
+    const c = l.contact || {};
+    const coach = coachById(l.assigned_coach_id);
+    const restoreTo = l.converted_diver_id ? 'member' : 'lead';
+    const meta = [];
+    if (c.full_name) meta.push(`<span>👤 ${esc(c.full_name)}</span>`);
+    if (l.updated_at) meta.push(`<span>Archived ${esc(App.formatRelative(l.updated_at))}</span>`);
+    meta.push(`<span>Coach: ${esc(coach ? (coach.full_name || coach.email) : 'Unassigned')}</span>`);
+    return `
+      <div class="crm-row" onclick="openLead('${l.id}')">
+        <div class="crm-row-main">
+          <div class="crm-name">${esc(leadName(l))} ${stageBadge(l.stage)}</div>
+          <div class="crm-meta">${meta.join('')}</div>
+        </div>
+        <div class="ar-row-actions">
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();changeStage('${l.id}','${restoreTo}')">↩ Restore to ${esc(STAGE_BY_KEY[restoreTo].label)}</button>
+          ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteLead('${l.id}')">Delete</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ---------- lead modal: stage advancement ---------- */
+
+function advanceButtonsHtml(l) {
+  const id = l.id;
+  const btn = (cls, onclick, label) => `<button class="btn ${cls}" onclick="${onclick}">${esc(label)}</button>`;
+  const exits = btn('btn-ghost btn-sm', `changeStage('${id}','dropped')`, 'Move to Dropped') +
+                btn('btn-ghost btn-sm', `changeStage('${id}','no_contact')`, 'Move to No Contact');
+  switch (l.stage) {
+    case 'lead':            return btn('btn-advance', `changeStage('${id}','registered')`, '→ Move to Registered') + exits;
+    case 'registered':      return btn('btn-advance', `changeStage('${id}','trial_completed')`, '→ Move to Trial Completed') + exits;
+    case 'trial_completed': return btn('btn-advance', `openConvert('${id}')`, '→ Convert to Diver (Member)') + exits;
+    case 'member':          return l.converted_diver_id ? btn('btn-advance', `changeStage('${id}','graduated')`, '→ Move to Graduated') : '';
+    case 'dropped':
+    case 'no_contact': {
+      const to = l.converted_diver_id ? 'member' : 'lead';
+      return btn('btn-advance', `changeStage('${id}','${to}')`, `↩ Restore to ${STAGE_BY_KEY[to].label}`);
+    }
+    default: return '';
+  }
 }
 
 // Contacts aren't fetched separately — crmGetLeads() already embeds each
@@ -751,34 +1027,11 @@ function renderContacts() {
   }).join('');
 }
 
-function renderStats() {
-  const today = todayLocal();
-  const counts = Object.fromEntries(STAGES.map(s => [s.key, 0]));
-  let due = 0;
-  leads.forEach(l => { counts[l.stage]++; if (isFollowUpDue(l, today)) due++; });
-  const openTotal = counts.lead + counts.registered + counts.trial_completed;
-
-  const card = (id, num, label, extra = '') =>
-    `<button class="crm-stat ${extra} ${isStatActive(id) ? 'active' : ''}" onclick="applyStatFilter('${id}')">
-       <div class="crm-stat-num">${num}</div><div class="crm-stat-label">${esc(label)}</div></button>`;
-
-  document.getElementById('crm-stats').innerHTML =
-    card('open', openTotal, 'Open pipeline') +
-    STAGES.map(s => card(s.key, counts[s.key], s.code + ' · ' + s.label)).join('') +
-    card('due', due, 'Follow-ups due', 'due');
-}
-
-function isStatActive(id) {
-  if (id === 'due') return filters.due;
-  return !filters.due && filters.stage === id;
-}
-
 function applyStatFilter(id) {
   if (id === 'due') { filters.due = !filters.due; if (filters.due) filters.stage = 'open'; }
   else { filters.due = false; filters.stage = id; }
   syncControlValues();
   visibleCount = 100;
-  renderStats();
   renderList();
   goToView('leads');
 }
@@ -817,7 +1070,6 @@ function onFilterChange() {
   filters.sort     = document.getElementById('f-sort').value;
   filters.due      = false;
   visibleCount = 100;
-  renderStats();
   renderList();
 }
 
@@ -924,11 +1176,11 @@ async function changeStage(id, to) {
 
 /* ---------- add lead ---------- */
 
-function openAdd() {
+function openAdd(stage) {
   ['a-first', 'a-last', 'a-dob', 'a-pname', 'a-pemail', 'a-pphone', 'a-source', 'a-campaign', 'a-notes']
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('a-gender').value = '';
-  document.getElementById('a-stage').value = 'lead';
+  document.getElementById('a-stage').value = stage && KANBAN_ADDABLE.has(stage) ? stage : 'lead';
   App.hideAlert('add-alert');
   App.openModal('add-modal');
   document.getElementById('a-first').focus();
@@ -999,6 +1251,11 @@ function renderLeadModal(l) {
     </div>
     ${converted ? `<div class="crm-banner">✅ In DivePractice. <a href="progress.html?diver=${esc(l.converted_diver_id)}">Open diver profile →</a><br>
       <span class="text-secondary text-xs">Changes to name or parent details here do not sync to the diver profile after conversion — edit those in DivePractice.</span></div>` : ''}
+    <div class="crm-advance">
+      <div class="crm-advance-current">Current stage ${stageBadge(l.stage)}</div>
+      ${advanceButtonsHtml(l) ? `<div class="crm-advance-actions">${advanceButtonsHtml(l)}</div>` : '<div class="text-secondary text-sm">Final stage — nothing further to advance.</div>'}
+    </div>
+    <div class="crm-section-title" style="margin-top:0">Set stage directly</div>
     <div class="crm-stage-picker">${chips}</div>
 
     <div class="form-row">
