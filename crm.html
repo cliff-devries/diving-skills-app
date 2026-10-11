@@ -71,6 +71,7 @@
       --accent-hover: #1e88e5;
       --accent-dim:   rgba(33, 150, 243, 0.12);
       --dcrm-header-h: 60px;
+      --dcrm-max: 1480px;
     }
     .btn-primary, .btn-primary:hover:not(:disabled) { color: #fff; }
     .dcrm-header {
@@ -80,7 +81,7 @@
       border-bottom: 1px solid var(--border);
     }
     .dcrm-header-inner {
-      max-width: 1100px; margin: 0 auto; height: var(--dcrm-header-h);
+      max-width: var(--dcrm-max); margin: 0 auto; height: var(--dcrm-header-h);
       padding: 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
     .dcrm-wordmark { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; text-decoration: none; }
@@ -88,15 +89,14 @@
     .dcrm-wordmark .crm  { color: var(--accent); }
     .dcrm-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .dcrm-coach { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dcrm-tabs { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; }
+    .dcrm-tabs { max-width: var(--dcrm-max); margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; overflow-x: auto; }
     .dcrm-tabs a {
       padding: 10px 14px 12px; color: var(--text-secondary); text-decoration: none;
       font-weight: 600; font-size: 0.9rem; border-bottom: 2px solid transparent; transition: var(--transition);
     }
     .dcrm-tabs a:hover { color: var(--text-primary); }
     .dcrm-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
-    .dcrm-main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
-    body.dcrm-wide .dcrm-header-inner, body.dcrm-wide .dcrm-tabs, body.dcrm-wide .dcrm-main { max-width: 1480px; }
+    .dcrm-main { max-width: var(--dcrm-max); margin: 0 auto; padding: 24px 20px 48px; }
     .dcrm-bottom-nav { display: none; }
 
     .crm-contact-divers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -153,7 +153,9 @@
       flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; background: #00c9a7; color: #0f0f0f;
       font-size: 0.62rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
     }
-    .kb-card-parent { color: var(--text-secondary); font-size: 0.78rem; margin-top: 2px; }
+    .kb-card-parent { color: var(--text-secondary); font-size: 0.78rem; margin-top: 3px; }
+    .kb-label { font-size: 0.68rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; }
+    .kb-none { color: var(--text-secondary); font-weight: 400; }
     .kb-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.72rem; }
     .kb-pill { padding: 1px 8px; border-radius: 10px; font-weight: 600; color: var(--pc); background: color-mix(in srgb, var(--pc) 16%, transparent); }
     .kb-follow { color: var(--text-secondary); }
@@ -161,15 +163,77 @@
     .kb-follow.overdue { color: var(--danger); font-weight: 700; }
     .kb-mobile-nav { display: none; }
 
-    /* ---- Lead modal: stage advancement ---- */
-    .crm-advance { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 14px; }
-    .crm-advance-current { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px; }
-    .crm-advance-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-    .btn-advance { background: #00c9a7; color: #0f0f0f; font-weight: 700; }
-    .btn-advance:hover:not(:disabled) { background: #00b596; color: #0f0f0f; }
 
-    /* ---- Archived ---- */
-    .ar-row-actions { flex: 0 0 auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+
+    /* ---- shared bits ---- */
+    .crm-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; align-self: flex-end; padding-bottom: 10px; }
+    .crm-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+    /* ---- services ---- */
+    .svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .svc-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; }
+    .svc-card.inactive { opacity: 0.6; }
+    .svc-grid > .empty-state { grid-column: 1 / -1; }
+    .svc-name { font-weight: 700; font-size: 1.05rem; }
+    .svc-desc { color: var(--text-secondary); font-size: 0.88rem; margin-top: 6px; flex: 1; }
+    .svc-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 0.82rem; margin-top: 12px; }
+    .svc-status { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+    .svc-status.active { color: #4CAF50; background: rgba(76,175,80,0.14); }
+    .svc-status.inactive { color: var(--text-secondary); background: var(--bg-surface-2); }
+
+    /* ---- activities ---- */
+    .ac-row { display: flex; gap: 12px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; }
+    .ac-lead { font-weight: 600; white-space: nowrap; }
+
+    /* ---- lead detail page ---- */
+    .ld-topbar { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .ld-title { font-size: 1.45rem; font-weight: 800; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ld-stage-select { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+    .ld-stage-select .form-select { min-width: 190px; }
+    .ld-progress { display: flex; gap: 4px; margin-bottom: 14px; }
+    .ld-step {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0;
+      font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); cursor: pointer;
+      background: var(--bg-surface); border: 1px solid var(--border); padding: 9px 8px;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);
+    }
+    .ld-step:first-child { clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%); border-radius: 8px 0 0 8px; }
+    .ld-step:last-child { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%); border-radius: 0 8px 8px 0; }
+    .ld-step:hover:not(:disabled) { color: var(--text-primary); }
+    .ld-step:disabled { cursor: not-allowed; }
+    .ld-step.done { color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--bg-surface)); }
+    .ld-step.current { color: #fff; background: var(--c); }
+    .ld-step-dot { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; background: rgba(255,255,255,0.08); }
+    .ld-step.current .ld-step-dot { background: rgba(0,0,0,0.2); }
+    .ld-step-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ld-progress.is-archived .ld-step { opacity: 0.55; }
+    .ld-archived-note { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); margin: -4px 0 14px; }
+    .ld-layout { display: grid; grid-template-columns: minmax(280px, 35%) 1fr; gap: 16px; align-items: start; }
+    .ld-left { display: flex; flex-direction: column; gap: 12px; }
+    .ld-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; }
+    .ld-card-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px; }
+    .ld-contact-name { font-size: 1.2rem; font-weight: 800; }
+    .ld-row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .ld-row:last-child { border-bottom: none; }
+    .ld-row-label { flex: 0 0 40%; color: var(--text-secondary); }
+    .ld-row-value { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .ld-right { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 0; }
+    .ld-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); padding: 0 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .ld-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font: inherit; font-weight: 600; font-size: 0.88rem; padding: 12px 12px 10px; cursor: pointer; white-space: nowrap; }
+    .ld-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .ld-tab-body { padding: 14px 16px; }
+    .ld-log { display: grid; grid-template-columns: 150px 1fr auto; gap: 8px; align-items: start; margin-bottom: 14px; }
+    .ld-log:has(input[type=hidden]) { grid-template-columns: 1fr auto; }
+    .ld-pinned { background: var(--bg-surface-2); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.88rem; }
+    .ld-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .ld-item:last-child { border-bottom: none; }
+    .ld-item-icon { flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--bg-surface-2); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+    .ld-item-main { flex: 1; min-width: 0; }
+    .ld-item-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); }
+    .ld-item-body { white-space: pre-wrap; font-size: 0.9rem; margin-top: 2px; overflow-wrap: anywhere; }
+    .ld-item-del { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.8rem; }
+    .ld-item-del:hover { color: var(--danger); }
 
     @media (max-width: 768px) {
       .dcrm-tabs { display: none; }
@@ -195,7 +259,18 @@
       .kb-col.is-current { display: flex; }
       .kb-col-body { overflow: visible; }
       .kb-col-name { font-size: 1.1rem; }
-      .ar-row-actions { width: 100%; }
+
+      .ld-topbar { grid-template-columns: auto 1fr auto; }
+      .ld-topbar-stage { grid-column: 1 / -1; order: 3; }
+      .ld-stage-select { width: 100%; }
+      .ld-stage-select .form-select { flex: 1; min-width: 0; }
+      .ld-progress { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+      .ld-step { flex: 0 0 auto; padding: 9px 18px; font-size: 0.75rem; }
+      .ld-step-label { overflow: visible; }
+      .ld-layout { grid-template-columns: 1fr; }
+      .ld-log { grid-template-columns: 1fr; }
+      .ld-log:has(input[type=hidden]) { grid-template-columns: 1fr; }
+      .crm-toggle { padding-bottom: 0; }
     }
     .crm-map-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 12px; }
     .crm-map-table td, .crm-map-table th { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
@@ -229,9 +304,9 @@
   <nav class="dcrm-tabs" aria-label="DiveCRM">
     <a href="#dashboard" data-view="dashboard">Dashboard</a>
     <a href="#leads" data-view="leads">Leads</a>
-    <a href="#contacts" data-view="contacts">Contacts</a>
+    <a href="#services" data-view="services">Services</a>
+    <a href="#activities" data-view="activities">Activities</a>
     <a href="#reports" data-view="reports">Reports</a>
-    <a href="#archived" data-view="archived">Archived</a>
   </nav>
 </header>
 
@@ -257,11 +332,11 @@
       <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
         <div>
           <h1>Leads</h1>
-          <p>Leads and families, from first contact to the pool deck.</p>
+          <p>Every lead with its family contact, from first contact to the pool deck.</p>
         </div>
         <div class="flex gap-2" style="flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="exportCsv()">⬇ Export</button>
-          <button class="btn btn-ghost" onclick="openImport()">⬆ Import CSV</button>
+          <button class="btn btn-ghost" onclick="exportCsv()">⬆ Export</button>
+          <button class="btn btn-ghost" onclick="openImport()">⬇ Import CSV</button>
           <button class="btn btn-primary" onclick="openAdd()">+ Add Lead</button>
         </div>
       </div>
@@ -275,7 +350,7 @@
       <div class="crm-controls">
         <div class="form-group grow">
           <label class="form-label">Search</label>
-          <input type="text" id="f-search" class="form-input" placeholder="Name, parent, email, phone, source…" oninput="onFilterChange()">
+          <input type="text" id="f-search" class="form-input" placeholder="Diver or parent name, email, phone, source…" oninput="onFilterChange()">
         </div>
         <div class="form-group">
           <label class="form-label">Stage</label>
@@ -290,6 +365,10 @@
           <select id="f-campaign" class="form-select" onchange="onFilterChange()"></select>
         </div>
         <div class="form-group">
+          <label class="form-label">Coach</label>
+          <select id="f-coach" class="form-select" onchange="onFilterChange()"></select>
+        </div>
+        <div class="form-group">
           <label class="form-label">Sort</label>
           <select id="f-sort" class="form-select" onchange="onFilterChange()">
             <option value="newest">Newest first</option>
@@ -297,6 +376,9 @@
             <option value="name">Name</option>
           </select>
         </div>
+        <label class="crm-toggle">
+          <input type="checkbox" id="f-archived" onchange="onFilterChange()"> Show archived
+        </label>
       </div>
       <div id="crm-list">
         <div class="loading-overlay">
@@ -304,23 +386,6 @@
           <span>Loading leads…</span>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section class="dcrm-view" id="view-contacts" hidden>
-    <div class="page-header">
-      <h1>Contacts</h1>
-      <p>Parents and guardians, with the divers linked to each family.</p>
-    </div>
-    <div class="content-section">
-      <div class="crm-controls">
-        <div class="form-group grow">
-          <label class="form-label">Search</label>
-          <input type="text" id="c-search" class="form-input" placeholder="Parent, diver, email, phone…" oninput="renderContacts()">
-        </div>
-      </div>
-      <div class="text-secondary text-sm mb-2" id="c-count-label"></div>
-      <div id="contacts-list"></div>
     </div>
   </section>
 
@@ -338,42 +403,71 @@
     </div>
   </section>
 
-  <section class="dcrm-view" id="view-archived" hidden>
+  <section class="dcrm-view" id="view-services" hidden>
     <div class="page-header">
-      <h1>Archived</h1>
-      <p>Dropped and No Contact leads. Restore one to put it back in the pipeline.</p>
+      <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <h1>Services</h1>
+          <p>Programs Upstate Diving offers. Tag a lead with the one the family is interested in.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openService()">+ Add Service</button>
+      </div>
+    </div>
+    <div id="services-list" class="svc-grid"></div>
+  </section>
+
+  <section class="dcrm-view" id="view-activities" hidden>
+    <div class="page-header">
+      <h1>Activities</h1>
+      <p>Everything logged across all leads — calls, emails, meetings, notes and stage changes.</p>
     </div>
     <div class="content-section">
       <div class="crm-controls">
         <div class="form-group grow">
           <label class="form-label">Search</label>
-          <input type="text" id="ar-search" class="form-input" placeholder="Diver, parent, email, phone…" oninput="renderArchived()">
+          <input type="text" id="ac-search" class="form-input" placeholder="Lead name or description…" oninput="renderActivities()">
         </div>
         <div class="form-group">
-          <label class="form-label">Stage</label>
-          <select id="ar-stage" class="form-select" onchange="renderArchived()">
-            <option value="">Dropped + No Contact</option>
-            <option value="dropped">Dropped / Quit</option>
-            <option value="no_contact">No Contact</option>
+          <label class="form-label">Type</label>
+          <select id="ac-type" class="form-select" onchange="renderActivities()">
+            <option value="">All types</option>
+            <option value="call">📞 Call</option>
+            <option value="email">✉️ Email</option>
+            <option value="in_person">🤝 Meeting</option>
+            <option value="note">📝 Note</option>
+            <option value="text">💬 Text</option>
+            <option value="trial">🏊 Trial</option>
+            <option value="other">• Other</option>
+            <option value="stage">🔀 Stage change</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Coach</label>
-          <select id="ar-coach" class="form-select" onchange="renderArchived()"></select>
+          <select id="ac-coach" class="form-select" onchange="renderActivities()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">From</label>
+          <input type="date" id="ac-from" class="form-input" onchange="renderActivities()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">To</label>
+          <input type="date" id="ac-to" class="form-input" onchange="renderActivities()">
         </div>
       </div>
-      <div class="text-secondary text-sm mb-2" id="ar-count-label"></div>
-      <div id="archived-list"></div>
+      <div class="text-secondary text-sm mb-2" id="ac-count-label"></div>
+      <div id="activities-list"><div class="text-secondary text-sm">Loading…</div></div>
     </div>
   </section>
+
+  <section class="dcrm-view" id="view-lead" hidden></section>
 </main>
 
 <nav class="dcrm-bottom-nav" aria-label="DiveCRM">
   <a href="#dashboard" data-view="dashboard"><span aria-hidden="true">🏠</span>Dashboard</a>
   <a href="#leads" data-view="leads"><span aria-hidden="true">📇</span>Leads</a>
-  <a href="#contacts" data-view="contacts"><span aria-hidden="true">👪</span>Contacts</a>
+  <a href="#services" data-view="services"><span aria-hidden="true">🧾</span>Services</a>
+  <a href="#activities" data-view="activities"><span aria-hidden="true">🕒</span>Activities</a>
   <a href="#reports" data-view="reports"><span aria-hidden="true">📊</span>Reports</a>
-  <a href="#archived" data-view="archived"><span aria-hidden="true">🗄️</span>Archived</a>
 </nav>
 
 
@@ -450,8 +544,33 @@
 </div>
 
 <!-- LEAD DETAIL -->
-<div class="modal-overlay" id="lead-modal">
-  <div class="modal" style="max-width:640px" id="lead-modal-body"></div>
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="max-width:420px" id="confirm-modal-body"></div>
+</div>
+
+<div class="modal-overlay" id="service-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="svc-title">Service</h2>
+      <button class="modal-close" onclick="App.closeModal('service-modal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">Name *</label><input id="svc-name" class="form-input" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Description</label><textarea id="svc-desc" class="form-input" rows="2" style="resize:vertical"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Price (optional)</label><input id="svc-price" class="form-input" placeholder="$120 / month" autocomplete="off"></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select id="svc-status" class="form-select"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Sort order</label><input type="number" id="svc-sort" class="form-input" value="0"></div>
+    <div id="svc-alert" class="alert mb-4"></div>
+    <div class="crm-modal-actions">
+      <div id="svc-delete-wrap"></div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost" onclick="App.closeModal('service-modal')">Cancel</button>
+        <button class="btn btn-primary" id="svc-save-btn" onclick="saveService()">Save</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- CONVERT TO DIVER -->
@@ -467,7 +586,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=38"></script>
+<script src="js/supabase.js?v=39"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -673,7 +792,11 @@ let convertLeadId = null;
 let visibleCount = 100;
 let resultsGroup = 'source';
 let stageHistoryAll = null;
-const filters = { search: '', stage: 'open', source: '', campaign: '', due: false, sort: 'newest' };
+const filters = { search: '', stage: 'open', source: '', campaign: '', coach: '', archived: false, due: false, sort: 'newest' };
+let services = [];
+let servicesAvailable = false;
+let activitiesAll = null;
+let acVisible = 200;
 const esc = s => App.escHtml(s);
 
 (async function initCrmPage() {
@@ -694,10 +817,10 @@ const esc = s => App.escHtml(s);
   document.getElementById('a-stage').innerHTML = ['lead', 'registered', 'trial_completed', 'no_contact']
     .map(k => `<option value="${k}">${esc(STAGE_BY_KEY[k].code + ' · ' + STAGE_BY_KEY[k].label)}</option>`).join('');
 
-  await Promise.all([loadCoaches().catch(() => []), loadLeads()]);
-  renderDashboard();
-  renderArchived();
+  await Promise.all([loadCoaches().catch(() => []), loadServices(), loadLeads()]);
+  renderAll();
   setupKanbanSwipe();
+  if (currentView === 'lead' || currentView === 'services') showView();
 })();
 
 /* ---------- helpers ---------- */
@@ -756,22 +879,29 @@ function renderAll() {
   renderFilterOptions();
   renderList();
   renderDashboard();
-  renderContacts();
-  renderArchived();
+  if (currentView === 'activities' && activitiesAll) renderActivities();
 }
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
 
-const VIEWS = ['dashboard', 'leads', 'contacts', 'reports', 'archived'];
+const VIEWS = ['dashboard', 'leads', 'services', 'activities', 'reports', 'lead'];
 let currentView = 'leads';
+let lastTabView = 'dashboard';
 
+// Hash routes: #dashboard #leads #services #activities #reports, plus
+// #lead/<id> for the full-page lead detail (not a tab).
 function showView() {
-  const want = location.hash.replace('#', '');
+  const [want, arg] = location.hash.replace('#', '').split('/');
   currentView = VIEWS.includes(want) ? want : 'leads';
+  if (currentView === 'lead' && !arg) currentView = 'leads';
+  if (currentView !== 'lead') lastTabView = currentView;
   VIEWS.forEach(v => { document.getElementById('view-' + v).hidden = v !== currentView; });
-  document.body.classList.toggle('dcrm-wide', currentView === 'dashboard');
-  document.querySelectorAll('[data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === currentView));
+  document.querySelectorAll('[data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === (currentView === 'lead' ? lastTabView : currentView)));
   if (currentView === 'reports') loadReports();
+  if (currentView === 'services') renderServices();
+  if (currentView === 'activities') loadActivities();
+  if (currentView === 'lead') openLeadPage(arg);
+  else { currentLeadId = null; detailEdit = false; }
   window.scrollTo(0, 0);
 }
 
@@ -828,7 +958,8 @@ function renderKanbanStats(today) {
     <button class="kb-stat" onclick="applyStatFilter('open')"><b>${active}</b> active leads</button>
     <button class="kb-stat ${due ? 'warn' : ''}" onclick="applyStatFilter('due')"><b>${due}</b> follow-ups due</button>
     <span class="kb-stat" style="cursor:default"><b>${trials}</b> trials this week</span>
-    <span class="kb-stat" style="cursor:default"><b>${newThisMonth}</b> new this month</span>`;
+    <span class="kb-stat" style="cursor:default"><b>${newThisMonth}</b> new this month</span>
+    <button class="kb-stat" onclick="showArchivedLeads()"><b>${leads.filter(l => ARCHIVED_STAGES.has(l.stage)).length}</b> archived</button>`;
 }
 
 function kanbanCardHtml(l, today, color) {
@@ -844,10 +975,10 @@ function kanbanCardHtml(l, today, color) {
   return `
     <button class="kb-card" style="--c:${color}" onclick="openLead('${l.id}')">
       <div class="kb-card-top">
-        <div class="kb-card-name">${esc(leadName(l))}</div>
+        <div class="kb-card-name"><span class="kb-label">Parent:</span> ${c.full_name ? esc(c.full_name) : '<span class="kb-none">—</span>'}</div>
         ${initials ? `<span class="kb-avatar" title="${esc(coachName)}">${esc(initials)}</span>` : ''}
       </div>
-      ${c.full_name ? `<div class="kb-card-parent">${esc(c.full_name)}</div>` : ''}
+      <div class="kb-card-parent"><span class="kb-label">Diver:</span> ${esc(leadName(l))}</div>
       ${(l.source || follow || l.notes) ? `<div class="kb-card-meta">
         ${l.source ? `<span class="kb-pill" style="--pc:${sourceColor(l.source)}">${esc(l.source)}</span>` : ''}
         ${follow}
@@ -911,121 +1042,10 @@ function setupKanbanSwipe() {
   }, { passive: true });
 }
 
-/* ---------- archived (dropped / no_contact) ---------- */
 
-function renderArchived() {
-  const coachSel = document.getElementById('ar-coach');
-  const curCoach = coachSel.value;
-  coachSel.innerHTML = '<option value="">All coaches</option><option value="none">Unassigned</option>' +
-    (coaches || []).map(c => `<option value="${esc(c.id)}">${esc(c.full_name || c.email)}</option>`).join('');
-  coachSel.value = [...coachSel.options].some(o => o.value === curCoach) ? curCoach : '';
 
-  const q = document.getElementById('ar-search').value.trim().toLowerCase();
-  const stage = document.getElementById('ar-stage').value;
-  const all = leads.filter(l => ARCHIVED_STAGES.has(l.stage));
-  const shown = all.filter(l => {
-    if (stage && l.stage !== stage) return false;
-    if (coachSel.value === 'none' ? l.assigned_coach_id : (coachSel.value && l.assigned_coach_id !== coachSel.value)) return false;
-    if (q && !leadSearchText(l).includes(q)) return false;
-    return true;
-  }).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 
-  document.getElementById('ar-count-label').textContent = all.length ? `${shown.length} of ${all.length} archived` : '';
-  const el = document.getElementById('archived-list');
-  if (!all.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🗄️</div><p>Nothing archived. Leads moved to Dropped or No Contact show up here.</p></div>';
-    return;
-  }
-  if (!shown.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>No archived leads match these filters.</p></div>';
-    return;
-  }
-  el.innerHTML = shown.map(l => {
-    const c = l.contact || {};
-    const coach = coachById(l.assigned_coach_id);
-    const restoreTo = l.converted_diver_id ? 'member' : 'lead';
-    const meta = [];
-    if (c.full_name) meta.push(`<span>👤 ${esc(c.full_name)}</span>`);
-    if (l.updated_at) meta.push(`<span>Archived ${esc(App.formatRelative(l.updated_at))}</span>`);
-    meta.push(`<span>Coach: ${esc(coach ? (coach.full_name || coach.email) : 'Unassigned')}</span>`);
-    return `
-      <div class="crm-row" onclick="openLead('${l.id}')">
-        <div class="crm-row-main">
-          <div class="crm-name">${esc(leadName(l))} ${stageBadge(l.stage)}</div>
-          <div class="crm-meta">${meta.join('')}</div>
-        </div>
-        <div class="ar-row-actions">
-          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();changeStage('${l.id}','${restoreTo}')">↩ Restore to ${esc(STAGE_BY_KEY[restoreTo].label)}</button>
-          ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteLead('${l.id}')">Delete</button>` : ''}
-        </div>
-      </div>`;
-  }).join('');
-}
 
-/* ---------- lead modal: stage advancement ---------- */
-
-function advanceButtonsHtml(l) {
-  const id = l.id;
-  const btn = (cls, onclick, label) => `<button class="btn ${cls}" onclick="${onclick}">${esc(label)}</button>`;
-  const exits = btn('btn-ghost btn-sm', `changeStage('${id}','dropped')`, 'Move to Dropped') +
-                btn('btn-ghost btn-sm', `changeStage('${id}','no_contact')`, 'Move to No Contact');
-  switch (l.stage) {
-    case 'lead':            return btn('btn-advance', `changeStage('${id}','registered')`, '→ Move to Registered') + exits;
-    case 'registered':      return btn('btn-advance', `changeStage('${id}','trial_completed')`, '→ Move to Trial Completed') + exits;
-    case 'trial_completed': return btn('btn-advance', `openConvert('${id}')`, '→ Convert to Diver (Member)') + exits;
-    case 'member':          return l.converted_diver_id ? btn('btn-advance', `changeStage('${id}','graduated')`, '→ Move to Graduated') : '';
-    case 'dropped':
-    case 'no_contact': {
-      const to = l.converted_diver_id ? 'member' : 'lead';
-      return btn('btn-advance', `changeStage('${id}','${to}')`, `↩ Restore to ${STAGE_BY_KEY[to].label}`);
-    }
-    default: return '';
-  }
-}
-
-// Contacts aren't fetched separately — crmGetLeads() already embeds each
-// lead's crm_contacts row, so the directory is those rows de-duplicated,
-// each listing every lead (diver) linked to that family.
-function renderContacts() {
-  const byId = new Map();
-  leads.forEach(l => {
-    if (!l.contact || !l.contact.id) return;
-    if (!byId.has(l.contact.id)) byId.set(l.contact.id, { contact: l.contact, leads: [] });
-    byId.get(l.contact.id).leads.push(l);
-  });
-  const q = (document.getElementById('c-search').value || '').trim().toLowerCase();
-  const all = [...byId.values()].sort((a, b) =>
-    (a.contact.full_name || '').localeCompare(b.contact.full_name || ''));
-  const shown = q ? all.filter(g => [g.contact.full_name, g.contact.email, g.contact.phone, g.contact.relationship,
-    ...g.leads.map(leadName)].join(' ').toLowerCase().includes(q)) : all;
-
-  document.getElementById('c-count-label').textContent = all.length ? `${shown.length} of ${all.length} contacts` : '';
-  const el = document.getElementById('contacts-list');
-  if (!all.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👪</div><p>No contacts yet. Contacts are created when you add or import leads with parent details.</p></div>`;
-    return;
-  }
-  if (!shown.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>No contacts match your search.</p></div>`;
-    return;
-  }
-  el.innerHTML = shown.map(({ contact: c, leads: ls }) => {
-    const bits = [];
-    if (c.relationship) bits.push(`<span>${esc(c.relationship)}</span>`);
-    if (c.email) bits.push(`<span>✉️ <a href="mailto:${esc(c.email)}">${esc(c.email)}</a></span>`);
-    if (c.phone) bits.push(`<span>📞 <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></span>`);
-    if (c.do_not_contact) bits.push(`<span class="crm-dnc">🚫 Do not contact</span>`);
-    return `
-      <div class="crm-row" style="cursor:default">
-        <div class="crm-row-main">
-          <div class="crm-name">👤 ${esc(c.full_name || 'Unnamed contact')}</div>
-          ${bits.length ? `<div class="crm-meta">${bits.join('')}</div>` : ''}
-          <div class="crm-contact-divers">${ls.map(l =>
-            `<button class="crm-contact-diver" onclick="openLead('${l.id}')">${esc(leadName(l) || 'Unnamed')} ${stageBadge(l.stage)}</button>`).join('')}</div>
-        </div>
-      </div>`;
-  }).join('');
-}
 
 function applyStatFilter(id) {
   if (id === 'due') { filters.due = !filters.due; if (filters.due) filters.stage = 'open'; }
@@ -1038,6 +1058,17 @@ function applyStatFilter(id) {
 
 function syncControlValues() {
   document.getElementById('f-stage').value = filters.stage;
+  document.getElementById('f-archived').checked = filters.archived;
+}
+
+function showArchivedLeads() {
+  filters.archived = true;
+  filters.due = false;
+  filters.stage = '';
+  syncControlValues();
+  visibleCount = 100;
+  renderList();
+  goToView('leads');
 }
 
 function fillSelect(id, firstLabel, values, current) {
@@ -1053,22 +1084,37 @@ function renderFilterOptions() {
   stageSel.innerHTML = `<option value="open">Open pipeline (1–3)</option><option value="">All stages</option>` +
     STAGES.map(s => `<option value="${s.key}">${esc(s.code + ' · ' + s.label)}</option>`).join('');
   stageSel.value = filters.stage;
+  document.getElementById('f-archived').checked = filters.archived;
 
   const sources = [...new Set(leads.map(l => l.source).filter(Boolean))].sort();
   const camps   = [...new Set(leads.map(l => l.campaign).filter(Boolean))].sort();
   filters.source   = fillSelect('f-source', 'All sources', sources, filters.source);
   filters.campaign = fillSelect('f-campaign', 'All campaigns', camps, filters.campaign);
+  const coachSel = document.getElementById('f-coach');
+  coachSel.innerHTML = '<option value="">All coaches</option><option value="none">Unassigned</option>' +
+    (coaches || []).map(c => `<option value="${esc(c.id)}">${esc(c.full_name || c.email)}</option>`).join('');
+  coachSel.value = [...coachSel.options].some(o => o.value === filters.coach) ? filters.coach : '';
+  filters.coach = coachSel.value;
   document.getElementById('dl-source').innerHTML   = sources.map(s => `<option value="${esc(s)}">`).join('');
   document.getElementById('dl-campaign').innerHTML = camps.map(s => `<option value="${esc(s)}">`).join('');
 }
 
 function onFilterChange() {
+  const prevArchived = filters.archived;
   filters.search   = document.getElementById('f-search').value;
   filters.stage    = document.getElementById('f-stage').value;
   filters.source   = document.getElementById('f-source').value;
   filters.campaign = document.getElementById('f-campaign').value;
+  filters.coach    = document.getElementById('f-coach').value;
+  filters.archived = document.getElementById('f-archived').checked;
   filters.sort     = document.getElementById('f-sort').value;
   filters.due      = false;
+  // Picking an archived stage implies showing archived; switching archived
+  // on while on "Open pipeline" (which can never include them) widens it.
+  if (ARCHIVED_STAGES.has(filters.stage)) filters.archived = true;
+  if (filters.archived && !prevArchived && filters.stage === 'open') filters.stage = '';
+  if (!filters.archived && ARCHIVED_STAGES.has(filters.stage)) filters.stage = '';
+  syncControlValues();
   visibleCount = 100;
   renderList();
 }
@@ -1078,7 +1124,9 @@ function filteredLeads() {
   const today = todayLocal();
   const out = leads.filter(l => {
     if (filters.due && !isFollowUpDue(l, today)) return false;
+    if (!filters.archived && ARCHIVED_STAGES.has(l.stage)) return false;
     if (filters.stage === 'open' ? !OPEN_STAGES.has(l.stage) : (filters.stage && l.stage !== filters.stage)) return false;
+    if (filters.coach === 'none' ? l.assigned_coach_id : (filters.coach && l.assigned_coach_id !== filters.coach)) return false;
     if (filters.source && (l.source || '') !== filters.source) return false;
     if (filters.campaign && (l.campaign || '') !== filters.campaign) return false;
     if (q && !leadSearchText(l).includes(q)) return false;
@@ -1104,7 +1152,7 @@ function renderList() {
         <div class="empty-state-icon">📇</div>
         <p>No leads yet. Import a list from your marketing or add one by hand.</p>
         <div class="flex gap-2 justify-center" style="flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="openImport()">⬆ Import CSV</button>
+          <button class="btn btn-primary" onclick="openImport()">⬇ Import CSV</button>
           <button class="btn btn-ghost" onclick="openAdd()">+ Add Lead</button>
         </div>
       </div>`;
@@ -1166,12 +1214,60 @@ async function changeStage(id, to) {
   try {
     await SupabaseDB.crmUpdateLead(id, { stage: to });
     l.stage = to;
-    App.showToast(`${leadName(l)} → ${STAGE_BY_KEY[to].label}`);
+    App.showToast(`${leadName(l)} → ${STAGE_BY_KEY[to].label}${ARCHIVED_STAGES.has(to) ? ' (archived)' : ''}`);
+    activitiesAll = null;
     renderAll();
-    if (currentLeadId === id) renderLeadModal(l);
+    if (currentView === 'lead' && currentLeadId === id) { renderLeadPage(); loadLeadExtras(id); }
   } catch (err) {
     App.showToast(err.message, 'error');
   }
+}
+
+// Every stage move from the dropdown or progress bar goes through here:
+// Member/Graduated are conversion-only (crm_leads_stage_guard), so for an
+// unconverted lead those explain and offer Convert instead of moving.
+function requestStageChange(id, to) {
+  const l = findLead(id);
+  if (!l) return;
+  const sel = document.getElementById('ld-stage');
+  if (sel) sel.value = l.stage; // snap back until confirmed
+  if (l.stage === to || detailEdit) return;
+  const label = STAGE_BY_KEY[to].label;
+  if ((to === 'member' || to === 'graduated') && !l.converted_diver_id) {
+    showConfirm({
+      title: `${label} needs Convert to Diver`,
+      body: `A lead becomes a Member by being converted to a diver, which adds ${esc(leadName(l))} to the DivePractice roster.${to === 'graduated' ? ' Graduated comes after Member.' : ''}`,
+      confirmLabel: 'Convert to Diver →',
+      onConfirm: () => openConvert(id),
+    });
+  } else {
+    showConfirm({
+      title: 'Change stage',
+      body: `Move <strong>${esc(leadName(l))}</strong> to <strong>${esc(label)}</strong>?${ARCHIVED_STAGES.has(to) ? '<br><span class="text-secondary text-sm">This moves the lead to Archived (Leads → Show archived).</span>' : ''}`,
+      confirmLabel: 'Confirm',
+      onConfirm: () => changeStage(id, to),
+    });
+  }
+}
+
+let confirmAction = null;
+function showConfirm({ title, body, confirmLabel, onConfirm }) {
+  confirmAction = onConfirm;
+  document.getElementById('confirm-modal-body').innerHTML = `
+    <div class="modal-header"><h2 class="modal-title">${esc(title)}</h2>
+      <button class="modal-close" onclick="App.closeModal('confirm-modal')">✕</button></div>
+    <p class="mb-4">${body}</p>
+    <div class="flex gap-2 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('confirm-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="runConfirm()">${esc(confirmLabel)}</button>
+    </div>`;
+  App.openModal('confirm-modal');
+}
+function runConfirm() {
+  const fn = confirmAction;
+  confirmAction = null;
+  App.closeModal('confirm-modal');
+  if (fn) fn();
 }
 
 /* ---------- add lead ---------- */
@@ -1217,135 +1313,298 @@ async function submitAdd() {
 
 /* ---------- lead detail ---------- */
 
-async function openLead(id) {
+function openLead(id) { location.hash = 'lead/' + id; }
+
+/* ---------- lead detail page (#lead/<id>) ---------- */
+
+let detailEdit = false;
+let detailTab = 'timeline';
+let detailData = { id: null, acts: [], hist: [], profile: null, loaded: false };
+
+function openLeadPage(id) {
   const l = findLead(id);
-  if (!l) return;
+  const el = document.getElementById('view-lead');
+  if (!l) {
+    el.innerHTML = leads.length
+      ? `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>That lead no longer exists.</p><button class="btn btn-ghost" onclick="leadBack()">← Back</button></div>`
+      : '<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading…</span></div>';
+    return;
+  }
+  if (currentLeadId !== id) { detailEdit = false; detailTab = 'timeline'; detailData = { id, acts: [], hist: [], profile: null, loaded: false }; }
   currentLeadId = id;
-  await loadCoaches();
-  renderLeadModal(l);
-  App.openModal('lead-modal');
+  renderLeadPage();
   loadLeadExtras(id);
+}
+
+function leadBack() { location.hash = lastTabView || 'dashboard'; }
+
+function stageSelectHtml(l) {
+  return `<label class="ld-stage-select"><span>Move to Stage</span>
+    <select class="form-select" id="ld-stage" onchange="requestStageChange('${l.id}', this.value)" ${detailEdit ? 'disabled title="Save or cancel your edits first"' : ''}>
+      ${STAGES.map(s => `<option value="${s.key}" ${s.key === l.stage ? 'selected' : ''}>${esc(s.label)}${s.key === l.stage ? ' (current)' : ''}</option>`).join('')}
+    </select></label>`;
+}
+
+function progressBarHtml(l) {
+  const curIdx = KANBAN.findIndex(k => k.key === l.stage);
+  const archived = ARCHIVED_STAGES.has(l.stage);
+  return `<div class="ld-progress ${archived ? 'is-archived' : ''}">
+    ${KANBAN.map((k, i) => {
+      const state = archived ? '' : i < curIdx ? 'done' : i === curIdx ? 'current' : '';
+      return `<button class="ld-step ${state}" style="--c:${k.color}" onclick="requestStageChange('${l.id}','${k.key}')" title="${detailEdit ? 'Save or cancel your edits first' : 'Move to ' + esc(k.label)}" ${detailEdit ? 'disabled' : ''}>
+        <span class="ld-step-dot">${state === 'done' ? '✓' : i + 1}</span><span class="ld-step-label">${esc(k.label)}</span></button>`;
+    }).join('')}
+    </div>
+    ${archived ? `<div class="ld-archived-note">${stageBadge(l.stage)} This lead is archived. Pick a stage to restore it.</div>` : ''}`;
+}
+
+function ageFrom(dob) {
+  if (!dob) return null;
+  const [y, m, d] = dob.split('-').map(Number);
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) age--;
+  return age;
+}
+
+function serviceName(id) { return services.find(s => s.id === id)?.name || ''; }
+
+function infoRow(label, valueHtml) {
+  return `<div class="ld-row"><div class="ld-row-label">${esc(label)}</div><div class="ld-row-value">${valueHtml || '<span class="text-secondary">—</span>'}</div></div>`;
+}
+
+function leftPanelReadHtml(l) {
+  const c = l.contact || {};
+  const coach = coachById(l.assigned_coach_id);
+  const age = ageFrom(l.date_of_birth);
+  const level = l.converted_diver_id
+    ? (detailData.profile ? App.getLevelLabel(detailData.profile.current_level ?? 0) : (detailData.loaded ? '—' : 'Loading…'))
+    : 'Not yet a diver';
+  return `
+    <div class="ld-card">
+      <div class="ld-card-title">Parent / contact</div>
+      <div class="ld-contact-name">${c.full_name ? esc(c.full_name) : '<span class="text-secondary">No contact yet</span>'}</div>
+      ${c.relationship ? `<div class="text-secondary text-sm">${esc(c.relationship)}</div>` : ''}
+      ${infoRow('Email', c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '')}
+      ${infoRow('Phone', c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '')}
+      ${l.contact_id ? `<label class="crm-toggle mt-2"><input type="checkbox" ${c.do_not_contact ? 'checked' : ''} onchange="toggleDoNotContact(this.checked)"> <span class="${c.do_not_contact ? 'crm-dnc' : ''}">Do not contact</span></label>` : ''}
+    </div>
+    <div class="ld-card">
+      <div class="ld-card-title">Diver</div>
+      ${infoRow('Name', esc(leadName(l)))}
+      ${infoRow('Current level', esc(level) + (l.converted_diver_id ? ` · <a href="progress.html?diver=${esc(l.converted_diver_id)}">Profile →</a>` : ''))}
+      ${infoRow('Date of birth', l.date_of_birth ? esc(fmtDay(l.date_of_birth)) + (age !== null ? ` <span class="text-secondary">(age ${age})</span>` : '') : '')}
+      ${infoRow('Gender', esc(l.gender || ''))}
+      ${l.diver_email || l.diver_phone ? infoRow('Diver contact', [l.diver_email, l.diver_phone].filter(Boolean).map(esc).join(' · ')) : ''}
+    </div>
+    <div class="ld-card">
+      <div class="ld-card-title">Lead details</div>
+      ${infoRow('Source', esc(l.source || ''))}
+      ${infoRow('Campaign', esc(l.campaign || ''))}
+      ${infoRow('Assigned coach', coach ? esc(coach.full_name || coach.email) : '')}
+      ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
+      ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
+      ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
+    </div>
+    <div class="flex gap-2" style="flex-wrap:wrap">
+      ${l.converted_diver_id ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
+      ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}
+    </div>`;
+}
+
+function leftPanelEditHtml(l) {
+  const c = l.contact || {};
+  const coachOpts = opt('', 'Unassigned', !l.assigned_coach_id) +
+    (coaches || []).map(co => opt(co.id, co.full_name || co.email, co.id === l.assigned_coach_id)).join('');
+  const svcOpts = opt('', '—', !l.service_id) +
+    services.filter(sv => sv.status === 'active' || sv.id === l.service_id).map(sv => opt(sv.id, sv.name, sv.id === l.service_id)).join('');
+  return `
+    <div class="ld-card">
+      <div class="ld-card-title">Parent / contact</div>
+      <div class="form-group"><label class="form-label">Name</label><input id="lf-pname" class="form-input" value="${esc(c.full_name)}"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" id="lf-pemail" class="form-input" value="${esc(c.email)}"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="lf-pphone" class="form-input" value="${esc(c.phone)}"></div>
+      <label class="crm-toggle"><input type="checkbox" id="lf-dnc" ${c.do_not_contact ? 'checked' : ''}> Do not contact (opted out)</label>
+    </div>
+    <div class="ld-card">
+      <div class="ld-card-title">Diver</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">First name *</label><input id="lf-first" class="form-input" value="${esc(l.first_name)}"></div>
+        <div class="form-group"><label class="form-label">Last name</label><input id="lf-last" class="form-input" value="${esc(l.last_name)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Date of birth</label><input type="date" id="lf-dob" class="form-input" value="${esc(l.date_of_birth)}"></div>
+        <div class="form-group"><label class="form-label">Gender</label>
+          <select id="lf-gender" class="form-select">${opt('', '—', !l.gender)}${['Male', 'Female', 'Other'].map(g => opt(g, g, l.gender === g)).join('')}</select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Diver email</label><input type="email" id="lf-demail" class="form-input" value="${esc(l.diver_email)}"></div>
+        <div class="form-group"><label class="form-label">Diver phone</label><input type="tel" id="lf-dphone" class="form-input" value="${esc(l.diver_phone)}"></div>
+      </div>
+    </div>
+    <div class="ld-card">
+      <div class="ld-card-title">Lead details</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Source</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
+        <div class="form-group"><label class="form-label">Campaign</label><input id="lf-campaign" class="form-input" list="dl-campaign" value="${esc(l.campaign)}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Assigned coach</label><select id="lf-coach" class="form-select">${coachOpts}</select></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Trial date</label><input type="date" id="lf-trial" class="form-input" value="${esc(l.trial_date)}"></div>
+        <div class="form-group"><label class="form-label">Follow-up date</label><input type="date" id="lf-follow" class="form-input" value="${esc(l.follow_up_date)}"></div>
+      </div>
+      ${servicesAvailable ? `<div class="form-group"><label class="form-label">Service interested in</label><select id="lf-service" class="form-select">${svcOpts}</select></div>` : ''}
+      <div class="form-group"><label class="form-label">Internal notes (never copied to the diver profile)</label>
+        <textarea id="lf-notes" class="form-input" rows="3" style="resize:vertical">${esc(l.notes)}</textarea></div>
+    </div>
+    <div id="lead-alert" class="alert mb-2"></div>
+    <div class="flex gap-2 justify-end">
+      <button class="btn btn-ghost" onclick="setDetailEdit(false)">Cancel</button>
+      <button class="btn btn-primary" id="lead-save-btn" onclick="saveLead()">Save</button>
+    </div>`;
+}
+
+function renderLeadPage() {
+  const l = findLead(currentLeadId);
+  if (!l || currentView !== 'lead') return;
+  document.getElementById('view-lead').innerHTML = `
+    <div class="ld-topbar">
+      <button class="btn btn-ghost btn-sm ld-back" onclick="leadBack()">← Back</button>
+      <h1 class="ld-title">${esc(leadName(l))}</h1>
+      <div class="ld-topbar-stage">${stageSelectHtml(l)}</div>
+      <div class="ld-topbar-actions">
+        ${detailEdit ? '<span class="text-secondary text-sm">Editing…</span>' : '<button class="btn btn-secondary btn-sm" onclick="setDetailEdit(true)">✏️ Edit</button>'}
+      </div>
+    </div>
+    ${progressBarHtml(l)}
+    ${l.converted_diver_id ? `<div class="crm-banner">✅ In DivePractice. Changes to name or parent details here do not sync to the diver profile after conversion — edit those in DivePractice.</div>` : ''}
+    <div class="ld-layout">
+      <aside class="ld-left">${detailEdit ? leftPanelEditHtml(l) : leftPanelReadHtml(l)}</aside>
+      <section class="ld-right">
+        <div class="ld-tabs" role="tablist">
+          ${[['timeline', 'Timeline'], ['notes', 'Notes'], ['activities', 'Activities'], ['history', 'Stage History']]
+            .map(([k, label]) => `<button class="ld-tab ${detailTab === k ? 'active' : ''}" onclick="setDetailTab('${k}')">${label}</button>`).join('')}
+        </div>
+        <div id="ld-tab-body" class="ld-tab-body"></div>
+      </section>
+    </div>`;
+  renderDetailTab();
+}
+
+function setDetailEdit(on) { detailEdit = on; renderLeadPage(); }
+
+// Switching tabs only redraws the tab body, so an in-progress edit in the
+// left panel isn't thrown away.
+function setDetailTab(t) {
+  detailTab = t;
+  document.querySelectorAll('.ld-tab').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${t}'`)));
+  renderDetailTab();
+}
+
+async function toggleDoNotContact(on) {
+  const l = findLead(currentLeadId);
+  if (!l || !l.contact_id) return;
+  try {
+    await SupabaseDB.crmUpdateContact(l.contact_id, { do_not_contact: on });
+    l.contact = { ...(l.contact || {}), do_not_contact: on };
+    App.showToast(on ? 'Marked do not contact' : 'Contact allowed again');
+    renderAll();
+    renderLeadPage();
+  } catch (err) {
+    App.showToast(err.message, 'error');
+    renderLeadPage();
+  }
+}
+
+const ACT_ICON = { note: '📝', call: '📞', email: '✉️', text: '💬', in_person: '🤝', trial: '🏊', other: '•' };
+const ACT_LABEL = { note: 'Note', call: 'Call', email: 'Email', text: 'Text', in_person: 'Meeting', trial: 'Trial', other: 'Other' };
+
+function coachNameById(id) {
+  const c = coachById(id);
+  return c ? (c.full_name || c.email) : '';
+}
+
+function activityItemHtml(a, canDelete) {
+  const who = coachNameById(a.created_by);
+  return `<div class="ld-item">
+    <div class="ld-item-icon">${ACT_ICON[a.kind] || '•'}</div>
+    <div class="ld-item-main">
+      <div class="ld-item-meta"><span><strong>${esc(ACT_LABEL[a.kind] || a.kind)}</strong> · ${esc(App.formatDate(a.occurred_at))}${who ? ' · ' + esc(who) : ''}</span>
+        ${canDelete ? `<button class="ld-item-del" onclick="removeActivity('${a.id}')" title="Delete">✕</button>` : ''}</div>
+      <div class="ld-item-body">${esc(a.body)}</div>
+    </div></div>`;
+}
+
+function stageItemHtml(h) {
+  const to = STAGE_BY_KEY[h.to_stage]?.label || h.to_stage;
+  const from = h.from_stage ? (STAGE_BY_KEY[h.from_stage]?.label || h.from_stage) : null;
+  const who = coachNameById(h.changed_by);
+  return `<div class="ld-item">
+    <div class="ld-item-icon">🔀</div>
+    <div class="ld-item-main">
+      <div class="ld-item-meta"><span><strong>Stage change</strong> · ${esc(App.formatDate(h.changed_at))}${who ? ' · ' + esc(who) : ''}</span></div>
+      <div class="ld-item-body">${from ? `${esc(from)} → ${esc(to)}` : `Added as ${esc(to)}`}</div>
+    </div></div>`;
+}
+
+function logFormHtml(kinds, placeholder) {
+  return `<div class="ld-log">
+    ${kinds.length > 1
+      ? `<select id="act-kind" class="form-select">${kinds.map(k => `<option value="${k}">${ACT_ICON[k]} ${ACT_LABEL[k]}</option>`).join('')}</select>`
+      : `<input type="hidden" id="act-kind" value="${kinds[0]}">`}
+    <textarea id="act-body" class="form-input" rows="2" placeholder="${esc(placeholder)}" style="resize:vertical"></textarea>
+    <button class="btn btn-primary btn-sm" onclick="addActivity()">Add</button>
+  </div>`;
+}
+
+function renderDetailTab() {
+  const el = document.getElementById('ld-tab-body');
+  if (!el) return;
+  const l = findLead(currentLeadId);
+  if (!detailData.loaded) { el.innerHTML = '<div class="text-secondary text-sm">Loading…</div>'; return; }
+  const empty = msg => `<div class="text-secondary text-sm">${esc(msg)}</div>`;
+  const canDel = a => currentUser.is_super_user || a.created_by === currentUser.id;
+  const notes = detailData.acts.filter(a => a.kind === 'note');
+  const others = detailData.acts.filter(a => a.kind !== 'note');
+  if (detailTab === 'timeline') {
+    const items = [
+      ...detailData.acts.map(a => ({ t: a.occurred_at, html: activityItemHtml(a, canDel(a)) })),
+      ...detailData.hist.map(h => ({ t: h.changed_at, html: stageItemHtml(h) })),
+    ].sort((a, b) => (b.t || '').localeCompare(a.t || ''));
+    el.innerHTML = items.length ? items.map(i => i.html).join('') : empty('Nothing yet.');
+  } else if (detailTab === 'notes') {
+    el.innerHTML = logFormHtml(['note'], 'Add a note…') +
+      (l && l.notes ? `<div class="ld-pinned"><div class="ld-card-title">Internal notes</div><div style="white-space:pre-wrap">${esc(l.notes)}</div></div>` : '') +
+      (notes.length ? notes.map(a => activityItemHtml(a, canDel(a))).join('') : empty('No notes yet.'));
+  } else if (detailTab === 'activities') {
+    el.innerHTML = logFormHtml(['call', 'email', 'in_person', 'text', 'trial', 'other'], 'What happened?') +
+      (others.length ? others.map(a => activityItemHtml(a, canDel(a))).join('') : empty('No calls, emails or meetings logged yet.'));
+  } else {
+    const hist = detailData.hist.slice().reverse();
+    el.innerHTML = hist.length ? hist.map(stageItemHtml).join('') : empty('No stage changes recorded.');
+  }
 }
 
 function opt(value, label, selected) {
   return `<option value="${esc(value)}" ${selected ? 'selected' : ''}>${esc(label)}</option>`;
 }
 
-function renderLeadModal(l) {
-  const c = l.contact || {};
-  const converted = !!l.converted_diver_id;
-  const allowed = allowedStages(l);
-  const chips = STAGES.map(s => {
-    const isCur = s.key === l.stage;
-    const can = allowed.includes(s.key) || isCur;
-    return `<button class="crm-stage-chip ${isCur ? 'current' : ''}" style="--c:${s.color}" ${can ? '' : 'disabled'} onclick="changeStage('${l.id}','${s.key}')">${esc(s.code + ' · ' + s.label)}</button>`;
-  }).join('');
 
-  const coachOpts = opt('', 'Unassigned', !l.assigned_coach_id) +
-    (coaches || []).map(co => opt(co.id, co.full_name || co.email, co.id === l.assigned_coach_id)).join('');
-
-  document.getElementById('lead-modal-body').innerHTML = `
-    <div class="modal-header">
-      <h2 class="modal-title">${esc(leadName(l))}</h2>
-      <button class="modal-close" onclick="closeLead()">✕</button>
-    </div>
-    ${converted ? `<div class="crm-banner">✅ In DivePractice. <a href="progress.html?diver=${esc(l.converted_diver_id)}">Open diver profile →</a><br>
-      <span class="text-secondary text-xs">Changes to name or parent details here do not sync to the diver profile after conversion — edit those in DivePractice.</span></div>` : ''}
-    <div class="crm-advance">
-      <div class="crm-advance-current">Current stage ${stageBadge(l.stage)}</div>
-      ${advanceButtonsHtml(l) ? `<div class="crm-advance-actions">${advanceButtonsHtml(l)}</div>` : '<div class="text-secondary text-sm">Final stage — nothing further to advance.</div>'}
-    </div>
-    <div class="crm-section-title" style="margin-top:0">Set stage directly</div>
-    <div class="crm-stage-picker">${chips}</div>
-
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">First name</label><input id="lf-first" class="form-input" value="${esc(l.first_name)}"></div>
-      <div class="form-group"><label class="form-label">Last name</label><input id="lf-last" class="form-input" value="${esc(l.last_name)}"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Date of birth</label><input type="date" id="lf-dob" class="form-input" value="${esc(l.date_of_birth)}"></div>
-      <div class="form-group"><label class="form-label">Gender</label>
-        <select id="lf-gender" class="form-select">${opt('', '—', !l.gender)}${['Male', 'Female', 'Other'].map(g => opt(g, g, l.gender === g)).join('')}</select></div>
-    </div>
-
-    <div class="crm-section-title">Parent / guardian</div>
-    <div class="form-group"><label class="form-label">Name</label><input id="lf-pname" class="form-input" value="${esc(c.full_name)}"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Email</label><input type="email" id="lf-pemail" class="form-input" value="${esc(c.email)}"></div>
-      <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="lf-pphone" class="form-input" value="${esc(c.phone)}"></div>
-    </div>
-    <label class="flex items-center gap-2 text-sm mb-3" style="cursor:pointer">
-      <input type="checkbox" id="lf-dnc" ${c.do_not_contact ? 'checked' : ''}> Do not contact (opted out)
-    </label>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Diver email (if they have their own)</label><input type="email" id="lf-demail" class="form-input" value="${esc(l.diver_email)}"></div>
-      <div class="form-group"><label class="form-label">Diver phone</label><input type="tel" id="lf-dphone" class="form-input" value="${esc(l.diver_phone)}"></div>
-    </div>
-
-    <div class="crm-section-title">Marketing &amp; follow-up</div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Source</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
-      <div class="form-group"><label class="form-label">Campaign</label><input id="lf-campaign" class="form-input" list="dl-campaign" value="${esc(l.campaign)}"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Trial date</label><input type="date" id="lf-trial" class="form-input" value="${esc(l.trial_date)}"></div>
-      <div class="form-group"><label class="form-label">Follow up on</label><input type="date" id="lf-follow" class="form-input" value="${esc(l.follow_up_date)}"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Assigned coach</label><select id="lf-coach" class="form-select">${coachOpts}</select></div>
-    <div class="form-group"><label class="form-label">Notes (internal — never copied to the diver profile)</label>
-      <textarea id="lf-notes" class="form-input" rows="3" style="resize:vertical">${esc(l.notes)}</textarea></div>
-
-    <div id="lead-alert" class="alert mb-2"></div>
-    <div class="crm-modal-actions">
-      <div class="flex gap-2" style="flex-wrap:wrap">
-        ${converted ? '' : `<button class="btn btn-secondary" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
-        ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete</button>` : ''}
-      </div>
-      <div class="flex gap-2">
-        <button class="btn btn-ghost" onclick="closeLead()">Close</button>
-        <button class="btn btn-primary" id="lead-save-btn" onclick="saveLead()">Save</button>
-      </div>
-    </div>
-
-    <div class="crm-section-title">Activity</div>
-    <div class="form-row" style="grid-template-columns:140px 1fr">
-      <div class="form-group"><select id="act-kind" class="form-select">
-        <option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email">✉️ Email</option>
-        <option value="text">💬 Text</option><option value="in_person">🤝 In person</option><option value="trial">🏊 Trial</option></select></div>
-      <div class="form-group"><input id="act-body" class="form-input" placeholder="What happened?" onkeydown="if(event.key==='Enter')addActivity()"></div>
-    </div>
-    <button class="btn btn-secondary btn-sm mb-3" onclick="addActivity()">Log activity</button>
-    <div id="act-list" class="text-secondary text-sm">Loading…</div>
-
-    <div class="crm-section-title">Stage history</div>
-    <div id="hist-list" class="crm-history">Loading…</div>`;
-}
-
-function closeLead() { currentLeadId = null; App.closeModal('lead-modal'); }
-
-const ACT_ICON = { note: '📝', call: '📞', email: '✉️', text: '💬', in_person: '🤝', trial: '🏊', other: '•' };
 
 async function loadLeadExtras(id) {
   try {
-    const [acts, hist] = await Promise.all([SupabaseDB.crmGetActivities(id), SupabaseDB.crmGetStageHistory(id)]);
+    const l = findLead(id);
+    const [acts, hist, profile] = await Promise.all([
+      SupabaseDB.crmGetActivities(id),
+      SupabaseDB.crmGetStageHistory(id),
+      l && l.converted_diver_id ? SupabaseDB.getProfileById(l.converted_diver_id).catch(() => null) : null,
+    ]);
     if (currentLeadId !== id) return;
-    const actEl = document.getElementById('act-list');
-    const histEl = document.getElementById('hist-list');
-    if (!actEl || !histEl) return;
-    actEl.innerHTML = acts.length ? acts.map(a => `
-      <div class="crm-activity">
-        <div class="crm-activity-meta"><span>${ACT_ICON[a.kind] || '•'} ${esc(App.formatDate(a.occurred_at))}</span>
-          <button onclick="removeActivity('${a.id}')" title="Delete">✕</button></div>
-        <div class="crm-activity-body">${esc(a.body)}</div></div>`).join('')
-      : 'Nothing logged yet.';
-    histEl.innerHTML = hist.length ? hist.map(h => {
-      const to = STAGE_BY_KEY[h.to_stage]?.label || h.to_stage;
-      const from = h.from_stage ? (STAGE_BY_KEY[h.from_stage]?.label || h.from_stage) : null;
-      return `<div>${esc(App.formatDate(h.changed_at))} — ${from ? `${esc(from)} → ${esc(to)}` : `Added as ${esc(to)}`}</div>`;
-    }).join('') : '—';
+    detailData = { id, acts, hist, profile, loaded: true };
+    if (detailEdit) renderDetailTab(); else renderLeadPage();
   } catch (err) {
-    const actEl = document.getElementById('act-list');
-    if (actEl) actEl.textContent = 'Could not load: ' + err.message;
+    const el = document.getElementById('ld-tab-body');
+    if (el) el.textContent = 'Could not load: ' + err.message;
   }
 }
 
@@ -1356,9 +1615,9 @@ async function addActivity() {
   const kind = document.getElementById('act-kind').value;
   try {
     await SupabaseDB.crmAddActivity(id, kind, body);
-    document.getElementById('act-body').value = '';
     const l = findLead(id);
     if (l && ['call', 'email', 'text', 'in_person'].includes(kind)) { l.last_contacted_at = new Date().toISOString(); renderList(); }
+    activitiesAll = null;
     loadLeadExtras(id);
   } catch (err) {
     App.showToast(err.message, 'error');
@@ -1368,6 +1627,7 @@ async function addActivity() {
 async function removeActivity(actId) {
   try {
     await SupabaseDB.crmDeleteActivity(actId);
+    activitiesAll = null;
     loadLeadExtras(currentLeadId);
   } catch (err) {
     App.showToast(err.message, 'error');
@@ -1393,6 +1653,7 @@ async function saveLead() {
     trial_date: nn(v('lf-trial')), follow_up_date: nn(v('lf-follow')),
     assigned_coach_id: nn(v('lf-coach')), notes: nn(v('lf-notes')),
   };
+  if (servicesAvailable && document.getElementById('lf-service')) fields.service_id = nn(v('lf-service'));
   const contactFields = {
     full_name: v('lf-pname'), email: nn(pemail), phone: nn(v('lf-pphone')),
     do_not_contact: document.getElementById('lf-dnc').checked,
@@ -1417,9 +1678,9 @@ async function saveLead() {
     Object.assign(l, fields, { contact });
     if (!('contact_id' in fields)) l.contact_id = contact ? contact.id : null;
     App.showToast('Saved');
+    detailEdit = false;
     renderAll();
-    renderLeadModal(l);
-    loadLeadExtras(l.id);
+    renderLeadPage();
     return true;
   } catch (err) {
     App.showAlert('lead-alert', err.message);
@@ -1435,8 +1696,8 @@ async function deleteLead(id) {
   try {
     await SupabaseDB.crmDeleteLead(id);
     leads = leads.filter(x => x.id !== id);
-    closeLead();
     renderAll();
+    if (currentView === 'lead') leadBack();
     App.showToast('Lead deleted');
   } catch (err) {
     App.showToast(err.message, 'error');
@@ -1511,7 +1772,7 @@ async function submitConvert() {
     App.closeModal('convert-modal');
     App.showToast(`${leadName(l)} is now on the roster`);
     renderAll();
-    if (currentLeadId === id) { renderLeadModal(l); loadLeadExtras(id); }
+    if (currentView === 'lead' && currentLeadId === id) { detailEdit = false; renderLeadPage(); loadLeadExtras(id); }
   } catch (err) {
     App.showAlert('convert-alert', err.message);
   } finally {
@@ -1667,6 +1928,184 @@ function exportCsv() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- services (crm_services, migration v54) ---------- */
+
+let editingServiceId = null;
+
+async function loadServices() {
+  try {
+    services = await SupabaseDB.crmGetServices();
+    servicesAvailable = true;
+  } catch (err) {
+    services = [];
+    servicesAvailable = false;
+    console.warn('[CRM] services unavailable (run supabase-migration-v54.sql):', err.message);
+  }
+}
+
+function renderServices() {
+  const el = document.getElementById('services-list');
+  if (!servicesAvailable) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧾</div>
+      <p>Services aren't set up yet. Run <strong>supabase-migration-v54.sql</strong> in the Supabase SQL editor, then reload this page.</p></div>`;
+    return;
+  }
+  if (!services.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧾</div><p>No services yet.</p>
+      <button class="btn btn-primary" onclick="openService()">+ Add Service</button></div>`;
+    return;
+  }
+  el.innerHTML = services.map(sv => {
+    const interested = leads.filter(l => l.service_id === sv.id && !ARCHIVED_STAGES.has(l.stage)).length;
+    return `
+      <div class="svc-card ${sv.status === 'inactive' ? 'inactive' : ''}">
+        <div class="flex items-center justify-between gap-2">
+          <div class="svc-name">${esc(sv.name)}</div>
+          <span class="svc-status ${sv.status}">${sv.status === 'active' ? 'Active' : 'Inactive'}</span>
+        </div>
+        ${sv.description ? `<div class="svc-desc">${esc(sv.description)}</div>` : ''}
+        <div class="svc-foot">
+          <span>${sv.price_text ? esc(sv.price_text) : '<span class="text-secondary">No price set</span>'}</span>
+          <span class="text-secondary">${interested} interested</span>
+        </div>
+        <button class="btn btn-ghost btn-sm w-full mt-2" onclick="openService('${sv.id}')">Edit</button>
+      </div>`;
+  }).join('');
+}
+
+function openService(id) {
+  if (!servicesAvailable) { App.showToast('Run supabase-migration-v54.sql first', 'error'); return; }
+  const sv = id ? services.find(x => x.id === id) : null;
+  editingServiceId = sv ? sv.id : null;
+  document.getElementById('svc-title').textContent = sv ? 'Edit Service' : 'Add Service';
+  document.getElementById('svc-name').value = sv?.name || '';
+  document.getElementById('svc-desc').value = sv?.description || '';
+  document.getElementById('svc-price').value = sv?.price_text || '';
+  document.getElementById('svc-status').value = sv?.status || 'active';
+  document.getElementById('svc-sort').value = sv ? sv.sort_order : (services.length + 1) * 10;
+  document.getElementById('svc-delete-wrap').innerHTML = sv && currentUser.is_super_user
+    ? `<button class="btn btn-danger btn-sm" onclick="deleteService('${sv.id}')">Delete</button>` : '';
+  App.hideAlert('svc-alert');
+  App.openModal('service-modal');
+  document.getElementById('svc-name').focus();
+}
+
+async function saveService() {
+  const name = document.getElementById('svc-name').value.trim();
+  if (!name) { App.showAlert('svc-alert', 'Name is required.'); return; }
+  const fields = {
+    name,
+    description: document.getElementById('svc-desc').value.trim() || null,
+    price_text: document.getElementById('svc-price').value.trim() || null,
+    status: document.getElementById('svc-status').value,
+    sort_order: parseInt(document.getElementById('svc-sort').value, 10) || 0,
+  };
+  const btn = document.getElementById('svc-save-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    const saved = await SupabaseDB.crmSaveService(editingServiceId, fields);
+    services = editingServiceId ? services.map(x => (x.id === saved.id ? saved : x)) : [...services, saved];
+    services.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+    App.closeModal('service-modal');
+    App.showToast('Service saved');
+    renderServices();
+  } catch (err) {
+    App.showAlert('svc-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+async function deleteService(id) {
+  const sv = services.find(x => x.id === id);
+  if (!sv || !confirm(`Delete "${sv.name}"? Leads tagged with it keep their other details; the service tag is cleared. To keep history, set it Inactive instead.`)) return;
+  try {
+    await SupabaseDB.crmDeleteService(id);
+    services = services.filter(x => x.id !== id);
+    leads.forEach(l => { if (l.service_id === id) l.service_id = null; });
+    App.closeModal('service-modal');
+    App.showToast('Service deleted');
+    renderServices();
+  } catch (err) {
+    App.showToast(err.message, 'error');
+  }
+}
+
+/* ---------- activities (all leads) ---------- */
+
+async function loadActivities() {
+  if (activitiesAll) { renderActivities(); return; }
+  document.getElementById('activities-list').innerHTML = '<div class="text-secondary text-sm">Loading…</div>';
+  try {
+    const [acts, hist] = await Promise.all([SupabaseDB.crmGetAllActivities(), SupabaseDB.crmGetAllStageHistory()]);
+    stageHistoryAll = hist;
+    activitiesAll = [
+      ...acts.map(a => ({ type: a.kind, at: a.occurred_at, lead_id: a.lead_id, body: a.body, coach: a.created_by })),
+      ...hist.filter(h => h.from_stage).map(h => ({
+        type: 'stage', at: h.changed_at, lead_id: h.lead_id, coach: h.changed_by,
+        body: `${STAGE_BY_KEY[h.from_stage]?.label || h.from_stage} → ${STAGE_BY_KEY[h.to_stage]?.label || h.to_stage}`,
+      })),
+    ].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+    acVisible = 200;
+    renderActivities();
+  } catch (err) {
+    document.getElementById('activities-list').textContent = 'Could not load activities: ' + err.message;
+  }
+}
+
+function renderActivities() {
+  if (!activitiesAll) return;
+  const coachSel = document.getElementById('ac-coach');
+  const curCoach = coachSel.value;
+  coachSel.innerHTML = '<option value="">All coaches</option>' +
+    (coaches || []).map(c => `<option value="${esc(c.id)}">${esc(c.full_name || c.email)}</option>`).join('');
+  coachSel.value = [...coachSel.options].some(o => o.value === curCoach) ? curCoach : '';
+
+  const q = document.getElementById('ac-search').value.trim().toLowerCase();
+  const type = document.getElementById('ac-type').value;
+  const from = document.getElementById('ac-from').value;
+  const to = document.getElementById('ac-to').value;
+  const byId = new Map(leads.map(l => [l.id, l]));
+  const shown = activitiesAll.filter(a => {
+    if (type && a.type !== type) return false;
+    if (coachSel.value && a.coach !== coachSel.value) return false;
+    const day = a.at ? localDateStr(new Date(a.at)) : '';
+    if (from && day < from) return false;
+    if (to && day > to) return false;
+    if (q) {
+      const l = byId.get(a.lead_id);
+      if (!`${l ? leadName(l) + ' ' + (l.contact?.full_name || '') : ''} ${a.body || ''}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('ac-count-label').textContent = activitiesAll.length ? `${shown.length} of ${activitiesAll.length}` : '';
+  const el = document.getElementById('activities-list');
+  if (!activitiesAll.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🕒</div><p>No activity logged yet. Open a lead to log a call, email, meeting or note.</p></div>';
+    return;
+  }
+  if (!shown.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>No activities match these filters.</p></div>';
+    return;
+  }
+  const page = shown.slice(0, acVisible);
+  el.innerHTML = page.map(a => {
+    const l = byId.get(a.lead_id);
+    const who = coachNameById(a.coach);
+    const icon = a.type === 'stage' ? '🔀' : (ACT_ICON[a.type] || '•');
+    const label = a.type === 'stage' ? 'Stage change' : (ACT_LABEL[a.type] || a.type);
+    return `<div class="ac-row">
+      <div class="ld-item-icon">${icon}</div>
+      <div class="ld-item-main">
+        <div class="ld-item-meta"><span><strong>${esc(label)}</strong> · ${esc(App.formatDate(a.at))}${who ? ' · ' + esc(who) : ''}</span>
+          ${l ? `<a href="#lead/${l.id}" class="ac-lead">${esc(leadName(l))}</a>` : '<span class="text-secondary">Deleted lead</span>'}</div>
+        <div class="ld-item-body">${esc(a.body)}</div>
+      </div></div>`;
+  }).join('') + (shown.length > page.length
+    ? `<button class="btn btn-ghost w-full mt-2" onclick="acVisible += 200; renderActivities()">Show more (${shown.length - page.length} remaining)</button>` : '');
 }
 
 /* ---------- marketing results ---------- */

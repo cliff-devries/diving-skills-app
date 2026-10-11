@@ -1362,7 +1362,7 @@ const SupabaseDB = {
   async crmGetStageHistory(leadId) {
     const { data, error } = await this.db
       .from('crm_stage_history')
-      .select('from_stage, to_stage, changed_at')
+      .select('from_stage, to_stage, changed_at, changed_by')
       .eq('lead_id', leadId)
       .order('changed_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -1373,8 +1373,43 @@ const SupabaseDB = {
   async crmGetAllStageHistory() {
     return this._crmFetchAll(() => this.db
       .from('crm_stage_history')
-      .select('lead_id, to_stage')
+      .select('lead_id, from_stage, to_stage, changed_at, changed_by')
       .order('changed_at')
       .order('id'));
+  },
+
+  // Every logged activity across all leads — the Activities tab.
+  async crmGetAllActivities() {
+    return this._crmFetchAll(() => this.db
+      .from('crm_activities')
+      .select('id, lead_id, kind, body, occurred_at, created_by')
+      .order('occurred_at', { ascending: false })
+      .order('id'));
+  },
+
+  // crm_services (migration v54).
+  async crmGetServices() {
+    const { data, error } = await this.db
+      .from('crm_services')
+      .select('*')
+      .order('sort_order')
+      .order('name');
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  async crmSaveService(id, fields) {
+    const q = id
+      ? this.db.from('crm_services').update(fields).eq('id', id)
+      : this.db.from('crm_services').insert(fields);
+    const { data, error } = await q.select('*').single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // Hard delete — RLS only allows super users.
+  async crmDeleteService(id) {
+    const { error } = await this.db.from('crm_services').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 };

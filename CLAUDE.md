@@ -64,7 +64,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=13 |
-| js/supabase.js | v=38 |
+| js/supabase.js | v=39 |
 | js/auth.js | v=4 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
@@ -113,9 +113,11 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   the CRM contact. CRM notes are deliberately NOT copied: `profiles.notes` is readable by the diver and linked parents.
 - After conversion the CRM row keeps a link (`converted_diver_id`) but parent/name edits do not sync — DivePractice owns the diver.
 - Access is active coaches/super users only (`crm_is_coach()`); anon has no table or RPC access; hard delete is super-user only.
-- crm.html is the standalone DiveCRM app (own header + hash tabs #dashboard (kanban)/#leads/#contacts/#reports/#archived,
-  blue `#2196F3` accent) — it does NOT call `App.renderNav()` and is not linked from the DiveDrills nav;
-  it's reached from the DiveCentral hub (index.html).
+- crm.html is the standalone DiveCRM app (own header + hash tabs #dashboard (kanban)/#leads/#services/#activities/#reports,
+  plus a full-page lead detail at #lead/<id>; blue `#2196F3` accent) — it does NOT call `App.renderNav()` and is not
+  linked from the DiveDrills nav; it's reached from the DiveCentral hub (index.html).
+- Services live in `crm_services` (supabase-migration-v54.sql, which also adds `crm_leads.service_id` and seeds the
+  defaults). crm.html degrades gracefully if v54 hasn't been run (Services tab shows a setup message).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
   sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.
 
