@@ -1520,7 +1520,7 @@ function leftPanelReadHtml(l) {
     </div>
     <div class="ld-card">
       <div class="ld-card-title">Diver</div>
-      ${infoRow('Name', esc(leadName(l)))}
+      <div class="ld-contact-name">${esc(leadName(l))}</div>
       ${infoRow('Current level', esc(level) + (l.converted_diver_id ? ` · <a href="progress.html?diver=${esc(l.converted_diver_id)}">Profile →</a>` : ''))}
       ${infoRow('Date of birth', l.date_of_birth ? esc(fmtDay(l.date_of_birth)) + (age !== null ? ` <span class="text-secondary">(age ${age})</span>` : '') : '')}
       ${infoRow('Gender', esc(l.gender || ''))}
