@@ -64,7 +64,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=13 |
-| js/supabase.js | v=39 |
+| js/supabase.js | v=40 |
 | js/auth.js | v=4 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
@@ -118,6 +118,13 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   linked from the DiveDrills nav; it's reached from the DiveCentral hub (index.html).
 - Services live in `crm_services` (supabase-migration-v54.sql, which also adds `crm_leads.service_id` and seeds the
   defaults). crm.html degrades gracefully if v54 hasn't been run (Services tab shows a setup message).
+- Sign-up form fields (supabase-migration-v55.sql): `crm_contacts` carries parent `last_name`, `street_address`, `city`,
+  `zip_code`, `emergency_contact_name/phone`; `crm_leads` carries `signed_up_at`, `school_district`, `graduation_year`,
+  `allergies_medical`, `prior_diving_experience`, `prior_gymnastics_experience`, `diving_location`, `aau_number`,
+  `participates_in_competitions`. Diver birthdate is `date_of_birth` and "how did you find us" is `source`.
+  `crm_leads.diver_email` / `diver_phone` were dropped in v55; the convert RPC no longer sets profile email/phone, and
+  none of the new fields (address, allergies, etc.) are copied to `profiles`, same as notes. crm.html and
+  `crmGetLeads` need v55 applied before the matching deploy.
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
   sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.
 

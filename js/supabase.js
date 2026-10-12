@@ -1271,14 +1271,19 @@ const SupabaseDB = {
   async crmGetLeads() {
     return this._crmFetchAll(() => this.db
       .from('crm_leads')
-      .select('*, contact:crm_contacts(id, full_name, email, phone, relationship, notes, do_not_contact)')
+      .select('*, contact:crm_contacts(id, full_name, last_name, email, phone, relationship, notes, do_not_contact, street_address, city, zip_code, emergency_contact_name, emergency_contact_phone)')
       .order('created_at', { ascending: false })
       .order('id'));
   },
 
-  // rows: [{ first_name, last_name, parent_name, parent_email, parent_phone,
-  //          diver_email, diver_phone, date_of_birth, gender, source, campaign,
-  //          notes, stage }]. Used by both the CSV import and "Add lead".
+  // rows: [{ first_name, last_name, parent_name, parent_last_name, parent_email,
+  //          parent_phone, street_address, city, zip_code, emergency_contact_name,
+  //          emergency_contact_phone, date_of_birth, gender, source, campaign,
+  //          notes, stage, signed_up_at, school_district, graduation_year,
+  //          allergies_medical, prior_diving_experience, prior_gymnastics_experience,
+  //          diving_location, aau_number, participates_in_competitions }]
+  //          (the extra fields need migration v55). Used by both the CSV
+  //          import and "Add lead".
   async crmImportLeads(rows, defaultSource, defaultCampaign) {
     const { data, error } = await this.db.rpc('crm_import_leads', {
       p_rows:             rows,
@@ -1304,7 +1309,7 @@ const SupabaseDB = {
     const { data, error } = await this.db
       .from('crm_contacts')
       .insert({ ...fields, created_by: Auth.currentUser?.id ?? null })
-      .select('id, full_name, email, phone, relationship, notes, do_not_contact')
+      .select('id, full_name, last_name, email, phone, relationship, notes, do_not_contact, street_address, city, zip_code, emergency_contact_name, emergency_contact_phone')
       .single();
     if (error) {
       if (error.code === '23505') throw new Error('Another family contact already uses that email address.');

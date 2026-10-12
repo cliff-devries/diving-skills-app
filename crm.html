@@ -525,6 +525,35 @@
         <input type="text" id="a-campaign" class="form-input" list="dl-campaign" placeholder="Fall 2026" autocomplete="off">
       </div>
     </div>
+    <details class="mb-4">
+      <summary class="text-sm" style="cursor:pointer;margin-bottom:10px">More sign-up details</summary>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Parent / guardian last name</label><input type="text" id="a-plast" class="form-input" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label">Sign up timestamp</label><input type="datetime-local" id="a-signup" class="form-input"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Street address</label><input type="text" id="a-street" class="form-input" autocomplete="off"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">City or town</label><input type="text" id="a-city" class="form-input" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label">Zip code</label><input type="text" id="a-zip" class="form-input" inputmode="numeric" autocomplete="off"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Emergency contact name</label><input type="text" id="a-ecname" class="form-input" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label">Emergency contact phone</label><input type="tel" id="a-ecphone" class="form-input" autocomplete="off"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">School district</label><input type="text" id="a-district" class="form-input" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label">High school graduation year</label><input type="number" id="a-gradyear" class="form-input" min="1990" max="2100" autocomplete="off"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Allergies &amp; medical conditions</label><textarea id="a-allergies" class="form-input" rows="2" style="resize:vertical"></textarea></div>
+      <div class="form-group"><label class="form-label">Prior diving experience</label><textarea id="a-pdive" class="form-input" rows="2" style="resize:vertical"></textarea></div>
+      <div class="form-group"><label class="form-label">Prior gymnastics experience</label><textarea id="a-pgym" class="form-input" rows="2" style="resize:vertical"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Diving location</label><input type="text" id="a-location" class="form-input" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label">AAU membership number</label><input type="text" id="a-aau" class="form-input" autocomplete="off"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Participate in competitions</label>
+        <select id="a-comp" class="form-select"><option value="">—</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+    </details>
     <div class="form-group">
       <label class="form-label">Starting stage</label>
       <select id="a-stage" class="form-select"></select>
@@ -586,7 +615,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=39"></script>
+<script src="js/supabase.js?v=40"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -612,13 +641,26 @@ const IMPORT_FIELDS = [
   ['last_name',     'Last name'],
   ['full_name',     'Full name (will be split)'],
   ['parent_name',   'Parent / guardian name'],
+  ['parent_last_name', 'Parent / guardian last name'],
   ['parent_email',  'Parent email'],
   ['parent_phone',  'Parent phone'],
-  ['diver_email',   'Diver email'],
-  ['diver_phone',   'Diver phone'],
+  ['street_address', 'Street address'],
+  ['city',          'City or town'],
+  ['zip_code',      'Zip code'],
+  ['emergency_contact_name',  'Emergency contact name'],
+  ['emergency_contact_phone', 'Emergency contact phone'],
+  ['signed_up_at',  'Sign up timestamp'],
   ['date_of_birth', 'Date of birth'],
   ['gender',        'Gender'],
-  ['source',        'Source'],
+  ['school_district', 'School district'],
+  ['graduation_year', 'High school graduation year'],
+  ['allergies_medical', 'Allergies & medical conditions'],
+  ['prior_diving_experience',     'Prior diving experience'],
+  ['prior_gymnastics_experience', 'Prior gymnastics experience'],
+  ['diving_location', 'Diving location'],
+  ['aau_number',    'AAU membership number'],
+  ['participates_in_competitions', 'Participate in competitions'],
+  ['source',        'Source (how they found us)'],
   ['campaign',      'Campaign'],
   ['notes',         'Notes'],
   ['stage',         'Stage'],
@@ -631,11 +673,24 @@ const HEADER_ALIASES = {
   parent_name:   ['parent name', 'parent', 'guardian', 'guardian name', 'parent guardian', 'parent guardian name', 'parent full name'],
   parent_email:  ['parent email', 'email', 'e mail', 'email address', 'guardian email', 'parent e mail', 'parent email address', 'contact email'],
   parent_phone:  ['parent phone', 'phone', 'phone number', 'mobile', 'cell', 'guardian phone', 'parent cell', 'parent mobile', 'contact phone'],
-  diver_email:   ['diver email', 'child email', 'athlete email', 'student email'],
-  diver_phone:   ['diver phone', 'child phone', 'athlete phone'],
-  date_of_birth: ['date of birth', 'dob', 'birthdate', 'birth date', 'birthday'],
+  parent_last_name: ['parent last name', 'parent or guardian last name', 'guardian last name', 'parent guardian last name'],
+  street_address: ['street address', 'address', 'street'],
+  city:          ['city or town', 'city', 'town'],
+  zip_code:      ['zip code', 'zip', 'postal code'],
+  emergency_contact_name:  ['emergency contact name', 'emergency contact'],
+  emergency_contact_phone: ['emergency contact phone number', 'emergency contact phone'],
+  signed_up_at:  ['sign up timestamp', 'signup timestamp', 'sign up date', 'timestamp', 'signed up'],
+  date_of_birth: ['date of birth', 'dob', 'birthdate', 'birth date', 'birthday', 'diver s birthdate', 'diver birthdate'],
   gender:        ['gender', 'sex'],
-  source:        ['source', 'lead source', 'how did you hear', 'how did you hear about us', 'referral', 'referred by'],
+  school_district: ['diver s school district', 'school district'],
+  graduation_year: ['diver s high school graduation year', 'high school graduation year', 'graduation year', 'grad year'],
+  allergies_medical: ['diver allergies medical conditions', 'allergies medical conditions', 'allergies', 'medical conditions'],
+  prior_diving_experience:     ['prior diving experience', 'diving experience'],
+  prior_gymnastics_experience: ['participant prior gymnastics experience', 'prior gymnastics experience', 'gymnastics experience'],
+  diving_location: ['diving location', 'location'],
+  aau_number:    ['aau membership number', 'aau number', 'aau'],
+  participates_in_competitions: ['participate in competitions', 'participates in competitions', 'competitions'],
+  source:        ['source', 'lead source', 'how did you find upstate diving', 'how did you hear', 'how did you hear about us', 'referral', 'referred by'],
   campaign:      ['campaign', 'promo', 'marketing campaign'],
   notes:         ['notes', 'note', 'comments', 'comment', 'message'],
   stage:         ['stage'],
@@ -720,6 +775,10 @@ function buildImportRows(rows, mapping) {
       if (last && !o.last_name) o.last_name = last;
     }
     delete o.full_name;
+    if (o.signed_up_at) {
+      const t = new Date(o.signed_up_at);
+      if (isNaN(t.getTime())) delete o.signed_up_at; else o.signed_up_at = t.toISOString();
+    }
     if (o.stage) { const st = stageFromText(o.stage); if (st) o.stage = st; else delete o.stage; }
     out.push(o);
   }
@@ -755,7 +814,7 @@ function isFollowUpDue(lead, today) {
 
 function leadSearchText(l) {
   const c = l.contact || {};
-  return [l.first_name, l.last_name, c.full_name, c.email, c.phone, l.diver_email, l.source, l.campaign, l.notes]
+  return [l.first_name, l.last_name, c.full_name, c.last_name, c.email, c.phone, l.school_district, l.diving_location, l.aau_number, l.source, l.campaign, l.notes]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -839,6 +898,21 @@ function fmtDay(s) {
   const opts = y === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' };
   return dt.toLocaleDateString('en-US', opts);
 }
+
+function fmtStamp(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? '' : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function toLocalInput(s) {
+  const d = s ? new Date(s) : null;
+  if (!d || isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function multiline(s) { return s ? `<span style="white-space:pre-wrap">${esc(s)}</span>` : ''; }
 
 function leadName(l) { return [l.first_name, l.last_name].filter(Boolean).join(' '); }
 function findLead(id) { return leads.find(l => l.id === id); }
@@ -1273,9 +1347,12 @@ function runConfirm() {
 /* ---------- add lead ---------- */
 
 function openAdd(stage) {
-  ['a-first', 'a-last', 'a-dob', 'a-pname', 'a-pemail', 'a-pphone', 'a-source', 'a-campaign', 'a-notes']
+  ['a-first', 'a-last', 'a-dob', 'a-pname', 'a-pemail', 'a-pphone', 'a-source', 'a-campaign', 'a-notes',
+   'a-plast', 'a-signup', 'a-street', 'a-city', 'a-zip', 'a-ecname', 'a-ecphone', 'a-district', 'a-gradyear',
+   'a-allergies', 'a-pdive', 'a-pgym', 'a-location', 'a-aau']
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('a-gender').value = '';
+  document.getElementById('a-comp').value = '';
   document.getElementById('a-stage').value = stage && KANBAN_ADDABLE.has(stage) ? stage : 'lead';
   App.hideAlert('add-alert');
   App.openModal('add-modal');
@@ -1294,7 +1371,13 @@ async function submitAdd() {
   try {
     const res = await SupabaseDB.crmImportLeads([{
       first_name: first, last_name: v('a-last'), date_of_birth: v('a-dob'), gender: v('a-gender'),
-      parent_name: v('a-pname'), parent_email: email, parent_phone: v('a-pphone'),
+      parent_name: v('a-pname'), parent_last_name: v('a-plast'), parent_email: email, parent_phone: v('a-pphone'),
+      street_address: v('a-street'), city: v('a-city'), zip_code: v('a-zip'),
+      emergency_contact_name: v('a-ecname'), emergency_contact_phone: v('a-ecphone'),
+      signed_up_at: v('a-signup') ? new Date(v('a-signup')).toISOString() : '',
+      school_district: v('a-district'), graduation_year: v('a-gradyear'), allergies_medical: v('a-allergies'),
+      prior_diving_experience: v('a-pdive'), prior_gymnastics_experience: v('a-pgym'),
+      diving_location: v('a-location'), aau_number: v('a-aau'), participates_in_competitions: v('a-comp'),
       source: v('a-source'), campaign: v('a-campaign'), notes: v('a-notes'), stage: v('a-stage'),
     }]);
     if (!res.inserted) {
@@ -1387,6 +1470,12 @@ function leftPanelReadHtml(l) {
       ${c.relationship ? `<div class="text-secondary text-sm">${esc(c.relationship)}</div>` : ''}
       ${infoRow('Email', c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '')}
       ${infoRow('Phone', c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '')}
+      ${infoRow('Last name', esc(c.last_name || ''))}
+      ${infoRow('Street address', esc(c.street_address || ''))}
+      ${infoRow('City or town', esc(c.city || ''))}
+      ${infoRow('Zip code', esc(c.zip_code || ''))}
+      ${infoRow('Emergency contact', esc(c.emergency_contact_name || ''))}
+      ${infoRow('Emergency phone', c.emergency_contact_phone ? `<a href="tel:${esc(c.emergency_contact_phone)}">${esc(c.emergency_contact_phone)}</a>` : '')}
       ${l.contact_id ? `<label class="crm-toggle mt-2"><input type="checkbox" ${c.do_not_contact ? 'checked' : ''} onchange="toggleDoNotContact(this.checked)"> <span class="${c.do_not_contact ? 'crm-dnc' : ''}">Do not contact</span></label>` : ''}
     </div>
     <div class="ld-card">
@@ -1395,11 +1484,19 @@ function leftPanelReadHtml(l) {
       ${infoRow('Current level', esc(level) + (l.converted_diver_id ? ` · <a href="progress.html?diver=${esc(l.converted_diver_id)}">Profile →</a>` : ''))}
       ${infoRow('Date of birth', l.date_of_birth ? esc(fmtDay(l.date_of_birth)) + (age !== null ? ` <span class="text-secondary">(age ${age})</span>` : '') : '')}
       ${infoRow('Gender', esc(l.gender || ''))}
-      ${l.diver_email || l.diver_phone ? infoRow('Diver contact', [l.diver_email, l.diver_phone].filter(Boolean).map(esc).join(' · ')) : ''}
+      ${infoRow('School district', esc(l.school_district || ''))}
+      ${infoRow('HS graduation year', l.graduation_year ? esc(String(l.graduation_year)) : '')}
+      ${infoRow('Allergies & medical', multiline(l.allergies_medical))}
+      ${infoRow('Prior diving experience', multiline(l.prior_diving_experience))}
+      ${infoRow('Prior gymnastics experience', multiline(l.prior_gymnastics_experience))}
+      ${infoRow('Diving location', esc(l.diving_location || ''))}
+      ${infoRow('AAU membership number', esc(l.aau_number || ''))}
+      ${infoRow('Participates in competitions', l.participates_in_competitions === true ? 'Yes' : l.participates_in_competitions === false ? 'No' : '')}
     </div>
     <div class="ld-card">
       <div class="ld-card-title">Lead details</div>
-      ${infoRow('Source', esc(l.source || ''))}
+      ${infoRow('Signed up', esc(fmtStamp(l.signed_up_at)))}
+      ${infoRow('Source (how they found us)', esc(l.source || ''))}
       ${infoRow('Campaign', esc(l.campaign || ''))}
       ${infoRow('Assigned coach', coach ? esc(coach.full_name || coach.email) : '')}
       ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
@@ -1424,6 +1521,16 @@ function leftPanelEditHtml(l) {
       <div class="form-group"><label class="form-label">Name</label><input id="lf-pname" class="form-input" value="${esc(c.full_name)}"></div>
       <div class="form-group"><label class="form-label">Email</label><input type="email" id="lf-pemail" class="form-input" value="${esc(c.email)}"></div>
       <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="lf-pphone" class="form-input" value="${esc(c.phone)}"></div>
+      <div class="form-group"><label class="form-label">Last name</label><input id="lf-plast" class="form-input" value="${esc(c.last_name)}"></div>
+      <div class="form-group"><label class="form-label">Street address</label><input id="lf-street" class="form-input" value="${esc(c.street_address)}"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">City or town</label><input id="lf-city" class="form-input" value="${esc(c.city)}"></div>
+        <div class="form-group"><label class="form-label">Zip code</label><input id="lf-zip" class="form-input" inputmode="numeric" value="${esc(c.zip_code)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Emergency contact name</label><input id="lf-ecname" class="form-input" value="${esc(c.emergency_contact_name)}"></div>
+        <div class="form-group"><label class="form-label">Emergency contact phone</label><input type="tel" id="lf-ecphone" class="form-input" value="${esc(c.emergency_contact_phone)}"></div>
+      </div>
       <label class="crm-toggle"><input type="checkbox" id="lf-dnc" ${c.do_not_contact ? 'checked' : ''}> Do not contact (opted out)</label>
     </div>
     <div class="ld-card">
@@ -1438,14 +1545,27 @@ function leftPanelEditHtml(l) {
           <select id="lf-gender" class="form-select">${opt('', '—', !l.gender)}${['Male', 'Female', 'Other'].map(g => opt(g, g, l.gender === g)).join('')}</select></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Diver email</label><input type="email" id="lf-demail" class="form-input" value="${esc(l.diver_email)}"></div>
-        <div class="form-group"><label class="form-label">Diver phone</label><input type="tel" id="lf-dphone" class="form-input" value="${esc(l.diver_phone)}"></div>
+        <div class="form-group"><label class="form-label">School district</label><input id="lf-district" class="form-input" value="${esc(l.school_district)}"></div>
+        <div class="form-group"><label class="form-label">HS graduation year</label><input type="number" id="lf-gradyear" class="form-input" min="1990" max="2100" value="${esc(l.graduation_year)}"></div>
       </div>
+      <div class="form-group"><label class="form-label">Allergies &amp; medical conditions</label>
+        <textarea id="lf-allergies" class="form-input" rows="2" style="resize:vertical">${esc(l.allergies_medical)}</textarea></div>
+      <div class="form-group"><label class="form-label">Prior diving experience</label>
+        <textarea id="lf-pdive" class="form-input" rows="2" style="resize:vertical">${esc(l.prior_diving_experience)}</textarea></div>
+      <div class="form-group"><label class="form-label">Prior gymnastics experience</label>
+        <textarea id="lf-pgym" class="form-input" rows="2" style="resize:vertical">${esc(l.prior_gymnastics_experience)}</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Diving location</label><input id="lf-location" class="form-input" value="${esc(l.diving_location)}"></div>
+        <div class="form-group"><label class="form-label">AAU membership number</label><input id="lf-aau" class="form-input" value="${esc(l.aau_number)}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Participate in competitions</label>
+        <select id="lf-comp" class="form-select">${opt('', '—', l.participates_in_competitions == null)}${opt('yes', 'Yes', l.participates_in_competitions === true)}${opt('no', 'No', l.participates_in_competitions === false)}</select></div>
     </div>
     <div class="ld-card">
       <div class="ld-card-title">Lead details</div>
+      <div class="form-group"><label class="form-label">Sign up timestamp</label><input type="datetime-local" id="lf-signup" class="form-input" value="${esc(toLocalInput(l.signed_up_at))}"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Source</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
+        <div class="form-group"><label class="form-label">Source (how they found us)</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
         <div class="form-group"><label class="form-label">Campaign</label><input id="lf-campaign" class="form-input" list="dl-campaign" value="${esc(l.campaign)}"></div>
       </div>
       <div class="form-group"><label class="form-label">Assigned coach</label><select id="lf-coach" class="form-select">${coachOpts}</select></div>
@@ -1642,13 +1762,21 @@ async function saveLead() {
   const first = v('lf-first');
   if (!first) { App.showAlert('lead-alert', 'First name is required.'); return false; }
   const pemail = v('lf-pemail').toLowerCase();
-  const demail = v('lf-demail');
-  const bad = [pemail, demail].find(e => e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
-  if (bad) { App.showAlert('lead-alert', `"${bad}" does not look like an email address.`); return false; }
+  if (pemail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pemail)) { App.showAlert('lead-alert', `"${pemail}" does not look like an email address.`); return false; }
+  const gradYear = v('lf-gradyear') === '' ? null : Number(v('lf-gradyear'));
+  if (gradYear !== null && (!Number.isInteger(gradYear) || gradYear < 1990 || gradYear > 2100)) {
+    App.showAlert('lead-alert', 'Graduation year must be a four-digit year.'); return false;
+  }
+  const signup = v('lf-signup');
+  const comp = v('lf-comp');
 
   const fields = {
     first_name: first, last_name: nn(v('lf-last')), date_of_birth: nn(v('lf-dob')), gender: nn(v('lf-gender')),
-    diver_email: nn(demail), diver_phone: nn(v('lf-dphone')),
+    signed_up_at: signup ? new Date(signup).toISOString() : null,
+    school_district: nn(v('lf-district')), graduation_year: gradYear,
+    allergies_medical: nn(v('lf-allergies')), prior_diving_experience: nn(v('lf-pdive')),
+    prior_gymnastics_experience: nn(v('lf-pgym')), diving_location: nn(v('lf-location')), aau_number: nn(v('lf-aau')),
+    participates_in_competitions: comp === 'yes' ? true : comp === 'no' ? false : null,
     source: nn(v('lf-source')), campaign: nn(v('lf-campaign')),
     trial_date: nn(v('lf-trial')), follow_up_date: nn(v('lf-follow')),
     assigned_coach_id: nn(v('lf-coach')), notes: nn(v('lf-notes')),
@@ -1656,9 +1784,11 @@ async function saveLead() {
   if (servicesAvailable && document.getElementById('lf-service')) fields.service_id = nn(v('lf-service'));
   const contactFields = {
     full_name: v('lf-pname'), email: nn(pemail), phone: nn(v('lf-pphone')),
+    last_name: nn(v('lf-plast')), street_address: nn(v('lf-street')), city: nn(v('lf-city')), zip_code: nn(v('lf-zip')),
+    emergency_contact_name: nn(v('lf-ecname')), emergency_contact_phone: nn(v('lf-ecphone')),
     do_not_contact: document.getElementById('lf-dnc').checked,
   };
-  const hasContact = !!(contactFields.full_name || contactFields.email || contactFields.phone);
+  const hasContact = !!(contactFields.full_name || contactFields.email || contactFields.phone || contactFields.last_name);
 
   const btn = document.getElementById('lead-save-btn');
   App.setBtnLoading(btn, true);
@@ -1913,12 +2043,20 @@ async function runImport() {
 function exportCsv() {
   const rows = filteredLeads();
   if (!rows.length) { App.showToast('Nothing to export for these filters', 'error'); return; }
-  const header = ['First name', 'Last name', 'Stage', 'Parent name', 'Parent email', 'Parent phone', 'Source', 'Campaign', 'Follow up', 'Last contacted', 'Do not contact'];
+  const header = ['First name', 'Last name', 'Stage', 'Sign up timestamp', 'Date of birth', 'Gender', 'School district', 'HS graduation year',
+    'Parent name', 'Parent last name', 'Parent email', 'Parent phone', 'Street address', 'City or town', 'Zip code',
+    'Emergency contact name', 'Emergency contact phone', 'Allergies & medical conditions', 'Prior diving experience',
+    'Prior gymnastics experience', 'Diving location', 'AAU membership number', 'Participate in competitions',
+    'Source', 'Campaign', 'Follow up', 'Last contacted', 'Do not contact'];
   const lines = [header.map(csvCell).join(',')];
   rows.forEach(l => {
     const c = l.contact || {};
-    lines.push([l.first_name, l.last_name, STAGE_BY_KEY[l.stage]?.label, c.full_name, c.email, c.phone, l.source, l.campaign,
-      l.follow_up_date, l.last_contacted_at ? l.last_contacted_at.slice(0, 10) : '', c.do_not_contact ? 'yes' : ''].map(csvCell).join(','));
+    lines.push([l.first_name, l.last_name, STAGE_BY_KEY[l.stage]?.label, l.signed_up_at || '', l.date_of_birth || '', l.gender || '',
+      l.school_district, l.graduation_year, c.full_name, c.last_name, c.email, c.phone, c.street_address, c.city, c.zip_code,
+      c.emergency_contact_name, c.emergency_contact_phone, l.allergies_medical, l.prior_diving_experience,
+      l.prior_gymnastics_experience, l.diving_location, l.aau_number,
+      l.participates_in_competitions === true ? 'yes' : l.participates_in_competitions === false ? 'no' : '',
+      l.source, l.campaign, l.follow_up_date, l.last_contacted_at ? l.last_contacted_at.slice(0, 10) : '', c.do_not_contact ? 'yes' : ''].map(csvCell).join(','));
   });
   const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
