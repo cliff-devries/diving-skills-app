@@ -100,8 +100,9 @@ exports.handler = async (event) => {
       return json(400, { success: false, error: 'High school graduation year should be a four-digit year.' });
     }
   }
-  const EXPERIENCE = ['None', 'Some Training', 'Extensive experience'];
+  const EXPERIENCE = ['None', 'Some Training', 'Extensive Training'];
   for (const k of ['prior_diving_experience', 'prior_gymnastics_experience']) {
+    if (row[k].toLowerCase() === 'extensive experience') row[k] = 'Extensive Training';
     row[k] = EXPERIENCE.find(o => o.toLowerCase() === row[k].toLowerCase()) || '';
   }
   row.diving_location = ['RIT', 'Canandaigua'].find(o => o.toLowerCase() === row.diving_location.toLowerCase()) || '';
