@@ -121,7 +121,7 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
 - Sign-up form fields (supabase-migration-v55.sql): `crm_contacts` carries parent `last_name`, `street_address`, `city`,
   `zip_code`, `emergency_contact_name/phone`; `crm_leads` carries `signed_up_at`, `school_district`, `graduation_year`,
   `allergies_medical`, `prior_diving_experience`, `prior_gymnastics_experience`, `diving_location`, `aau_number`,
-  `participates_in_competitions`. Diver birthdate is `date_of_birth` and "how did you find us" is `source`.
+  `participates_in_competitions`; v56 adds `crm_leads.referred_by`. Diver birthdate is `date_of_birth` and "how did you find us" is `source`.
   `crm_leads.diver_email` / `diver_phone` were dropped in v55; the convert RPC no longer sets profile email/phone, and
   none of the new fields (address, allergies, etc.) are copied to `profiles`, same as notes. crm.html and
   `crmGetLeads` need v55 applied before the matching deploy.

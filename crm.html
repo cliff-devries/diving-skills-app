@@ -521,6 +521,10 @@
         <input type="text" id="a-source" class="form-input" list="dl-source" placeholder="Web Form, Email, Phone, Referral…" autocomplete="off">
       </div>
       <div class="form-group">
+        <label class="form-label">Referred by</label>
+        <input type="text" id="a-referred" class="form-input" autocomplete="off">
+      </div>
+      <div class="form-group">
         <label class="form-label">Campaign</label>
         <input type="text" id="a-campaign" class="form-input" list="dl-campaign" placeholder="Fall 2026" autocomplete="off">
       </div>
@@ -661,6 +665,7 @@ const IMPORT_FIELDS = [
   ['aau_number',    'AAU membership number'],
   ['participates_in_competitions', 'Participate in competitions'],
   ['source',        'Source (how they found us)'],
+  ['referred_by',   'Referred by'],
   ['campaign',      'Campaign'],
   ['notes',         'Notes'],
   ['stage',         'Stage'],
@@ -690,7 +695,8 @@ const HEADER_ALIASES = {
   diving_location: ['diving location', 'location'],
   aau_number:    ['aau membership number', 'aau number', 'aau'],
   participates_in_competitions: ['participate in competitions', 'participates in competitions', 'competitions'],
-  source:        ['source', 'lead source', 'how did you find upstate diving', 'how did you hear', 'how did you hear about us', 'referral', 'referred by'],
+  source:        ['source', 'lead source', 'how did you find upstate diving', 'how did you hear', 'how did you hear about us'],
+  referred_by:   ['referred by', 'referral', 'referrer', 'who referred you'],
   campaign:      ['campaign', 'promo', 'marketing campaign'],
   notes:         ['notes', 'note', 'comments', 'comment', 'message'],
   stage:         ['stage'],
@@ -814,7 +820,7 @@ function isFollowUpDue(lead, today) {
 
 function leadSearchText(l) {
   const c = l.contact || {};
-  return [l.first_name, l.last_name, c.full_name, c.last_name, c.email, c.phone, l.school_district, l.diving_location, l.aau_number, l.source, l.campaign, l.notes]
+  return [l.first_name, l.last_name, c.full_name, c.last_name, c.email, c.phone, l.school_district, l.diving_location, l.aau_number, l.source, l.referred_by, l.campaign, l.notes]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -1350,7 +1356,7 @@ function runConfirm() {
 function openAdd(stage) {
   ['a-first', 'a-last', 'a-dob', 'a-pname', 'a-pemail', 'a-pphone', 'a-source', 'a-campaign', 'a-notes',
    'a-plast', 'a-signup', 'a-street', 'a-city', 'a-zip', 'a-ecname', 'a-ecphone', 'a-district', 'a-gradyear',
-   'a-allergies', 'a-pdive', 'a-pgym', 'a-location', 'a-aau']
+   'a-allergies', 'a-pdive', 'a-pgym', 'a-location', 'a-aau', 'a-referred']
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('a-gender').value = '';
   document.getElementById('a-comp').value = '';
@@ -1379,7 +1385,7 @@ async function submitAdd() {
       school_district: v('a-district'), graduation_year: v('a-gradyear'), allergies_medical: v('a-allergies'),
       prior_diving_experience: v('a-pdive'), prior_gymnastics_experience: v('a-pgym'),
       diving_location: v('a-location'), aau_number: v('a-aau'), participates_in_competitions: v('a-comp'),
-      source: v('a-source'), campaign: v('a-campaign'), notes: v('a-notes'), stage: v('a-stage'),
+      source: v('a-source'), referred_by: v('a-referred'), campaign: v('a-campaign'), notes: v('a-notes'), stage: v('a-stage'),
     }]);
     if (!res.inserted) {
       App.showAlert('add-alert', 'This diver is already a lead for that family.');
@@ -1498,6 +1504,7 @@ function leftPanelReadHtml(l) {
       <div class="ld-card-title">Lead details</div>
       ${infoRow('Signed up', esc(fmtStamp(l.signed_up_at)))}
       ${infoRow('Source (how they found us)', esc(l.source || ''))}
+      ${infoRow('Referred by', esc(l.referred_by || ''))}
       ${infoRow('Campaign', esc(l.campaign || ''))}
       ${infoRow('Assigned coach', coach ? esc(coach.full_name || coach.email) : '')}
       ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
@@ -1565,6 +1572,7 @@ function leftPanelEditHtml(l) {
     <div class="ld-card">
       <div class="ld-card-title">Lead details</div>
       <div class="form-group"><label class="form-label">Sign up timestamp</label><input type="datetime-local" id="lf-signup" class="form-input" value="${esc(toLocalInput(l.signed_up_at))}"></div>
+      <div class="form-group"><label class="form-label">Referred by</label><input id="lf-referred" class="form-input" value="${esc(l.referred_by)}"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Source (how they found us)</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
         <div class="form-group"><label class="form-label">Campaign</label><input id="lf-campaign" class="form-input" list="dl-campaign" value="${esc(l.campaign)}"></div>
@@ -1778,7 +1786,7 @@ async function saveLead() {
     allergies_medical: nn(v('lf-allergies')), prior_diving_experience: nn(v('lf-pdive')),
     prior_gymnastics_experience: nn(v('lf-pgym')), diving_location: nn(v('lf-location')), aau_number: nn(v('lf-aau')),
     participates_in_competitions: comp === 'yes' ? true : comp === 'no' ? false : null,
-    source: nn(v('lf-source')), campaign: nn(v('lf-campaign')),
+    source: nn(v('lf-source')), referred_by: nn(v('lf-referred')), campaign: nn(v('lf-campaign')),
     trial_date: nn(v('lf-trial')), follow_up_date: nn(v('lf-follow')),
     assigned_coach_id: nn(v('lf-coach')), notes: nn(v('lf-notes')),
   };
@@ -2048,7 +2056,7 @@ function exportCsv() {
     'Parent name', 'Parent last name', 'Parent email', 'Parent phone', 'Street address', 'City or town', 'Zip code',
     'Emergency contact name', 'Emergency contact phone', 'Allergies & medical conditions', 'Prior diving experience',
     'Prior gymnastics experience', 'Diving location', 'AAU membership number', 'Participate in competitions',
-    'Source', 'Campaign', 'Follow up', 'Last contacted', 'Do not contact'];
+    'Source', 'Referred by', 'Campaign', 'Follow up', 'Last contacted', 'Do not contact'];
   const lines = [header.map(csvCell).join(',')];
   rows.forEach(l => {
     const c = l.contact || {};
@@ -2057,7 +2065,7 @@ function exportCsv() {
       c.emergency_contact_name, c.emergency_contact_phone, l.allergies_medical, l.prior_diving_experience,
       l.prior_gymnastics_experience, l.diving_location, l.aau_number,
       l.participates_in_competitions === true ? 'yes' : l.participates_in_competitions === false ? 'no' : '',
-      l.source, l.campaign, l.follow_up_date, l.last_contacted_at ? l.last_contacted_at.slice(0, 10) : '', c.do_not_contact ? 'yes' : ''].map(csvCell).join(','));
+      l.source, l.referred_by, l.campaign, l.follow_up_date, l.last_contacted_at ? l.last_contacted_at.slice(0, 10) : '', c.do_not_contact ? 'yes' : ''].map(csvCell).join(','));
   });
   const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
