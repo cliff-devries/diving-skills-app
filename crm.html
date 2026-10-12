@@ -518,7 +518,7 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Source</label>
-        <input type="text" id="a-source" class="form-input" list="dl-source" placeholder="Flyer, Website, Referral…" autocomplete="off">
+        <input type="text" id="a-source" class="form-input" list="dl-source" placeholder="Web Form, Email, Phone, Referral…" autocomplete="off">
       </div>
       <div class="form-group">
         <label class="form-label">Campaign</label>
@@ -851,6 +851,7 @@ let convertLeadId = null;
 let visibleCount = 100;
 let resultsGroup = 'source';
 let stageHistoryAll = null;
+const DEFAULT_SOURCES = ['Web Form', 'Email', 'Phone'];
 const filters = { search: '', stage: 'open', source: '', campaign: '', coach: '', archived: false, due: false, sort: 'newest' };
 let services = [];
 let servicesAvailable = false;
@@ -1160,7 +1161,7 @@ function renderFilterOptions() {
   stageSel.value = filters.stage;
   document.getElementById('f-archived').checked = filters.archived;
 
-  const sources = [...new Set(leads.map(l => l.source).filter(Boolean))].sort();
+  const sources = [...new Set([...DEFAULT_SOURCES, ...leads.map(l => l.source).filter(Boolean)])].sort();
   const camps   = [...new Set(leads.map(l => l.campaign).filter(Boolean))].sort();
   filters.source   = fillSelect('f-source', 'All sources', sources, filters.source);
   filters.campaign = fillSelect('f-campaign', 'All campaigns', camps, filters.campaign);
