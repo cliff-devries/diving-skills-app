@@ -92,14 +92,14 @@ exports.handler = async (event) => {
   const agree = d.agree === true;
   const signedName = str(d.signed_name, 160);
 
+  if (!aau) {
+    return json(400, { success: false, error: 'Please enter the AAU membership number. Your diver cannot be on the pool deck without one.' });
+  }
   if (agree && signedName.length < 2) {
     return json(400, { success: false, error: 'Please type your full name to sign.' });
   }
   if (!agree && signedName) {
     return json(400, { success: false, error: 'Please tick the box to confirm you agree, or clear the name field.' });
-  }
-  if (!agree && !aau) {
-    return json(400, { success: false, error: 'Please enter the AAU number or sign the agreement.' });
   }
 
   const ip = str((event.headers || {})['x-nf-client-connection-ip'] ||

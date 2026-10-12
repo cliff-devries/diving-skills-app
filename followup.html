@@ -141,8 +141,8 @@
 
     <fieldset>
       <legend>AAU membership</legend>
-      <div class="field"><label for="aau_number">AAU membership number
-          <span class="hint">If your diver does not have one yet, leave this blank.</span></label>
+      <div class="field"><label for="aau_number">AAU membership number <span class="req">*</span>
+          <span class="hint">Required. Divers cannot be on the pool deck without an AAU membership number.</span></label>
         <input type="text" id="aau_number" name="aau_number" autocomplete="off" maxlength="60"></div>
     </fieldset>
 
@@ -223,13 +223,14 @@
     var signedName = document.getElementById('signed_name').value.trim();
     var aau = document.getElementById('aau_number').value.trim();
 
+    if (!aau) {
+      document.getElementById('aau_number').focus();
+      showError('Please enter the AAU membership number. Your diver cannot be on the pool deck without one.');
+      return;
+    }
     if (needsRelease) {
       if (!agree) { document.getElementById('agree').focus(); showError('Please tick the box to confirm you agree.'); return; }
       if (signedName.length < 2) { document.getElementById('signed_name').focus(); showError('Please type your full name to sign.'); return; }
-    } else if (!aau) {
-      document.getElementById('aau_number').focus();
-      showError('Please enter the AAU membership number.');
-      return;
     }
 
     btn.disabled = true;

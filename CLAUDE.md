@@ -137,7 +137,7 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   'Web Form'), and a timeline note; a repeat submission only adds a note. Never return existing CRM data from it.
 - Follow-up form (supabase-migration-v61.sql, followup.html at /followup?t=<token>): a coach clicks "Copy follow-up link" on the
   contact page (`crm_followup_link` RPC, coach-only, creates a 64-hex `crm_leads.followup_token` on first use). The family opens
-  the link (no login), optionally enters the AAU number, and signs the combined photo release / accident waiver / release of
+  the link (no login), enters the AAU number (required — divers cannot be on deck without it), and signs the combined photo release / accident waiver / release of
   liability by ticking the box and typing their name. `netlify/functions/crm-followup.js` calls `crm_followup_get` /
   `crm_followup_submit` (service_role ONLY). The signed agreement is stored in `crm_consents` (exact text shown, version,
   typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`; a timeline note is logged. Signs once only.
