@@ -1697,6 +1697,15 @@ function stageItemHtml(h) {
     </div></div>`;
 }
 
+function signupItemHtml(l) {
+  return `<div class="ld-item">
+    <div class="ld-item-icon">📋</div>
+    <div class="ld-item-main">
+      <div class="ld-item-meta"><span><strong>Signed up</strong> · ${esc(fmtStamp(l.signed_up_at))}</span></div>
+      <div class="ld-item-body">Submitted the sign-up form${l.source ? ' (' + esc(l.source) + ')' : ''}</div>
+    </div></div>`;
+}
+
 function logFormHtml(kinds, placeholder) {
   return `<div class="ld-log">
     ${kinds.length > 1
@@ -1720,6 +1729,7 @@ function renderDetailTab() {
     const items = [
       ...detailData.acts.map(a => ({ t: a.occurred_at, html: activityItemHtml(a, canDel(a)) })),
       ...detailData.hist.map(h => ({ t: h.changed_at, html: stageItemHtml(h) })),
+      ...(l && l.signed_up_at && fmtStamp(l.signed_up_at) ? [{ t: new Date(l.signed_up_at).toISOString(), html: signupItemHtml(l) }] : []),
     ].sort((a, b) => (b.t || '').localeCompare(a.t || ''));
     el.innerHTML = items.length ? items.map(i => i.html).join('') : empty('Nothing yet.');
   } else if (detailTab === 'notes') {
