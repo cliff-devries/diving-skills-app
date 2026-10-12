@@ -141,6 +141,8 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   liability by ticking the box and typing their name. `netlify/functions/crm-followup.js` calls `crm_followup_get` /
   `crm_followup_submit` (service_role ONLY). The signed agreement is stored in `crm_consents` (exact text shown, version,
   typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`; a timeline note is logged. Signs once only.
+  Since supabase-migration-v62.sql, `crm_followup_submit` also moves a contact still at `lead` to `registered` once it has both an
+  AAU number and a signed release (other stages are never touched; the move shows in Stage History and the timeline note).
   The agreement wording and its version label live in `netlify/functions/lib/release.js` — never reword it; to change it,
   edit the text AND bump `VERSION` so past signatures keep the text that was actually shown.
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
