@@ -64,7 +64,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=13 |
-| js/supabase.js | v=40 |
+| js/supabase.js | v=41 |
 | js/auth.js | v=4 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
@@ -125,6 +125,8 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   `crm_leads.diver_email` / `diver_phone` were dropped in v55; the convert RPC no longer sets profile email/phone, and
   none of the new fields (address, allergies, etc.) are copied to `profiles`, same as notes. crm.html and
   `crmGetLeads` need v55 applied before the matching deploy.
+- Divers already in DivePractice: `crm_link_lead_to_existing_diver` (supabase-migration-v57.sql) moves a lead to Member and links
+  the existing profile without creating a profile or roster row (the "Convert to Diver - do not add to DiveDrills" button).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
   sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.
 

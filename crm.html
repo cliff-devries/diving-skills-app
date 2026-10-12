@@ -621,7 +621,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=40"></script>
+<script src="js/supabase.js?v=41"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -1322,6 +1322,8 @@ function requestStageChange(id, to) {
       body: `A lead becomes a Member by being converted to a diver, which adds ${esc(leadName(l))} to the DivePractice roster.${to === 'graduated' ? ' Graduated comes after Member.' : ''}`,
       confirmLabel: 'Convert to Diver →',
       onConfirm: () => openConvert(id),
+      extraLabel: 'Convert to Diver - do not add to DiveDrills',
+      onExtra: () => openLinkExisting(id),
     });
   } else {
     showConfirm({
@@ -1334,21 +1336,32 @@ function requestStageChange(id, to) {
 }
 
 let confirmAction = null;
-function showConfirm({ title, body, confirmLabel, onConfirm }) {
+let confirmExtraAction = null;
+function showConfirm({ title, body, confirmLabel, onConfirm, extraLabel, onExtra }) {
   confirmAction = onConfirm;
+  confirmExtraAction = onExtra || null;
   document.getElementById('confirm-modal-body').innerHTML = `
     <div class="modal-header"><h2 class="modal-title">${esc(title)}</h2>
       <button class="modal-close" onclick="App.closeModal('confirm-modal')">✕</button></div>
     <p class="mb-4">${body}</p>
-    <div class="flex gap-2 justify-end">
+    <div class="flex gap-2 justify-end" style="flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="App.closeModal('confirm-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="runConfirm()">${esc(confirmLabel)}</button>
+      ${extraLabel ? `<button class="btn btn-secondary" onclick="runConfirmExtra()">${esc(extraLabel)}</button>` : ''}
     </div>`;
   App.openModal('confirm-modal');
 }
 function runConfirm() {
   const fn = confirmAction;
   confirmAction = null;
+  confirmExtraAction = null;
+  App.closeModal('confirm-modal');
+  if (fn) fn();
+}
+function runConfirmExtra() {
+  const fn = confirmExtraAction;
+  confirmAction = null;
+  confirmExtraAction = null;
   App.closeModal('confirm-modal');
   if (fn) fn();
 }
@@ -1917,6 +1930,86 @@ async function submitConvert() {
     l.stage = 'member';
     App.closeModal('convert-modal');
     App.showToast(`${leadName(l)} is now on the roster`);
+    renderAll();
+    if (currentView === 'lead' && currentLeadId === id) { detailEdit = false; renderLeadPage(); loadLeadExtras(id); }
+  } catch (err) {
+    App.showAlert('convert-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+/* ---------- link to a diver already in DiveDrills (no new profile) ---------- */
+
+let linkDivers = [];
+
+function diverLabel(d) {
+  return [d.first_name, d.last_name].filter(Boolean).join(' ') || d.full_name || '(unnamed)';
+}
+
+async function openLinkExisting(id) {
+  const l = findLead(id);
+  if (!l) return;
+  convertLeadId = id;
+  const body = document.getElementById('convert-modal-body');
+  body.innerHTML = '<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading divers…</span></div>';
+  App.openModal('convert-modal');
+  try {
+    const taken = new Set(leads.filter(x => x.converted_diver_id).map(x => x.converted_diver_id));
+    linkDivers = (await SupabaseDB.getAllDivers()).filter(d => !taken.has(d.id));
+  } catch (err) {
+    body.innerHTML = `<div class="alert alert-error visible">${esc(err.message)}</div>`;
+    return;
+  }
+  const norm = x => String(x || '').trim().toLowerCase();
+  const match = linkDivers.find(d => norm(d.first_name) === norm(l.first_name) && norm(d.last_name) === norm(l.last_name));
+  body.innerHTML = `
+    <div class="modal-header">
+      <h2 class="modal-title">Link to existing diver</h2>
+      <button class="modal-close" onclick="App.closeModal('convert-modal')">✕</button>
+    </div>
+    <p class="text-secondary text-sm mb-4">
+      Moves <strong>${esc(leadName(l))}</strong> to <strong>4 · Member</strong> and links the diver profile you pick below.
+      Nothing is added to DiveDrills and the profile is not changed.
+    </p>
+    <div class="form-group"><label class="form-label">Find diver</label>
+      <input id="lk-search" class="form-input" autocomplete="off" placeholder="Type a name…" oninput="renderLinkOptions()"></div>
+    <div class="form-group"><select id="lk-diver" class="form-select" size="8" style="height:auto"></select></div>
+    <div id="convert-alert" class="alert mb-4"></div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn btn-ghost" onclick="App.closeModal('convert-modal')">Cancel</button>
+      <button class="btn btn-primary" id="link-btn" onclick="submitLinkExisting()">Make Member</button>
+    </div>`;
+  renderLinkOptions(match ? match.id : '');
+}
+
+function renderLinkOptions(selectId) {
+  const q = document.getElementById('lk-search').value.trim().toLowerCase();
+  const sel = document.getElementById('lk-diver');
+  const keep = selectId || sel.value;
+  const rows = linkDivers.filter(d => !q || diverLabel(d).toLowerCase().includes(q));
+  sel.innerHTML = rows.length
+    ? rows.map(d => opt(d.id, diverLabel(d) + (d.parent_email ? ' · ' + d.parent_email : ''), d.id === keep)).join('')
+    : '<option value="" disabled>No matching divers</option>';
+  if (!sel.value && rows.length === 1) sel.value = rows[0].id;
+}
+
+async function submitLinkExisting() {
+  const id = convertLeadId;
+  const l = findLead(id);
+  const diverId = document.getElementById('lk-diver').value;
+  if (!l) return;
+  if (!diverId) { App.showAlert('convert-alert', 'Pick the diver to link.'); return; }
+  const btn = document.getElementById('link-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    await SupabaseDB.crmLinkLeadToExistingDiver(id, diverId);
+    l.converted_diver_id = diverId;
+    l.converted_at = new Date().toISOString();
+    l.stage = 'member';
+    App.closeModal('convert-modal');
+    App.showToast(`${leadName(l)} is now a Member (linked, nothing added to DiveDrills)`);
+    activitiesAll = null;
     renderAll();
     if (currentView === 'lead' && currentLeadId === id) { detailEdit = false; renderLeadPage(); loadLeadExtras(id); }
   } catch (err) {

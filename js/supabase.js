@@ -1338,6 +1338,17 @@ const SupabaseDB = {
     return data;
   },
 
+  // For a diver already in DivePractice: moves the lead to Member and links
+  // the existing profile; creates nothing (migration v57).
+  async crmLinkLeadToExistingDiver(leadId, diverId) {
+    const { data, error } = await this.db.rpc('crm_link_lead_to_existing_diver', {
+      p_lead_id:  leadId,
+      p_diver_id: diverId,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
   async crmGetActivities(leadId) {
     const { data, error } = await this.db
       .from('crm_activities')
