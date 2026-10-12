@@ -108,7 +108,8 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
 
 - Stages (`crm_leads.stage`): `lead` (1) → `registered` (2) → `trial_completed` (3) → `member` (4) → `graduated` (5),
   plus `dropped` (D) and `no_contact` (N).
-- `member` / `graduated` are only reachable through the `crm_convert_lead_to_diver` RPC (a trigger enforces it). It creates
+- `member` is only reachable through the `crm_convert_lead_to_diver` RPC (a trigger enforces it). `graduated` is a plain stage
+  write on the CRM row with no DivePractice effect and needs no link (supabase-migration-v58.sql). The convert RPC creates
   the diver exactly like `create_unclaimed_diver` (unclaimed profile + roster row) and copies parent name/email/phone from
   the CRM contact. CRM notes are deliberately NOT copied: `profiles.notes` is readable by the diver and linked parents.
 - After conversion the CRM row keeps a link (`converted_diver_id`) but parent/name edits do not sync — DivePractice owns the diver.

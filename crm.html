@@ -845,7 +845,7 @@ function nextStageAction(lead) {
 function allowedStages(lead) {
   return lead.converted_diver_id
     ? ['member', 'graduated', 'dropped']
-    : ['lead', 'registered', 'trial_completed', 'member', 'dropped', 'no_contact'];
+    : ['lead', 'registered', 'trial_completed', 'member', 'graduated', 'dropped', 'no_contact'];
 }
 /* CRM-PURE-END */
 </script>
@@ -1316,10 +1316,10 @@ function requestStageChange(id, to) {
   if (sel) sel.value = l.stage; // snap back until confirmed
   if (l.stage === to || detailEdit) return;
   const label = STAGE_BY_KEY[to].label;
-  if ((to === 'member' || to === 'graduated') && !l.converted_diver_id) {
+  if (to === 'member' && !l.converted_diver_id) {
     showConfirm({
       title: `${label} needs Convert to Diver`,
-      body: `A lead becomes a Member by being converted to a diver, which adds ${esc(leadName(l))} to the DivePractice roster.${to === 'graduated' ? ' Graduated comes after Member.' : ''}`,
+      body: `A lead becomes a Member by being converted to a diver, which adds ${esc(leadName(l))} to the DivePractice roster.`,
       confirmLabel: 'Convert to Diver →',
       onConfirm: () => openConvert(id),
       extraLabel: 'Convert to Diver - do not add to DiveDrills',
@@ -1503,7 +1503,7 @@ function leftPanelReadHtml(l) {
   const age = ageFrom(l.date_of_birth);
   const level = l.converted_diver_id
     ? (detailData.profile ? App.getLevelLabel(detailData.profile.current_level ?? 0) : (detailData.loaded ? '—' : 'Loading…'))
-    : 'Not yet a diver';
+    : (l.stage === 'graduated' ? '—' : 'Not yet a diver');
   return `
     <div class="ld-card">
       <div class="ld-card-title">Parent / contact</div>
@@ -1545,7 +1545,7 @@ function leftPanelReadHtml(l) {
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap">
-      ${l.converted_diver_id ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
+      ${l.converted_diver_id || l.stage === 'graduated' ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
       ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}
     </div>`;
 }
