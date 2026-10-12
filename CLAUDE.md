@@ -137,12 +137,15 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   'Web Form'), and a timeline note; a repeat submission only adds a note. Never return existing CRM data from it.
 - Follow-up form (supabase-migration-v61.sql, followup.html at /followup?t=<token>): a coach clicks "Copy follow-up link" on the
   contact page (`crm_followup_link` RPC, coach-only, creates a 64-hex `crm_leads.followup_token` on first use). The family opens
-  the link (no login), enters the AAU number (required — divers cannot be on deck without it), and signs the combined photo release / accident waiver / release of
+  the link (no login), enters the AAU number (required unless already on file), and signs the combined photo release / accident waiver / release of
   liability by ticking the box and typing their name. `netlify/functions/crm-followup.js` calls `crm_followup_get` /
   `crm_followup_submit` (service_role ONLY). The signed agreement is stored in `crm_consents` (exact text shown, version,
   typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`; a timeline note is logged. Signs once only.
-  Since supabase-migration-v62.sql, `crm_followup_submit` also moves a contact still at `lead` to `registered` once it has both an
-  AAU number and a signed release (other stages are never touched; the move shows in Stage History and the timeline note).
+  The AAU number is REQUIRED (no one is allowed on deck without it) but it does not matter who entered it: a number a coach
+  typed into the CRM satisfies the form (`crm_followup_get` returns `has_aau`, yes/no only — v63). A contact still at `lead` moves
+  to `registered` once it has both an AAU number and a signed release, whichever order and whoever supplied the number: the
+  `crm_leads_auto_register` trigger (v63; v62 first did it inside `crm_followup_submit`) handles it. Other stages are never
+  touched; the move shows in Stage History.
   The agreement wording and its version label live in `netlify/functions/lib/release.js` — never reword it; to change it,
   edit the text AND bump `VERSION` so past signatures keep the text that was actually shown.
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font

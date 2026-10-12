@@ -60,6 +60,7 @@ exports.handler = async (event) => {
         success: true,
         first_name: r.data.first_name,
         release_signed: !!r.data.release_signed,
+        has_aau: r.data.has_aau === true,
         release_version: VERSION,
         release_text: TEXT,
       });
@@ -92,8 +93,19 @@ exports.handler = async (event) => {
   const agree = d.agree === true;
   const signedName = str(d.signed_name, 160);
 
+  const NEED_AAU = 'Please enter the AAU membership number. Your diver cannot be on the pool deck without one.';
   if (!aau) {
-    return json(400, { success: false, error: 'Please enter the AAU membership number. Your diver cannot be on the pool deck without one.' });
+    // A number already on file (typed by a coach or an earlier submission) counts.
+    // Anything but an explicit yes means the number is required.
+    try {
+      const g = await rpc('crm_followup_get', { p_token: t });
+      if (!g.ok) return json(500, { success: false, error: OOPS });
+      if (!g.data || !g.data.found) return json(404, { success: false, error: BAD_LINK });
+      if (g.data.has_aau !== true) return json(400, { success: false, error: NEED_AAU });
+    } catch (err) {
+      console.error('crm-followup: lookup failed', err.message);
+      return json(500, { success: false, error: OOPS });
+    }
   }
   if (agree && signedName.length < 2) {
     return json(400, { success: false, error: 'Please type your full name to sign.' });
@@ -118,6 +130,7 @@ exports.handler = async (event) => {
     });
     if (!r.ok) return json(500, { success: false, error: OOPS });
     if (!r.data || !r.data.found) return json(404, { success: false, error: BAD_LINK });
+    if (r.data.ok === false) return json(400, { success: false, error: NEED_AAU });
     return json(200, { success: true, signed: !!r.data.signed });
   } catch (err) {
     console.error('crm-followup: submit failed', err.message);
