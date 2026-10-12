@@ -65,10 +65,9 @@ exports.handler = async (event) => {
     emergency_contact_phone: str(d.emergency_contact_phone, 40),
     allergies_medical:       str(d.allergies_medical, 2000),
     prior_diving_experience:     str(d.prior_diving_experience, 40),
-    prior_gymnastics_experience: str(d.prior_gymnastics_experience, 2000),
+    prior_gymnastics_experience: str(d.prior_gymnastics_experience, 40),
     diving_location:  str(d.diving_location, 160),
-    aau_number:       str(d.aau_number, 60),
-    participates_in_competitions: str(d.participates_in_competitions, 3).toLowerCase(),
+    participates_in_competitions: str(d.participates_in_competitions, 5).toLowerCase(),
     source:           str(d.source, 100),
     referred_by:      str(d.referred_by, 160),
   };
@@ -101,10 +100,11 @@ exports.handler = async (event) => {
       return json(400, { success: false, error: 'High school graduation year should be a four-digit year.' });
     }
   }
-  const experience = ['None', 'Some Training', 'Extensive experience'].find(
-    o => o.toLowerCase() === row.prior_diving_experience.toLowerCase());
-  row.prior_diving_experience = experience || '';
-  if (row.participates_in_competitions && !['yes', 'no'].includes(row.participates_in_competitions)) {
+  const EXPERIENCE = ['None', 'Some Training', 'Extensive experience'];
+  for (const k of ['prior_diving_experience', 'prior_gymnastics_experience']) {
+    row[k] = EXPERIENCE.find(o => o.toLowerCase() === row[k].toLowerCase()) || '';
+  }
+  if (row.participates_in_competitions && !['yes', 'no', 'maybe'].includes(row.participates_in_competitions)) {
     row.participates_in_competitions = '';
   }
 

@@ -67,9 +67,22 @@
       outline: 3px solid rgba(23, 105, 194, .25);
       border-color: var(--accent);
     }
-    .choices { display: flex; gap: 22px; padding: 6px 0; }
-    .choices label { font-weight: 400; display: flex; align-items: center; gap: 8px; margin: 0; min-height: 36px; }
-    .choices input { width: 20px; height: 20px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pills label { position: relative; margin: 0; font-weight: 600; }
+    .pills input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .pills span {
+      display: inline-block;
+      padding: 11px 18px;
+      min-height: 46px;
+      line-height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pills input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pills input:focus-visible + span { outline: 3px solid rgba(23, 105, 194, .35); outline-offset: 2px; }
     .privacy { font-size: 0.82rem; color: var(--muted); margin: -6px 0 14px; }
     button[type=submit] {
       width: 100%;
@@ -181,23 +194,24 @@
           <span class="hint">Enter "None" if there are none.</span></label>
         <textarea id="allergies_medical" name="allergies_medical" maxlength="2000"></textarea></div>
       <p class="privacy">Health information is only seen by Upstate Diving coaches.</p>
-      <div class="field"><label for="prior_diving_experience">Prior diving experience</label>
-        <select id="prior_diving_experience" name="prior_diving_experience">
-          <option value="">—</option>
-          <option>None</option>
-          <option>Some Training</option>
-          <option>Extensive experience</option>
-        </select></div>
-      <div class="field"><label for="prior_gymnastics_experience">Prior gymnastics experience</label>
-        <textarea id="prior_gymnastics_experience" name="prior_gymnastics_experience" maxlength="2000"></textarea></div>
-      <div class="field"><span class="label">Will your diver participate in competitions?</span>
-        <div class="choices">
-          <label><input type="radio" name="participates_in_competitions" value="yes"> Yes</label>
-          <label><input type="radio" name="participates_in_competitions" value="no"> No</label>
+      <div class="field" role="radiogroup" aria-labelledby="lbl-diving"><span class="label" id="lbl-diving">Prior diving experience</span>
+        <div class="pills">
+          <label><input type="radio" name="prior_diving_experience" value="None"><span>None</span></label>
+          <label><input type="radio" name="prior_diving_experience" value="Some Training"><span>Some Training</span></label>
+          <label><input type="radio" name="prior_diving_experience" value="Extensive experience"><span>Extensive experience</span></label>
         </div></div>
-      <div class="field"><label for="aau_number">AAU membership number
-          <span class="hint">If your diver already has one.</span></label>
-        <input type="text" id="aau_number" name="aau_number" autocomplete="off" maxlength="60"></div>
+      <div class="field" role="radiogroup" aria-labelledby="lbl-gym"><span class="label" id="lbl-gym">Prior gymnastics experience</span>
+        <div class="pills">
+          <label><input type="radio" name="prior_gymnastics_experience" value="None"><span>None</span></label>
+          <label><input type="radio" name="prior_gymnastics_experience" value="Some Training"><span>Some Training</span></label>
+          <label><input type="radio" name="prior_gymnastics_experience" value="Extensive experience"><span>Extensive experience</span></label>
+        </div></div>
+      <div class="field" role="radiogroup" aria-labelledby="lbl-comp"><span class="label" id="lbl-comp">Is your diver interested in competition?</span>
+        <div class="pills">
+          <label><input type="radio" name="participates_in_competitions" value="yes"><span>Yes</span></label>
+          <label><input type="radio" name="participates_in_competitions" value="no"><span>No</span></label>
+          <label><input type="radio" name="participates_in_competitions" value="maybe"><span>Maybe</span></label>
+        </div></div>
     </fieldset>
 
     <fieldset>
