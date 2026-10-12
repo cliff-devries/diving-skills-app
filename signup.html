@@ -226,9 +226,12 @@
 
     <fieldset>
       <legend>About you</legend>
-      <div class="field"><label for="diving_location">Diving location
-          <span class="hint">Where you'd like to dive with us.</span></label>
-        <input type="text" id="diving_location" name="diving_location" autocomplete="off" maxlength="160"></div>
+      <div class="field" role="radiogroup" aria-labelledby="lbl-loc"><span class="label" id="lbl-loc">Diving location
+          <span class="hint">Where you'd like to dive with us.</span></span>
+        <div class="pills">
+          <label><input type="radio" name="diving_location" value="RIT"><span>RIT</span></label>
+          <label><input type="radio" name="diving_location" value="Canandaigua"><span>Canandaigua</span></label>
+        </div></div>
       <div class="field"><label for="source">How did you find Upstate Diving?</label>
         <select id="source" name="source">
           <option value="">—</option>

@@ -104,6 +104,7 @@ exports.handler = async (event) => {
   for (const k of ['prior_diving_experience', 'prior_gymnastics_experience']) {
     row[k] = EXPERIENCE.find(o => o.toLowerCase() === row[k].toLowerCase()) || '';
   }
+  row.diving_location = ['RIT', 'Canandaigua'].find(o => o.toLowerCase() === row.diving_location.toLowerCase()) || '';
   if (row.participates_in_competitions && !['yes', 'no', 'maybe'].includes(row.participates_in_competitions)) {
     row.participates_in_competitions = '';
   }
