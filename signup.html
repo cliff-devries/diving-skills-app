@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign up for Upstate Diving — competitive springboard diving in upstate New York.">
+  <title>Sign Up — Upstate Diving</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #14202e;
+      --muted: #5b6b7d;
+      --border: #cfd8e3;
+      --accent: #1769c2;
+      --accent-dark: #0f4f96;
+      --danger: #b3261e;
+      --ok: #1b7f4b;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 28px 16px 56px; }
+    header { text-align: center; margin-bottom: 20px; }
+    .brand { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+    .brand span { color: var(--accent); }
+    header p { margin: 6px 0 0; color: var(--muted); }
+    form, .done {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+    }
+    fieldset { border: 0; margin: 0 0 26px; padding: 0; min-width: 0; }
+    legend {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 0 0 8px;
+      margin-bottom: 12px;
+      width: 100%;
+      border-bottom: 2px solid var(--accent);
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 14px; min-width: 0; }
+    label, .label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; }
+    .req { color: var(--danger); }
+    .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; display: block; }
+    input[type=text], input[type=email], input[type=tel], input[type=date], input[type=number], select, textarea {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 12px;
+      min-height: 46px;
+    }
+    textarea { resize: vertical; min-height: 84px; }
+    input:focus, select:focus, textarea:focus {
+      outline: 3px solid rgba(23, 105, 194, .25);
+      border-color: var(--accent);
+    }
+    .choices { display: flex; gap: 22px; padding: 6px 0; }
+    .choices label { font-weight: 400; display: flex; align-items: center; gap: 8px; margin: 0; min-height: 36px; }
+    .choices input { width: 20px; height: 20px; }
+    .privacy { font-size: 0.82rem; color: var(--muted); margin: -6px 0 14px; }
+    button[type=submit] {
+      width: 100%;
+      font: inherit;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+      background: var(--accent);
+      border: 0;
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 52px;
+      cursor: pointer;
+    }
+    button[type=submit]:hover { background: var(--accent-dark); }
+    button[type=submit]:disabled { opacity: .6; cursor: default; }
+    .error {
+      display: none;
+      background: #fdecea;
+      color: var(--danger);
+      border: 1px solid #f3c1bd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .error.visible { display: block; }
+    .done { text-align: center; padding: 40px 22px; }
+    .done h2 { margin: 0 0 8px; color: var(--ok); }
+    .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    @media (max-width: 520px) { .row { grid-template-columns: 1fr; gap: 0; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Upstate <span>Diving</span></div>
+    <p>Tell us about your diver and we'll be in touch.</p>
+  </header>
+
+  <form id="signup-form" novalidate>
+    <div id="form-error" class="error" role="alert"></div>
+
+    <fieldset>
+      <legend>Diver</legend>
+      <div class="row">
+        <div class="field"><label for="first_name">First name <span class="req">*</span></label>
+          <input type="text" id="first_name" name="first_name" autocomplete="off" maxlength="80" required></div>
+        <div class="field"><label for="last_name">Last name <span class="req">*</span></label>
+          <input type="text" id="last_name" name="last_name" autocomplete="off" maxlength="80" required></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="date_of_birth">Birthdate <span class="req">*</span></label>
+          <input type="date" id="date_of_birth" name="date_of_birth" autocomplete="off" required></div>
+        <div class="field"><label for="gender">Gender</label>
+          <select id="gender" name="gender">
+            <option value="">—</option><option>Male</option><option>Female</option><option>Other</option>
+          </select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="school_district">School district</label>
+          <input type="text" id="school_district" name="school_district" autocomplete="off" maxlength="160"></div>
+        <div class="field"><label for="graduation_year">High school graduation year</label>
+          <input type="number" id="graduation_year" name="graduation_year" inputmode="numeric" min="2000" max="2100" placeholder="e.g. 2032" autocomplete="off"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Parent or guardian</legend>
+      <div class="row">
+        <div class="field"><label for="parent_first_name">First name <span class="req">*</span></label>
+          <input type="text" id="parent_first_name" name="parent_first_name" autocomplete="given-name" maxlength="80" required></div>
+        <div class="field"><label for="parent_last_name">Last name <span class="req">*</span></label>
+          <input type="text" id="parent_last_name" name="parent_last_name" autocomplete="family-name" maxlength="80" required></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="parent_email">Email <span class="req">*</span></label>
+          <input type="email" id="parent_email" name="parent_email" autocomplete="email" maxlength="254" required></div>
+        <div class="field"><label for="parent_phone">Phone <span class="req">*</span></label>
+          <input type="tel" id="parent_phone" name="parent_phone" autocomplete="tel" maxlength="40" required></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Address</legend>
+      <div class="field"><label for="street_address">Street address</label>
+        <input type="text" id="street_address" name="street_address" autocomplete="street-address" maxlength="200"></div>
+      <div class="row">
+        <div class="field"><label for="city">City or town</label>
+          <input type="text" id="city" name="city" autocomplete="address-level2" maxlength="100"></div>
+        <div class="field"><label for="zip_code">Zip code</label>
+          <input type="text" id="zip_code" name="zip_code" autocomplete="postal-code" inputmode="numeric" maxlength="20"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Emergency contact</legend>
+      <div class="row">
+        <div class="field"><label for="emergency_contact_name">Name <span class="req">*</span></label>
+          <input type="text" id="emergency_contact_name" name="emergency_contact_name" autocomplete="off" maxlength="160" required></div>
+        <div class="field"><label for="emergency_contact_phone">Phone number <span class="req">*</span></label>
+          <input type="tel" id="emergency_contact_phone" name="emergency_contact_phone" autocomplete="off" maxlength="40" required></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Health and experience</legend>
+      <div class="field"><label for="allergies_medical">Diver allergies &amp; medical conditions
+          <span class="hint">Enter "None" if there are none.</span></label>
+        <textarea id="allergies_medical" name="allergies_medical" maxlength="2000"></textarea></div>
+      <p class="privacy">Health information is only seen by Upstate Diving coaches.</p>
+      <div class="field"><label for="prior_diving_experience">Prior diving experience</label>
+        <textarea id="prior_diving_experience" name="prior_diving_experience" maxlength="2000"></textarea></div>
+      <div class="field"><label for="prior_gymnastics_experience">Prior gymnastics experience</label>
+        <textarea id="prior_gymnastics_experience" name="prior_gymnastics_experience" maxlength="2000"></textarea></div>
+      <div class="field"><span class="label">Will your diver participate in competitions?</span>
+        <div class="choices">
+          <label><input type="radio" name="participates_in_competitions" value="yes"> Yes</label>
+          <label><input type="radio" name="participates_in_competitions" value="no"> No</label>
+        </div></div>
+      <div class="field"><label for="aau_number">AAU membership number
+          <span class="hint">If your diver already has one.</span></label>
+        <input type="text" id="aau_number" name="aau_number" autocomplete="off" maxlength="60"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>About you</legend>
+      <div class="field"><label for="diving_location">Diving location
+          <span class="hint">Where you'd like to dive with us.</span></label>
+        <input type="text" id="diving_location" name="diving_location" autocomplete="off" maxlength="160"></div>
+      <div class="field"><label for="source">How did you find Upstate Diving?</label>
+        <select id="source" name="source">
+          <option value="">—</option>
+          <option>Internet search</option>
+          <option>Friend or family</option>
+          <option>Social media</option>
+          <option>School</option>
+          <option>Flyer or poster</option>
+          <option>Event or meet</option>
+          <option>Other</option>
+        </select></div>
+      <div class="field"><label for="referred_by">Referred by
+          <span class="hint">If someone told you about us, tell us who.</span></label>
+        <input type="text" id="referred_by" name="referred_by" autocomplete="off" maxlength="160"></div>
+    </fieldset>
+
+    <div class="trap" aria-hidden="true">
+      <label for="website">Leave this field empty</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <button type="submit" id="submit-btn">Sign up</button>
+  </form>
+
+  <div id="done" class="done" hidden>
+    <h2>Thank you!</h2>
+    <p>We received your sign-up and will be in touch soon.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var loadedAt = Date.now();
+  var form = document.getElementById('signup-form');
+  var errBox = document.getElementById('form-error');
+  var btn = document.getElementById('submit-btn');
+
+  function showError(msg) {
+    errBox.textContent = msg;
+    errBox.classList.add('visible');
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errBox.classList.remove('visible');
+
+    var firstEmpty = Array.prototype.find.call(form.querySelectorAll('[required]'), function (el) {
+      return !el.value.trim();
+    });
+    if (firstEmpty) {
+      firstEmpty.focus();
+      showError('Please fill in the fields marked with a red star.');
+      return;
+    }
+    var email = document.getElementById('parent_email');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+      email.focus();
+      showError('That email address does not look right.');
+      return;
+    }
+
+    var data = {};
+    new FormData(form).forEach(function (v, k) { data[k] = v; });
+    data.loaded_at = loadedAt;
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    fetch('/.netlify/functions/crm-signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (res.ok && body.success) {
+          form.hidden = true;
+          document.getElementById('done').hidden = false;
+          window.scrollTo(0, 0);
+        } else {
+          showError(body.error || 'Something went wrong. Please try again.');
+          btn.disabled = false;
+          btn.textContent = 'Sign up';
+        }
+      });
+    }).catch(function () {
+      showError('We could not reach the server. Check your connection and try again.');
+      btn.disabled = false;
+      btn.textContent = 'Sign up';
+    });
+  });
+})();
+</script>
+</body>
+</html>

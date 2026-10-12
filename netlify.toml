@@ -48,6 +48,12 @@
   to     = "/index.html"
   status = 200
 
+# Public sign-up form (feeds DiveCRM via netlify/functions/crm-signup.js).
+[[redirects]]
+  from   = "/signup"
+  to     = "/signup.html"
+  status = 200
+
 # =============================================
 # Public leaderboard subdomain — leaderboard.divedrills.com
 # Serves the standalone, unauthenticated leaderboard-public.html at its

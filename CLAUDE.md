@@ -16,6 +16,7 @@ bumped across ALL HTML files before pushing to GitHub.
 
 ### HTML files to update (ALL of them):
 - index.html (DiveCentral hub — self-contained, loads no project JS/CSS; nothing to bump)
+- signup.html (public sign-up form — self-contained, loads no project JS/CSS; nothing to bump)
 - login.html (sign-in page — auth.js redirects here)
 - dashboard.html
 - skills.html
@@ -128,6 +129,11 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   `crmGetLeads` need v55 applied before the matching deploy.
 - Divers already in DivePractice: `crm_link_lead_to_existing_diver` (supabase-migration-v57.sql) moves a lead to Member and links
   the existing profile without creating a profile or roster row (the "Convert to Diver - do not add to DiveDrills" button).
+- Public sign-up (signup.html, also at /signup): posts to `netlify/functions/crm-signup.js`, which validates and calls
+  `crm_public_signup` (supabase-migration-v59.sql). That RPC is executable by `service_role` ONLY, so anon still has no CRM
+  table or RPC access. Needs the Netlify env var `SUPABASE_SERVICE_ROLE_KEY` (secret; never in js/config.js). It creates a
+  `lead`-stage contact with `created_by` NULL, `signed_up_at` = now, `source` = the "how did you find us" answer (else
+  'Web Form'), and a timeline note; a repeat submission only adds a note. Never return existing CRM data from it.
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
   sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.
 
