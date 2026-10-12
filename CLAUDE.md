@@ -17,6 +17,7 @@ bumped across ALL HTML files before pushing to GitHub.
 ### HTML files to update (ALL of them):
 - index.html (DiveCentral hub — self-contained, loads no project JS/CSS; nothing to bump)
 - signup.html (public sign-up form — self-contained, loads no project JS/CSS; nothing to bump)
+- followup.html (private follow-up form, opened at /followup?t=<token> — self-contained, loads no project JS/CSS; nothing to bump)
 - login.html (sign-in page — auth.js redirects here)
 - dashboard.html
 - skills.html
@@ -65,7 +66,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=13 |
-| js/supabase.js | v=41 |
+| js/supabase.js | v=42 |
 | js/auth.js | v=4 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
@@ -134,6 +135,16 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   table or RPC access. Needs the Netlify env var `SUPABASE_SERVICE_ROLE_KEY` (secret; never in js/config.js). It creates a
   `lead`-stage contact with `created_by` NULL, `signed_up_at` = now, `source` = the "how did you find us" answer (else
   'Web Form'), and a timeline note; a repeat submission only adds a note. Never return existing CRM data from it.
+- Follow-up form (supabase-migration-v61.sql, followup.html at /followup?t=<token>): a coach clicks "Copy follow-up link" on the
+  contact page (`crm_followup_link` RPC, coach-only, creates a 64-hex `crm_leads.followup_token` on first use). The family opens
+  the link (no login), optionally enters the AAU number, and signs the combined photo release / accident waiver / release of
+  liability by ticking the box and typing their name. `netlify/functions/crm-followup.js` calls `crm_followup_get` /
+  `crm_followup_submit` (service_role ONLY). The signed agreement is stored in `crm_consents` (exact text shown, version,
+  typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`; a timeline note is logged. Signs once only.
+  The agreement wording and its version label live in `netlify/functions/lib/release.js` — never reword it; to change it,
+  edit the text AND bump `VERSION` so past signatures keep the text that was actually shown.
+- Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
+  (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
   sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.
 

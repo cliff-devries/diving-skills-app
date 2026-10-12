@@ -54,6 +54,13 @@
   to     = "/signup.html"
   status = 200
 
+# Private follow-up form (AAU number + photo release & waiver), opened from a
+# per-contact link: /followup?t=<token>. Served by netlify/functions/crm-followup.js.
+[[redirects]]
+  from   = "/followup"
+  to     = "/followup.html"
+  status = 200
+
 # =============================================
 # Public leaderboard subdomain — leaderboard.divedrills.com
 # Serves the standalone, unauthenticated leaderboard-public.html at its

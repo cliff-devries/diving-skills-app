@@ -621,7 +621,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=41"></script>
+<script src="js/supabase.js?v=42"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -1547,10 +1547,33 @@ function leftPanelReadHtml(l) {
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
     </div>
+    <div class="ld-card">
+      <div class="ld-card-title">Follow-up form</div>
+      ${infoRow('Photo release & waiver', l.release_signed_at
+        ? `✅ Signed by ${esc(l.release_signed_name || '')}<div class="text-secondary text-sm">${esc(fmtStamp(l.release_signed_at))}</div>`
+        : '<span class="text-secondary">Not signed</span>')}
+      <div class="text-secondary text-sm" style="margin:6px 0 8px">Private link for the family to enter the AAU number and sign the photo release &amp; waiver.</div>
+      <button class="btn btn-secondary btn-sm" onclick="copyFollowupLink('${l.id}')">🔗 Copy follow-up link</button>
+    </div>
     <div class="flex gap-2" style="flex-wrap:wrap">
       ${l.converted_diver_id || l.stage === 'graduated' ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
       ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}
     </div>`;
+}
+
+async function copyFollowupLink(leadId) {
+  try {
+    const token = await SupabaseDB.crmGetFollowupLink(leadId);
+    const url = location.origin + '/followup?t=' + token;
+    try {
+      await navigator.clipboard.writeText(url);
+      App.showToast('Follow-up link copied');
+    } catch {
+      window.prompt('Copy this follow-up link:', url);
+    }
+  } catch (err) {
+    App.showToast(err.message, 'error');
+  }
 }
 
 function leftPanelEditHtml(l) {

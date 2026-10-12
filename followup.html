@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Registration Details — Upstate Diving</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <style>
+    @font-face {
+      font-family: 'Eras BQ';
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: local('Eras BQ'), local('ErasBQ-Regular'), local('Eras BQ Regular'),
+           url('assets/fonts/ErasBQ-Regular.woff2') format('woff2'),
+           url('assets/fonts/ErasBQ-Regular.woff') format('woff');
+    }
+    :root {
+      --bg: #ffffff;
+      --card: #ffffff;
+      --text: #020202;
+      --muted: #707070;
+      --border: #707070;
+      --accent: #020202;
+      --accent-dark: #707070;
+      --danger: #b3261e;
+      --title-font: 'Eras BQ', 'Eras ITC', 'Eras Medium ITC', 'Century Gothic', 'Avenir Next', Verdana, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 28px 16px 56px; }
+    header { text-align: center; margin-bottom: 20px; }
+    .brand { font-family: var(--title-font); font-size: 2.2rem; font-weight: 400; letter-spacing: 0.01em; }
+    header p { margin: 6px 0 0; color: var(--muted); }
+    form, .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+    }
+    fieldset { border: 0; margin: 0 0 26px; padding: 0; min-width: 0; }
+    legend {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 0 0 8px;
+      margin-bottom: 12px;
+      width: 100%;
+      border-bottom: 2px solid var(--accent);
+    }
+    .field { margin-bottom: 14px; min-width: 0; }
+    label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; }
+    .req { color: var(--text); }
+    .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; display: block; }
+    input[type=text] {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 12px;
+      min-height: 46px;
+    }
+    input[type=text]:focus, .agreement:focus {
+      outline: 3px solid rgba(2, 2, 2, .3);
+      border-color: var(--accent);
+    }
+    .agreement {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      background: #fafafa;
+      margin-bottom: 14px;
+    }
+    .agree-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+    .agree-row input { width: 22px; height: 22px; margin: 2px 0 0; flex: none; accent-color: var(--accent); }
+    .agree-row label { font-weight: 600; margin: 0; }
+    .legal-note { font-size: 0.82rem; color: var(--muted); margin: -6px 0 0; }
+    button[type=submit] {
+      width: 100%;
+      font: inherit;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+      background: var(--accent);
+      border: 0;
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 52px;
+      cursor: pointer;
+    }
+    button[type=submit]:hover { background: var(--accent-dark); }
+    button[type=submit]:disabled { opacity: .6; cursor: default; }
+    .error {
+      display: none;
+      background: #fdecea;
+      color: var(--danger);
+      border: 1px solid #f3c1bd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .error.visible { display: block; }
+    .center { text-align: center; padding: 36px 22px; }
+    .center h2 { margin: 0 0 8px; font-family: var(--title-font); font-weight: 400; }
+    .signed-note { background: #f2f2f2; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-weight: 600; }
+    .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Upstate Diving</div>
+    <p id="subtitle">Registration details</p>
+  </header>
+
+  <div id="loading" class="card center">Loading…</div>
+
+  <div id="invalid" class="card center" hidden>
+    <h2>This link is not valid</h2>
+    <p id="invalid-msg">Please ask Upstate Diving for a new one.</p>
+  </div>
+
+  <form id="followup-form" novalidate hidden>
+    <div id="form-error" class="error" role="alert"></div>
+
+    <fieldset>
+      <legend>AAU membership</legend>
+      <div class="field"><label for="aau_number">AAU membership number
+          <span class="hint">If your diver does not have one yet, leave this blank.</span></label>
+        <input type="text" id="aau_number" name="aau_number" autocomplete="off" maxlength="60"></div>
+    </fieldset>
+
+    <fieldset id="release-section">
+      <legend>Photo release, accident waiver and release of liability</legend>
+      <div class="agreement" id="release-text" tabindex="0" role="region" aria-label="Photo release, accident waiver and release of liability"></div>
+      <div class="agree-row">
+        <input type="checkbox" id="agree" name="agree">
+        <label for="agree">I have read and agree to the photo release, accident waiver and release of liability above. <span class="req">*</span></label>
+      </div>
+      <div class="field"><label for="signed_name">Type your full name to sign <span class="req">*</span></label>
+        <input type="text" id="signed_name" name="signed_name" autocomplete="name" maxlength="160"></div>
+      <p class="legal-note">Typing your name is your electronic signature. The date and time are recorded with it.</p>
+    </fieldset>
+
+    <div id="already-signed" class="signed-note" hidden>The photo release and waiver is already signed. Thank you!</div>
+
+    <div class="trap" aria-hidden="true">
+      <label for="website">Leave this field empty</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <button type="submit" id="submit-btn">Submit</button>
+  </form>
+
+  <div id="done" class="card center" hidden>
+    <h2>Thank you!</h2>
+    <p id="done-msg">We received your information.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var token = (new URLSearchParams(location.search).get('t') || '').trim();
+  var form = document.getElementById('followup-form');
+  var errBox = document.getElementById('form-error');
+  var btn = document.getElementById('submit-btn');
+  var needsRelease = true;
+  var loadedAt = 0;
+
+  function show(id) {
+    ['loading', 'invalid', 'followup-form', 'done'].forEach(function (x) {
+      document.getElementById(x).hidden = x !== id;
+    });
+  }
+  function showInvalid(msg) {
+    if (msg) document.getElementById('invalid-msg').textContent = msg;
+    show('invalid');
+  }
+  function showError(msg) {
+    errBox.textContent = msg;
+    errBox.classList.add('visible');
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  if (!/^[0-9a-fA-F]{64}$/.test(token)) { showInvalid(); return; }
+
+  fetch('/.netlify/functions/crm-followup?t=' + encodeURIComponent(token))
+    .then(function (res) { return res.json().catch(function () { return {}; }).then(function (b) { return { ok: res.ok, body: b }; }); })
+    .then(function (r) {
+      if (!r.ok || !r.body.success) { showInvalid(r.body && r.body.error); return; }
+      var name = r.body.first_name;
+      document.getElementById('subtitle').textContent = name ? 'Registration details for ' + name : 'Registration details';
+      needsRelease = !r.body.release_signed;
+      document.getElementById('release-section').hidden = !needsRelease;
+      document.getElementById('already-signed').hidden = needsRelease;
+      document.getElementById('release-text').textContent = r.body.release_text || '';
+      loadedAt = Date.now();
+      show('followup-form');
+    })
+    .catch(function () { showInvalid('We could not load this page. Check your connection and try again.'); });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errBox.classList.remove('visible');
+
+    var agree = document.getElementById('agree').checked;
+    var signedName = document.getElementById('signed_name').value.trim();
+    var aau = document.getElementById('aau_number').value.trim();
+
+    if (needsRelease) {
+      if (!agree) { document.getElementById('agree').focus(); showError('Please tick the box to confirm you agree.'); return; }
+      if (signedName.length < 2) { document.getElementById('signed_name').focus(); showError('Please type your full name to sign.'); return; }
+    } else if (!aau) {
+      document.getElementById('aau_number').focus();
+      showError('Please enter the AAU membership number.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    fetch('/.netlify/functions/crm-followup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        t: token.toLowerCase(),
+        aau_number: aau,
+        agree: needsRelease && agree,
+        signed_name: needsRelease ? signedName : '',
+        website: document.getElementById('website').value,
+        loaded_at: loadedAt
+      })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (res.ok && body.success) {
+          document.getElementById('done-msg').textContent = needsRelease
+            ? 'Your signed agreement and information were received.'
+            : 'Your information was received.';
+          show('done');
+          window.scrollTo(0, 0);
+        } else {
+          showError(body.error || 'Something went wrong. Please try again.');
+          btn.disabled = false;
+          btn.textContent = 'Submit';
+        }
+      });
+    }).catch(function () {
+      showError('We could not reach the server. Check your connection and try again.');
+      btn.disabled = false;
+      btn.textContent = 'Submit';
+    });
+  });
+})();
+</script>
+</body>
+</html>

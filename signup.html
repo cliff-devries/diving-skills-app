@@ -7,16 +7,25 @@
   <title>Sign Up — Upstate Diving</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <style>
+    @font-face {
+      font-family: 'Eras BQ';
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: local('Eras BQ'), local('ErasBQ-Regular'), local('Eras BQ Regular'),
+           url('assets/fonts/ErasBQ-Regular.woff2') format('woff2'),
+           url('assets/fonts/ErasBQ-Regular.woff') format('woff');
+    }
     :root {
-      --bg: #f4f7fb;
+      --bg: #ffffff;
       --card: #ffffff;
-      --text: #14202e;
-      --muted: #5b6b7d;
-      --border: #cfd8e3;
-      --accent: #1769c2;
-      --accent-dark: #0f4f96;
+      --text: #020202;
+      --muted: #707070;
+      --border: #707070;
+      --accent: #020202;
+      --accent-dark: #707070;
       --danger: #b3261e;
-      --ok: #1b7f4b;
+      --title-font: 'Eras BQ', 'Eras ITC', 'Eras Medium ITC', 'Century Gothic', 'Avenir Next', Verdana, sans-serif;
     }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
@@ -29,8 +38,7 @@
     }
     .wrap { max-width: 680px; margin: 0 auto; padding: 28px 16px 56px; }
     header { text-align: center; margin-bottom: 20px; }
-    .brand { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
-    .brand span { color: var(--accent); }
+    .brand { font-family: var(--title-font); font-size: 2.2rem; font-weight: 400; letter-spacing: 0.01em; color: var(--text); }
     header p { margin: 6px 0 0; color: var(--muted); }
     form, .done {
       background: var(--card);
@@ -50,7 +58,7 @@
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .field { margin-bottom: 14px; min-width: 0; }
     label, .label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; }
-    .req { color: var(--danger); }
+    .req { color: var(--text); }
     .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; display: block; }
     input[type=text], input[type=email], input[type=tel], input[type=date], input[type=number], select, textarea {
       width: 100%;
@@ -64,7 +72,7 @@
     }
     textarea { resize: vertical; min-height: 84px; }
     input:focus, select:focus, textarea:focus {
-      outline: 3px solid rgba(23, 105, 194, .25);
+      outline: 3px solid rgba(2, 2, 2, .3);
       border-color: var(--accent);
     }
     .pills { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -82,7 +90,7 @@
       user-select: none;
     }
     .pills input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .pills input:focus-visible + span { outline: 3px solid rgba(23, 105, 194, .35); outline-offset: 2px; }
+    .pills input:focus-visible + span { outline: 3px solid rgba(2, 2, 2, .45); outline-offset: 2px; }
     .privacy { font-size: 0.82rem; color: var(--muted); margin: -6px 0 14px; }
     button[type=submit] {
       width: 100%;
@@ -111,7 +119,7 @@
     }
     .error.visible { display: block; }
     .done { text-align: center; padding: 40px 22px; }
-    .done h2 { margin: 0 0 8px; color: var(--ok); }
+    .done h2 { margin: 0 0 8px; font-family: var(--title-font); font-weight: 400; color: var(--text); }
     .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
     @media (max-width: 520px) { .row { grid-template-columns: 1fr; gap: 0; } }
   </style>
@@ -119,7 +127,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="brand">Upstate <span>Diving</span></div>
+    <div class="brand">Upstate Diving</div>
     <p>Tell us about your diver and we'll be in touch.</p>
   </header>
 
@@ -271,7 +279,7 @@
     });
     if (firstEmpty) {
       firstEmpty.focus();
-      showError('Please fill in the fields marked with a red star.');
+      showError('Please fill in the fields marked with a star.');
       return;
     }
     var email = document.getElementById('parent_email');
