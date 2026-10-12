@@ -148,6 +148,11 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   touched; the move shows in Stage History.
   The agreement wording and its version label live in `netlify/functions/lib/release.js` — never reword it; to change it,
   edit the text AND bump `VERSION` so past signatures keep the text that was actually shown.
+- Coach notification emails (supabase-migration-v64.sql, `netlify/functions/lib/notify.js`): `crm-signup.js` emails
+  cliff@upstatediving.com "New sign-up: <diver>" for a NEW lead only (a repeat submission sends nothing), and `crm-followup.js`
+  emails "Registration complete: <diver>" when that submission moved the contact from Lead to Registered. Sent through Brevo
+  (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL` must be a verified sender; optional `NOTIFY_EMAIL` overrides the recipient). A failed
+  email never fails the sign-up. Emails carry only name/parent contact/location/source — never medical, allergy or release text.
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
   (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)

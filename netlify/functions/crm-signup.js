@@ -12,6 +12,8 @@
 //                                js/config.js or any client-side file.
 // =============================================
 
+const { notifyCoach } = require('./lib/notify.js');
+
 const MIN_FILL_MS = 4000;
 const MAX_BODY = 30000;
 
@@ -134,6 +136,24 @@ exports.handler = async (event) => {
         return json(503, { success: false, error: 'We are receiving a lot of sign-ups right now. Please try again in a few minutes.' });
       }
       return json(500, { success: false, error: 'Something went wrong saving your sign-up. Please try again, or email or call us.' });
+    }
+    let result = null;
+    try { result = JSON.parse(await res.text()); } catch { result = null; }
+    if (result && result.created === true) {
+      await notifyCoach({
+        subject: `New sign-up: ${row.first_name} ${row.last_name} (Upstate Diving CRM)`,
+        heading: 'New sign-up',
+        leadId: result.lead_id,
+        replyTo: row.parent_email,
+        rows: [
+          ['Diver', `${row.first_name} ${row.last_name}`],
+          ['Parent / guardian', `${row.parent_first_name} ${row.parent_last_name}`],
+          ['Email', row.parent_email],
+          ['Phone', row.parent_phone],
+          ['Diving location', row.diving_location],
+          ['Found us through', row.source],
+        ],
+      });
     }
     return json(200, { success: true });
   } catch (err) {

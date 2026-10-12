@@ -14,6 +14,7 @@
 
 const { VERSION, TEXT } = require('./lib/release.js');
 
+const { notifyCoach } = require('./lib/notify.js');
 const MIN_FILL_MS = 3000;
 const MAX_BODY = 5000;
 const TOKEN_RE = /^[0-9a-f]{64}$/;
@@ -131,6 +132,21 @@ exports.handler = async (event) => {
     if (!r.ok) return json(500, { success: false, error: OOPS });
     if (!r.data || !r.data.found) return json(404, { success: false, error: BAD_LINK });
     if (r.data.ok === false) return json(400, { success: false, error: NEED_AAU });
+    if (r.data.registered === true) {
+      await notifyCoach({
+        subject: `Registration complete: ${r.data.diver_name} (Upstate Diving CRM)`,
+        heading: 'Registration complete',
+        leadId: r.data.lead_id,
+        replyTo: r.data.parent_email,
+        rows: [
+          ['Diver', r.data.diver_name],
+          ['Parent / guardian', r.data.parent_name],
+          ['Email', r.data.parent_email],
+          ['Phone', r.data.parent_phone],
+          ['Status', 'AAU number entered and photo release signed. Moved to Registered.'],
+        ],
+      });
+    }
     return json(200, { success: true, signed: !!r.data.signed });
   } catch (err) {
     console.error('crm-followup: submit failed', err.message);
