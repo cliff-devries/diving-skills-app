@@ -188,6 +188,7 @@
 
     /* ---- lead detail page ---- */
     .ld-topbar { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .ld-topbar-actions { display: flex; align-items: center; gap: 8px; }
     .ld-title { font-size: 1.45rem; font-weight: 800; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ld-stage-select { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
     .ld-stage-select .form-select { min-width: 190px; }
@@ -262,6 +263,7 @@
 
       .ld-topbar { grid-template-columns: auto 1fr auto; }
       .ld-topbar-stage { grid-column: 1 / -1; order: 3; }
+      .ld-topbar-actions { grid-column: 1 / -1; order: 4; justify-content: space-between; }
       .ld-stage-select { width: 100%; }
       .ld-stage-select .form-select { flex: 1; min-width: 0; }
       .ld-progress { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
@@ -982,7 +984,7 @@ function showView() {
   if (currentView === 'services') renderServices();
   if (currentView === 'activities') loadActivities();
   if (currentView === 'lead') openLeadPage(arg);
-  else { currentLeadId = null; detailEdit = false; }
+  else { currentLeadId = null; detailEdit = false; leadNavIds = null; }
   window.scrollTo(0, 0);
 }
 
@@ -1408,6 +1410,7 @@ function openLead(id) { location.hash = 'lead/' + id; }
 /* ---------- lead detail page (#lead/<id>) ---------- */
 
 let detailEdit = false;
+let leadNavIds = null;
 let detailTab = 'timeline';
 let detailData = { id: null, acts: [], hist: [], profile: null, loaded: false };
 
@@ -1422,8 +1425,26 @@ function openLeadPage(id) {
   }
   if (currentLeadId !== id) { detailEdit = false; detailTab = 'timeline'; detailData = { id, acts: [], hist: [], profile: null, loaded: false }; }
   currentLeadId = id;
+  if (!leadNavIds) {
+    let ids = filteredLeads().map(x => x.id);
+    if (!ids.includes(id)) ids = leads.filter(x => !ARCHIVED_STAGES.has(x.stage)).map(x => x.id);
+    leadNavIds = ids;
+  }
   renderLeadPage();
   loadLeadExtras(id);
+}
+
+function leadNavState() {
+  const ids = (leadNavIds || []).filter(findLead);
+  const i = ids.indexOf(currentLeadId);
+  return { pos: i + 1, total: ids.length, prev: i > 0 ? ids[i - 1] : null, next: i >= 0 && i < ids.length - 1 ? ids[i + 1] : null };
+}
+
+function leadNav(dir) {
+  if (detailEdit) return;
+  const nav = leadNavState();
+  const target = dir < 0 ? nav.prev : nav.next;
+  if (target) location.hash = 'lead/' + target;
 }
 
 function leadBack() { location.hash = lastTabView || 'dashboard'; }
@@ -1483,7 +1504,6 @@ function leftPanelReadHtml(l) {
       ${infoRow('Zip code', esc(c.zip_code || ''))}
       ${infoRow('Emergency contact', esc(c.emergency_contact_name || ''))}
       ${infoRow('Emergency phone', c.emergency_contact_phone ? `<a href="tel:${esc(c.emergency_contact_phone)}">${esc(c.emergency_contact_phone)}</a>` : '')}
-      ${l.contact_id ? `<label class="crm-toggle mt-2"><input type="checkbox" ${c.do_not_contact ? 'checked' : ''} onchange="toggleDoNotContact(this.checked)"> <span class="${c.do_not_contact ? 'crm-dnc' : ''}">Do not contact</span></label>` : ''}
     </div>
     <div class="ld-card">
       <div class="ld-card-title">Diver</div>
@@ -1539,7 +1559,6 @@ function leftPanelEditHtml(l) {
         <div class="form-group"><label class="form-label">Emergency contact name</label><input id="lf-ecname" class="form-input" value="${esc(c.emergency_contact_name)}"></div>
         <div class="form-group"><label class="form-label">Emergency contact phone</label><input type="tel" id="lf-ecphone" class="form-input" value="${esc(c.emergency_contact_phone)}"></div>
       </div>
-      <label class="crm-toggle"><input type="checkbox" id="lf-dnc" ${c.do_not_contact ? 'checked' : ''}> Do not contact (opted out)</label>
     </div>
     <div class="ld-card">
       <div class="ld-card-title">Diver</div>
@@ -1596,12 +1615,16 @@ function leftPanelEditHtml(l) {
 function renderLeadPage() {
   const l = findLead(currentLeadId);
   if (!l || currentView !== 'lead') return;
+  const nav = leadNavState();
   document.getElementById('view-lead').innerHTML = `
     <div class="ld-topbar">
       <button class="btn btn-ghost btn-sm ld-back" onclick="leadBack()">← Back</button>
       <h1 class="ld-title">${esc(leadName(l))}</h1>
       <div class="ld-topbar-stage">${stageSelectHtml(l)}</div>
       <div class="ld-topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="leadNav(-1)" ${nav.prev && !detailEdit ? '' : 'disabled'} aria-label="Previous contact">‹ Previous</button>
+        ${nav.total > 1 ? `<span class="text-secondary text-sm">${nav.pos} of ${nav.total}</span>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="leadNav(1)" ${nav.next && !detailEdit ? '' : 'disabled'} aria-label="Next contact">Next ›</button>
         ${detailEdit ? '<span class="text-secondary text-sm">Editing…</span>' : '<button class="btn btn-secondary btn-sm" onclick="setDetailEdit(true)">✏️ Edit</button>'}
       </div>
     </div>
@@ -1628,21 +1651,6 @@ function setDetailTab(t) {
   detailTab = t;
   document.querySelectorAll('.ld-tab').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${t}'`)));
   renderDetailTab();
-}
-
-async function toggleDoNotContact(on) {
-  const l = findLead(currentLeadId);
-  if (!l || !l.contact_id) return;
-  try {
-    await SupabaseDB.crmUpdateContact(l.contact_id, { do_not_contact: on });
-    l.contact = { ...(l.contact || {}), do_not_contact: on };
-    App.showToast(on ? 'Marked do not contact' : 'Contact allowed again');
-    renderAll();
-    renderLeadPage();
-  } catch (err) {
-    App.showToast(err.message, 'error');
-    renderLeadPage();
-  }
 }
 
 const ACT_ICON = { note: '📝', call: '📞', email: '✉️', text: '💬', in_person: '🤝', trial: '🏊', other: '•' };
@@ -1795,7 +1803,6 @@ async function saveLead() {
     full_name: v('lf-pname'), email: nn(pemail), phone: nn(v('lf-pphone')),
     last_name: nn(v('lf-plast')), street_address: nn(v('lf-street')), city: nn(v('lf-city')), zip_code: nn(v('lf-zip')),
     emergency_contact_name: nn(v('lf-ecname')), emergency_contact_phone: nn(v('lf-ecphone')),
-    do_not_contact: document.getElementById('lf-dnc').checked,
   };
   const hasContact = !!(contactFields.full_name || contactFields.email || contactFields.phone || contactFields.last_name);
 
