@@ -2448,6 +2448,10 @@ async function saveEmailTemplate() {
   const delay = Math.max(0, Math.round(Number(document.getElementById('em-delay').value) || 0)) * Number(document.getElementById('em-unit').value);
   if (delay > 525600) { App.showAlert('em-alert', 'The wait can be at most 365 days.'); return; }
   const hour = document.getElementById('em-hour').value;
+  if (auto && document.getElementById('em-enabled').checked && /\[\[[^\]]*\]\]/.test(subject + ' ' + body)) {
+    App.showAlert('em-alert', 'This email still has [[ ]] parts to fill in. Replace them (or turn off “Send automatically”) before saving.');
+    return;
+  }
   const fields = {
     name, subject, body,
     trigger_type: trig,
@@ -2534,6 +2538,12 @@ function openSendEmail(leadId) {
     <div class="form-group"><label class="form-label">Which email?</label>
       <select id="se-template" class="form-select" onchange="previewSendEmail()">${emailTemplates.map(t => opt(t.id, t.name, false)).join('')}</select></div>
     <div id="se-preview" class="text-secondary text-sm">Loading preview…</div>
+    <div id="se-edit" hidden>
+      <div class="form-group"><label class="form-label">Subject</label><input id="se-subject" class="form-input" autocomplete="off" oninput="checkSendMarkers()"></div>
+      <div class="form-group"><label class="form-label">Message (you can edit it before sending)</label>
+        <textarea id="se-body" class="form-input em-body" rows="14" oninput="checkSendMarkers()"></textarea></div>
+      <div id="se-marker-warn" class="alert alert-error" style="display:none"></div>
+    </div>
     <div id="se-alert" class="alert mb-4"></div>
     <div class="flex gap-2 justify-end" style="margin-top:12px">
       <button class="btn btn-ghost" onclick="App.closeModal('send-email-modal')">Cancel</button>
@@ -2543,20 +2553,38 @@ function openSendEmail(leadId) {
   previewSendEmail();
 }
 
+function checkSendMarkers() {
+  const text = document.getElementById('se-subject').value + '\n' + document.getElementById('se-body').value;
+  const found = text.match(/\[\[[^\]]*\]\]/g) || [];
+  const warn = document.getElementById('se-marker-warn');
+  warn.style.display = found.length ? 'block' : 'none';
+  warn.textContent = found.length ? `Fill in ${found.length === 1 ? 'this' : 'these ' + found.length} before sending: ${found.slice(0, 4).join('  ')}${found.length > 4 ? ' …' : ''}` : '';
+  const btn = document.getElementById('se-send-btn');
+  btn.disabled = !!found.length || !sendEmailTo;
+}
+
+let sendEmailTo = null;
+
 async function previewSendEmail() {
   const tid = document.getElementById('se-template').value;
   const box = document.getElementById('se-preview');
+  const edit = document.getElementById('se-edit');
   const btn = document.getElementById('se-send-btn');
   btn.disabled = true;
+  edit.hidden = true;
+  sendEmailTo = null;
   box.innerHTML = 'Loading preview…';
   try {
     const r = await callEmailFn({ action: 'preview', template_id: tid, lead_id: sendEmailLeadId });
     if (document.getElementById('se-template').value !== tid) return;
-    box.innerHTML = `<div class="text-sm" style="margin-bottom:6px"><strong>To:</strong> ${esc(r.to || '—')}<br><strong>Subject:</strong> ${esc(r.subject)}</div>
-      <div class="em-preview">${esc(r.body)}</div>`;
+    sendEmailTo = r.to && !r.do_not_contact ? r.to : null;
+    box.innerHTML = `<div class="text-sm" style="margin-bottom:8px"><strong>To:</strong> ${esc(r.to || '—')}</div>` +
+      (r.do_not_contact ? '<div class="alert alert-error" style="display:block;margin-bottom:8px">This contact is marked do not contact.</div>' : '');
+    document.getElementById('se-subject').value = r.subject;
+    document.getElementById('se-body').value = r.body;
+    edit.hidden = false;
     btn.textContent = r.to ? 'Send to ' + r.to : 'Send';
-    btn.disabled = !r.to || r.do_not_contact;
-    if (r.do_not_contact) box.insertAdjacentHTML('afterbegin', '<div class="alert alert-error" style="display:block;margin-bottom:8px">This contact is marked do not contact.</div>');
+    checkSendMarkers();
   } catch (err) {
     box.textContent = err.message;
   }
@@ -2568,7 +2596,10 @@ async function doSendEmail() {
   const btn = document.getElementById('se-send-btn');
   App.setBtnLoading(btn, true);
   try {
-    const r = await callEmailFn({ action: 'send', template_id: tid, lead_id: id });
+    const r = await callEmailFn({
+      action: 'send', template_id: tid, lead_id: id,
+      subject: document.getElementById('se-subject').value, body: document.getElementById('se-body').value,
+    });
     App.closeModal('send-email-modal');
     App.showToast('Email sent to ' + r.sent_to);
     activitiesAll = null;

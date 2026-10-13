@@ -7,13 +7,15 @@
 //
 // POST { action: 'preview' | 'test' | 'send', template_id, lead_id? }
 //   preview  -> the rendered subject/body for that contact (nothing sent)
+//   send may carry the coach's edited `subject` and `body`; those exact words are
+//   sent. Anything still containing a [[marker]] is refused.
 //   test     -> sends the template, with sample names, to the coach's own address
 //   send     -> sends it to the contact's parent now and logs it on the timeline
 // Needs SUPABASE_URL and SUPABASE_ANON_KEY (already set for the build) plus the
 // variables listed in lib/mailer.js.
 // =============================================
 
-const { render, varsFor, sendEmail, record, siteUrl } = require('./lib/mailer.js');
+const { render, varsFor, sendEmail, record, siteUrl, hasMarkers } = require('./lib/mailer.js');
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -80,11 +82,21 @@ exports.handler = async (event) => {
 
     const v = p.vars || {};
     const vars = varsFor(v);
-    const subject = render(t.subject, vars);
-    const text = render(t.body, vars);
+    let subject = render(t.subject, vars);
+    let text = render(t.body, vars);
 
     if (action === 'preview') {
       return json(200, { success: true, to: v.to_email || null, do_not_contact: !!v.do_not_contact, subject, body: text });
+    }
+
+    if (d.subject != null || d.body != null) {
+      subject = String(d.subject == null ? '' : d.subject).trim();
+      text = String(d.body == null ? '' : d.body).replace(/\r\n/g, '\n').trim();
+      if (!subject || !text) return json(400, { success: false, error: 'The subject and message cannot be empty.' });
+      if (subject.length > 300 || text.length > 20000) return json(400, { success: false, error: 'That email is too long.' });
+    }
+    if (hasMarkers(subject) || hasMarkers(text)) {
+      return json(400, { success: false, error: 'Fill in every [[ ]] part before sending.' });
     }
 
     if (!v.to_email) return json(400, { success: false, error: 'This contact has no parent email address.' });

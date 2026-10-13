@@ -165,6 +165,10 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   coach status by calling `crm_email_prepare` with the coach's own login (needs `SUPABASE_ANON_KEY`). `crm_email_due`,
   `crm_email_record`, `crm_followup_token` are service_role ONLY. Sends are logged on the contact's timeline (kind `email`) and
   in the Recent sends list. Every email carries a footer saying replying stops them.
+  A `[[marker]]` in a template means "still to fill in" (a missing link or per-family blank): nothing containing one is ever
+  sent (manual send is refused until edited, automatic can't be enabled, the scheduler skips it). The Send email box lets the
+  coach edit subject/body before sending (`crm-send-email.js` then sends those exact words). `supabase-migration-v66.sql`
+  seeded Upstate Diving's 13 existing emails (all manual, off); it never overwrites a template that already exists by name.
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
   (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)

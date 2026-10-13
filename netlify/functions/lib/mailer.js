@@ -18,10 +18,18 @@ const esc = (s) => String(s == null ? '' : s)
 const KEYS = ['parent_first_name', 'parent_name', 'diver_first_name', 'diver_name',
   'diving_location', 'trial_date', 'followup_link'];
 
-// Unknown placeholders are removed rather than sent as raw {{text}}.
+// A [[like this]] marks something still to be filled in; nothing containing one is ever sent.
+const MARKER = /\[\[[^\]]*\]\]/;
+const hasMarkers = (text) => MARKER.test(String(text == null ? '' : text));
+
+// Details the CRM may not have become a [[marker]] to fill in; other unknown
+// placeholders are removed rather than sent as raw {{text}}.
+const NEEDS_FILL = { trial_date: '[[trial date]]', diving_location: '[[diving location]]' };
 function render(text, vars) {
-  return String(text == null ? '' : text).replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k) =>
-    (vars && vars[k] != null ? String(vars[k]) : ''));
+  return String(text == null ? '' : text).replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k) => {
+    const v = vars && vars[k] != null ? String(vars[k]) : '';
+    return v === '' && NEEDS_FILL[k] ? NEEDS_FILL[k] : v;
+  });
 }
 
 function varsFor(row) {
@@ -114,7 +122,12 @@ async function processDue({ leadId } = {}) {
         }
         const vars = varsFor(row);
         const subject = render(row.subject, vars);
-        const sent = await sendEmail({ to: row.to_email, subject, text: render(row.body, vars), diver: row.diver_first_name });
+        const text = render(row.body, vars);
+        if (hasMarkers(subject) || hasMarkers(text)) {
+          console.error('mailer: not sending, still has [[ ]] to fill in:', row.template_name, row.lead_id);
+          continue;
+        }
+        const sent = await sendEmail({ to: row.to_email, subject, text, diver: row.diver_first_name });
         if (sent.ok) {
           await record(row, row.to_email, subject, 'sent', null, true);
           out.sent++;
@@ -134,4 +147,4 @@ async function processDue({ leadId } = {}) {
   return out;
 }
 
-module.exports = { render, varsFor, toHtml, sendEmail, processDue, serviceRpc, record, KEYS, siteUrl };
+module.exports = { hasMarkers, render, varsFor, toHtml, sendEmail, processDue, serviceRpc, record, KEYS, siteUrl };
