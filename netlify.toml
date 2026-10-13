@@ -16,6 +16,10 @@
 [build.environment]
   SECRETS_SCAN_OMIT_PATHS = "js/config.js"
 
+# Sends the CRM's time-based automatic emails (Emails tab in crm.html).
+[functions."crm-email-scheduler"]
+  schedule = "*/10 * * * *"
+
 # Security headers — applied to all responses
 [[headers]]
   for = "/*"

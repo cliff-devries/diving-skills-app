@@ -1431,6 +1431,42 @@ const SupabaseDB = {
     return data;
   },
 
+  // Email templates + triggers (migration v65). Sending itself happens in
+  // netlify/functions/crm-send-email.js and the scheduler.
+  async crmGetEmailTemplates() {
+    const { data, error } = await this.db
+      .from('crm_email_templates')
+      .select('*')
+      .order('sort_order')
+      .order('name');
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  async crmSaveEmailTemplate(id, fields) {
+    const q = id
+      ? this.db.from('crm_email_templates').update(fields).eq('id', id)
+      : this.db.from('crm_email_templates').insert(fields);
+    const { data, error } = await q.select('*').single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async crmDeleteEmailTemplate(id) {
+    const { error } = await this.db.from('crm_email_templates').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
+  async crmGetEmailLog(limit = 100) {
+    const { data, error } = await this.db
+      .from('crm_email_log')
+      .select('id, template_name, lead_id, to_email, subject, status, error, automatic, created_at, lead:crm_leads(first_name, last_name)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
   // Hard delete — RLS only allows super users.
   async crmDeleteService(id) {
     const { error } = await this.db.from('crm_services').delete().eq('id', id);

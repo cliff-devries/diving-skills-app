@@ -13,6 +13,7 @@
 // =============================================
 
 const { notifyCoach } = require('./lib/notify.js');
+const { processDue } = require('./lib/mailer.js');
 
 const MIN_FILL_MS = 4000;
 const MAX_BODY = 30000;
@@ -154,6 +155,9 @@ exports.handler = async (event) => {
           ['Found us through', row.source],
         ],
       });
+      // The family's confirmation email (any enabled "after sign-up" template);
+      // the 10-minute scheduler retries it if this attempt fails.
+      await processDue({ leadId: result.lead_id });
     }
     return json(200, { success: true });
   } catch (err) {

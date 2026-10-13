@@ -66,7 +66,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=13 |
-| js/supabase.js | v=42 |
+| js/supabase.js | v=43 |
 | js/auth.js | v=4 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
@@ -153,6 +153,18 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   emails "Registration complete: <diver>" when that submission moved the contact from Lead to Registered. Sent through Brevo
   (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL` must be a verified sender; optional `NOTIFY_EMAIL` overrides the recipient). A failed
   email never fails the sign-up. Emails carry only name/parent contact/location/source — never medical, allergy or release text.
+- Emails tab (supabase-migration-v65.sql; `#emails` in crm.html): coaches write/edit templates (`crm_email_templates`: subject,
+  plain-text body with `{{parent_first_name}} {{parent_name}} {{diver_first_name}} {{diver_name}} {{diving_location}}
+  {{trial_date}} {{followup_link}}`) and choose a trigger: `manual` (Send email button on the contact page), `signup`
+  (after the public form) or `stage_entered` (N minutes/hours/days after entering a stage, only if still in it), plus an
+  optional Eastern-time send window (hour..9pm). Automatic emails only fire for events AFTER `enabled_at`, so switching one on
+  never mails existing contacts, and `crm_email_log` has a unique index so a family gets each automatic template once.
+  Skipped when the contact has no email or `do_not_contact`. Engine: `netlify/functions/lib/mailer.js` (Brevo; reply-to
+  `NOTIFY_EMAIL`); `crm-email-scheduler.js` runs every 10 min (schedule in netlify.toml, production deploy only);
+  `crm-signup.js` sends the "Sign-up confirmation" at once; `crm-send-email.js` handles preview/test/send for a coach, proving
+  coach status by calling `crm_email_prepare` with the coach's own login (needs `SUPABASE_ANON_KEY`). `crm_email_due`,
+  `crm_email_record`, `crm_followup_token` are service_role ONLY. Sends are logged on the contact's timeline (kind `email`) and
+  in the Recent sends list. Every email carries a footer saying replying stops them.
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
   (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)

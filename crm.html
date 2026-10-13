@@ -175,6 +175,18 @@
     .svc-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; }
     .svc-card.inactive { opacity: 0.6; }
     .svc-grid > .empty-state { grid-column: 1 / -1; }
+    /* ---- emails ---- */
+    .em-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--bg-hover, #eee); color: var(--text-secondary); white-space: nowrap; }
+    .em-badge.auto { background: rgba(0, 201, 167, .18); color: #00a389; }
+    .em-badge.failed { background: rgba(224, 82, 82, .18); color: #e05252; }
+    .em-trigger { font-size: 0.82rem; color: var(--text-secondary); margin-top: 8px; }
+    .em-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+    .em-chip { font-size: 0.78rem; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-surface); color: var(--text-primary); cursor: pointer; }
+    .em-body { font-family: inherit; line-height: 1.5; resize: vertical; }
+    .em-preview { white-space: pre-wrap; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; font-size: 0.9rem; max-height: 260px; overflow: auto; background: var(--bg-surface); }
+    .em-log { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .em-log th, .em-log td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .em-log th { color: var(--text-secondary); font-weight: 600; }
     .svc-name { font-weight: 700; font-size: 1.05rem; }
     .svc-desc { color: var(--text-secondary); font-size: 0.88rem; margin-top: 6px; flex: 1; }
     .svc-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 0.82rem; margin-top: 12px; }
@@ -307,6 +319,7 @@
     <a href="#dashboard" data-view="dashboard">Dashboard</a>
     <a href="#leads" data-view="leads">Contacts</a>
     <a href="#services" data-view="services">Services</a>
+    <a href="#emails" data-view="emails">Emails</a>
     <a href="#activities" data-view="activities">Activities</a>
     <a href="#reports" data-view="reports">Reports</a>
   </nav>
@@ -418,6 +431,23 @@
     <div id="services-list" class="svc-grid"></div>
   </section>
 
+  <section class="dcrm-view" id="view-emails" hidden>
+    <div class="page-header">
+      <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <h1>Emails</h1>
+          <p>Pre-written emails to parents. Edit the wording and choose when each one goes out. Emails with a trigger send automatically; the others are sent by hand from a contact's page.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openEmailTemplate()">+ New Email</button>
+      </div>
+    </div>
+    <div id="emails-list" class="svc-grid"></div>
+    <div class="content-section" style="margin-top:28px">
+      <h3 style="margin:0 0 10px">Recent sends</h3>
+      <div id="emails-log"></div>
+    </div>
+  </section>
+
   <section class="dcrm-view" id="view-activities" hidden>
     <div class="page-header">
       <h1>Activities</h1>
@@ -468,6 +498,7 @@
   <a href="#dashboard" data-view="dashboard"><span aria-hidden="true">🏠</span>Dashboard</a>
   <a href="#leads" data-view="leads"><span aria-hidden="true">📇</span>Contacts</a>
   <a href="#services" data-view="services"><span aria-hidden="true">🧾</span>Services</a>
+  <a href="#emails" data-view="emails"><span aria-hidden="true">✉️</span>Emails</a>
   <a href="#activities" data-view="activities"><span aria-hidden="true">🕒</span>Activities</a>
   <a href="#reports" data-view="reports"><span aria-hidden="true">📊</span>Reports</a>
 </nav>
@@ -608,6 +639,57 @@
   </div>
 </div>
 
+<!-- EMAIL TEMPLATE -->
+<div class="modal-overlay" id="email-modal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="em-title">Email</h2>
+      <button class="modal-close" onclick="App.closeModal('email-modal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">Name (only you see this) *</label><input id="em-name" class="form-input" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Subject *</label><input id="em-subject" class="form-input" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Message *</label>
+      <div class="em-chips" id="em-chips"></div>
+      <textarea id="em-body" class="form-input em-body" rows="12"></textarea>
+      <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Tags in double braces are filled in for each family.</div></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">When is it sent?</label>
+        <select id="em-trigger" class="form-select" onchange="syncEmailForm()">
+          <option value="manual">Only when I send it by hand</option>
+          <option value="signup">After the sign-up form is submitted</option>
+          <option value="stage_entered">After a contact enters a stage</option>
+        </select></div>
+      <div class="form-group" id="em-stage-wrap"><label class="form-label">Stage</label>
+        <select id="em-stage" class="form-select"></select></div>
+    </div>
+    <div id="em-auto-wrap">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Wait</label>
+          <div class="flex gap-2"><input type="number" id="em-delay" class="form-input" min="0" max="365" value="0" style="max-width:90px">
+            <select id="em-unit" class="form-select"><option value="1">minutes</option><option value="60">hours</option><option value="1440">days</option></select></div></div>
+        <div class="form-group"><label class="form-label">Send window (Eastern time)</label>
+          <select id="em-hour" class="form-select"></select></div>
+      </div>
+      <label class="crm-toggle" style="padding-bottom:0"><input type="checkbox" id="em-enabled"> Send automatically</label>
+      <div class="text-secondary text-sm" style="margin:6px 0 12px">Only contacts who sign up or enter the stage <strong>after</strong> you switch this on will receive it. Nobody already in the CRM is emailed. Each family gets a given email at most once.</div>
+    </div>
+    <div id="em-alert" class="alert mb-4"></div>
+    <div class="crm-modal-actions">
+      <div id="em-delete-wrap"></div>
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        <button class="btn btn-ghost" id="em-test-btn" onclick="testEmailTemplate()">Send test to me</button>
+        <button class="btn btn-ghost" onclick="App.closeModal('email-modal')">Cancel</button>
+        <button class="btn btn-primary" id="em-save-btn" onclick="saveEmailTemplate()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEND EMAIL TO A CONTACT -->
+<div class="modal-overlay" id="send-email-modal">
+  <div class="modal" style="max-width:600px" id="send-email-body"></div>
+</div>
+
 <!-- CONVERT TO DIVER -->
 <div class="modal-overlay" id="convert-modal">
   <div class="modal" style="max-width:480px" id="convert-modal-body"></div>
@@ -621,7 +703,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=42"></script>
+<script src="js/supabase.js?v=43"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -885,7 +967,7 @@ const esc = s => App.escHtml(s);
   document.getElementById('a-stage').innerHTML = ['lead', 'registered', 'trial_completed', 'no_contact']
     .map(k => `<option value="${k}">${esc(STAGE_BY_KEY[k].code + ' · ' + STAGE_BY_KEY[k].label)}</option>`).join('');
 
-  await Promise.all([loadCoaches().catch(() => []), loadServices(), loadLeads()]);
+  await Promise.all([loadCoaches().catch(() => []), loadServices(), loadEmailTemplates(), loadLeads()]);
   renderAll();
   setupKanbanSwipe();
   if (currentView === 'lead' || currentView === 'services') showView();
@@ -970,11 +1052,11 @@ function renderAll() {
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
 
-const VIEWS = ['dashboard', 'leads', 'services', 'activities', 'reports', 'lead'];
+const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'lead'];
 let currentView = 'leads';
 let lastTabView = 'dashboard';
 
-// Hash routes: #dashboard #leads #services #activities #reports, plus
+// Hash routes: #dashboard #leads #services #emails #activities #reports, plus
 // #lead/<id> for the full-page lead detail (not a tab).
 function showView() {
   const [want, arg] = location.hash.replace('#', '').split('/');
@@ -985,6 +1067,7 @@ function showView() {
   document.querySelectorAll('[data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === (currentView === 'lead' ? lastTabView : currentView)));
   if (currentView === 'reports') loadReports();
   if (currentView === 'services') renderServices();
+  if (currentView === 'emails') { renderEmails(); loadEmailLog(); }
   if (currentView === 'activities') loadActivities();
   if (currentView === 'lead') openLeadPage(arg);
   else { currentLeadId = null; detailEdit = false; leadNavIds = null; }
@@ -1546,6 +1629,11 @@ function leftPanelReadHtml(l) {
       ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
+    </div>
+    <div class="ld-card">
+      <div class="ld-card-title">Email</div>
+      <div class="text-secondary text-sm" style="margin-bottom:8px">${c.email ? 'Goes to ' + esc(c.email) : 'This contact has no parent email address yet.'}</div>
+      <button class="btn btn-secondary btn-sm" onclick="openSendEmail('${l.id}')" ${c.email ? '' : 'disabled'}>✉️ Send email</button>
     </div>
     <div class="ld-card">
       <div class="ld-card-title">Follow-up form</div>
@@ -2216,6 +2304,281 @@ function exportCsv() {
 /* ---------- services (crm_services, migration v54) ---------- */
 
 let editingServiceId = null;
+
+// ---------- Emails (migration v65) ----------
+let emailTemplates = [];
+let emailsAvailable = true;
+let editingEmailId = null;
+let emailLog = [];
+
+const EMAIL_TAGS = [
+  ['parent_first_name', "Parent's first name"], ['parent_name', "Parent's full name"],
+  ['diver_first_name', "Diver's first name"], ['diver_name', "Diver's full name"],
+  ['diving_location', 'Diving location'], ['trial_date', 'Trial date'], ['followup_link', 'Registration link'],
+];
+
+async function loadEmailTemplates() {
+  try {
+    emailTemplates = await SupabaseDB.crmGetEmailTemplates();
+    emailsAvailable = true;
+  } catch (err) {
+    emailTemplates = [];
+    emailsAvailable = false;
+    console.warn('[CRM] emails unavailable (run supabase-migration-v65.sql):', err.message);
+  }
+}
+
+function emailDelayText(mins) {
+  if (!mins) return 'Right away';
+  if (mins % 1440 === 0) { const d = mins / 1440; return d + (d === 1 ? ' day' : ' days'); }
+  if (mins % 60 === 0) { const h = mins / 60; return h + (h === 1 ? ' hour' : ' hours'); }
+  return mins + (mins === 1 ? ' minute' : ' minutes');
+}
+
+function hourLabel(h) { return h === 0 ? '12 am' : h < 12 ? h + ' am' : h === 12 ? '12 pm' : (h - 12) + ' pm'; }
+
+function emailTriggerText(t) {
+  if (t.trigger_type === 'manual') return 'Sent by hand from a contact\'s page';
+  const when = t.trigger_type === 'signup'
+    ? (t.delay_minutes ? emailDelayText(t.delay_minutes) + ' after the sign-up form' : 'Right after the sign-up form')
+    : (t.delay_minutes ? emailDelayText(t.delay_minutes) + ' after entering ' : 'As soon as a contact enters ') + (STAGE_BY_KEY[t.trigger_stage]?.label || t.trigger_stage) + (t.delay_minutes ? ' (if still there)' : '');
+  return when + (t.send_after_hour != null ? ` · sent ${hourLabel(t.send_after_hour)}–9 pm only` : '');
+}
+
+function renderEmails() {
+  const el = document.getElementById('emails-list');
+  if (!emailsAvailable) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✉️</div>
+      <p>Emails aren't set up yet. Run <strong>supabase-migration-v65.sql</strong> in the Supabase SQL editor, then reload this page.</p></div>`;
+    return;
+  }
+  if (!emailTemplates.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✉️</div><p>No emails yet.</p>
+      <button class="btn btn-primary" onclick="openEmailTemplate()">+ New Email</button></div>`;
+    return;
+  }
+  el.innerHTML = emailTemplates.map(t => {
+    const auto = t.trigger_type !== 'manual';
+    const badge = !auto ? '<span class="em-badge">Manual</span>'
+      : t.enabled ? '<span class="em-badge auto">Automatic · On</span>' : '<span class="em-badge">Automatic · Off</span>';
+    return `
+      <div class="svc-card ${auto && !t.enabled ? 'inactive' : ''}">
+        <div class="flex items-center justify-between gap-2">
+          <div class="svc-name">${esc(t.name)}</div>${badge}
+        </div>
+        <div class="svc-desc"><strong>Subject:</strong> ${esc(t.subject)}</div>
+        <div class="em-trigger">${esc(emailTriggerText(t))}</div>
+        <button class="btn btn-ghost btn-sm w-full mt-2" onclick="openEmailTemplate('${t.id}')">Edit</button>
+      </div>`;
+  }).join('');
+}
+
+async function loadEmailLog() {
+  const el = document.getElementById('emails-log');
+  if (!emailsAvailable) { el.innerHTML = ''; return; }
+  try {
+    emailLog = await SupabaseDB.crmGetEmailLog(100);
+  } catch (err) {
+    el.textContent = 'Could not load: ' + err.message;
+    return;
+  }
+  if (!emailLog.length) { el.innerHTML = '<div class="text-secondary text-sm">Nothing has been sent yet.</div>'; return; }
+  el.innerHTML = `<div style="overflow-x:auto"><table class="em-log"><thead><tr><th>When</th><th>Contact</th><th>Email</th><th>To</th><th>Result</th></tr></thead><tbody>${
+    emailLog.map(r => {
+      const who = r.lead ? `${r.lead.first_name} ${r.lead.last_name || ''}`.trim() : 'Contact';
+      const res = r.status === 'sent' ? '<span class="em-badge auto">Sent</span>'
+        : r.status === 'failed' ? `<span class="em-badge failed" title="${esc(r.error || '')}">Failed</span>`
+        : `<span class="em-badge" title="${esc(r.error || '')}">Skipped</span>`;
+      return `<tr><td>${esc(fmtStamp(r.created_at))}</td><td><a href="#lead/${r.lead_id}">${esc(who)}</a></td>
+        <td>${esc(r.template_name || '')} <span class="text-secondary">${r.automatic ? '(automatic)' : '(by hand)'}</span></td>
+        <td>${esc(r.to_email || '')}</td><td>${res}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+function syncEmailForm() {
+  const trig = document.getElementById('em-trigger').value;
+  document.getElementById('em-stage-wrap').style.display = trig === 'stage_entered' ? '' : 'none';
+  document.getElementById('em-auto-wrap').style.display = trig === 'manual' ? 'none' : '';
+}
+
+function insertEmailTag(key) {
+  const ta = document.getElementById('em-body');
+  const tag = '{{' + key + '}}';
+  const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? ta.value.length;
+  ta.value = ta.value.slice(0, a) + tag + ta.value.slice(b);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = a + tag.length;
+}
+
+function openEmailTemplate(id) {
+  if (!emailsAvailable) { App.showToast('Run supabase-migration-v65.sql first', 'error'); return; }
+  const t = id ? emailTemplates.find(x => x.id === id) : null;
+  editingEmailId = t ? t.id : null;
+  document.getElementById('em-title').textContent = t ? 'Edit Email' : 'New Email';
+  document.getElementById('em-name').value = t?.name || '';
+  document.getElementById('em-subject').value = t?.subject || '';
+  document.getElementById('em-body').value = t?.body || '';
+  document.getElementById('em-chips').innerHTML = EMAIL_TAGS.map(([k, label]) =>
+    `<button type="button" class="em-chip" onclick="insertEmailTag('${k}')" title="{{${k}}}">+ ${esc(label)}</button>`).join('');
+  document.getElementById('em-trigger').value = t?.trigger_type || 'manual';
+  document.getElementById('em-stage').innerHTML = STAGES.map(s => opt(s.key, s.label, (t?.trigger_stage || 'registered') === s.key)).join('');
+  const mins = t?.delay_minutes || 0;
+  const unit = mins && mins % 1440 === 0 ? 1440 : mins && mins % 60 === 0 ? 60 : 1;
+  document.getElementById('em-delay').value = mins / unit;
+  document.getElementById('em-unit').value = String(unit);
+  const hours = ['<option value="">Any time of day</option>'];
+  for (let h = 5; h <= 20; h++) hours.push(`<option value="${h}" ${t?.send_after_hour === h ? 'selected' : ''}>${hourLabel(h)} to 9 pm</option>`);
+  document.getElementById('em-hour').innerHTML = hours.join('');
+  document.getElementById('em-enabled').checked = !!t?.enabled;
+  document.getElementById('em-delete-wrap').innerHTML = t
+    ? `<button class="btn btn-danger btn-sm" onclick="deleteEmailTemplate('${t.id}')">Delete</button>` : '';
+  syncEmailForm();
+  App.hideAlert('em-alert');
+  App.openModal('email-modal');
+  document.getElementById('em-name').focus();
+}
+
+async function saveEmailTemplate() {
+  const name = document.getElementById('em-name').value.trim();
+  const subject = document.getElementById('em-subject').value.trim();
+  const body = document.getElementById('em-body').value.replace(/\s+$/, '');
+  if (!name || !subject || !body.trim()) { App.showAlert('em-alert', 'Name, subject and message are all required.'); return; }
+  const trig = document.getElementById('em-trigger').value;
+  const auto = trig !== 'manual';
+  const delay = Math.max(0, Math.round(Number(document.getElementById('em-delay').value) || 0)) * Number(document.getElementById('em-unit').value);
+  if (delay > 525600) { App.showAlert('em-alert', 'The wait can be at most 365 days.'); return; }
+  const hour = document.getElementById('em-hour').value;
+  const fields = {
+    name, subject, body,
+    trigger_type: trig,
+    trigger_stage: trig === 'stage_entered' ? document.getElementById('em-stage').value : null,
+    delay_minutes: auto ? delay : 0,
+    send_after_hour: auto && hour !== '' ? Number(hour) : null,
+    enabled: auto && document.getElementById('em-enabled').checked,
+  };
+  const btn = document.getElementById('em-save-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    const saved = await SupabaseDB.crmSaveEmailTemplate(editingEmailId, fields);
+    emailTemplates = editingEmailId ? emailTemplates.map(x => (x.id === saved.id ? saved : x)) : [...emailTemplates, saved];
+    emailTemplates.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+    App.closeModal('email-modal');
+    App.showToast(fields.enabled ? 'Email saved. It will send automatically.' : 'Email saved');
+    renderEmails();
+  } catch (err) {
+    App.showAlert('em-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+function deleteEmailTemplate(id) {
+  const t = emailTemplates.find(x => x.id === id);
+  if (!t) return;
+  showConfirm({
+    title: 'Delete this email?',
+    body: `“${t.name}” will stop sending and be removed. Past sends stay in the log.`,
+    confirmLabel: 'Delete',
+    onConfirm: async () => {
+      try {
+        await SupabaseDB.crmDeleteEmailTemplate(id);
+        emailTemplates = emailTemplates.filter(x => x.id !== id);
+        App.closeModal('email-modal');
+        renderEmails();
+        App.showToast('Email deleted');
+      } catch (err) {
+        App.showToast(err.message, 'error');
+      }
+    },
+  });
+}
+
+async function callEmailFn(payload) {
+  const { data } = await SupabaseDB.db.auth.getSession();
+  const token = data && data.session && data.session.access_token;
+  const res = await fetch('/.netlify/functions/crm-send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(payload),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || !out.success) throw new Error(out.error || 'Something went wrong.');
+  return out;
+}
+
+async function testEmailTemplate() {
+  if (!editingEmailId) { App.showAlert('em-alert', 'Save the email first, then send a test.'); return; }
+  const btn = document.getElementById('em-test-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    const r = await callEmailFn({ action: 'test', template_id: editingEmailId });
+    App.showToast('Test sent to ' + r.sent_to + ' (saved version, sample names)');
+  } catch (err) {
+    App.showAlert('em-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
+
+// ----- Send an email to one contact by hand -----
+let sendEmailLeadId = null;
+
+function openSendEmail(leadId) {
+  if (!emailsAvailable) { App.showToast('Run supabase-migration-v65.sql first', 'error'); return; }
+  if (!emailTemplates.length) { App.showToast('Create an email on the Emails tab first', 'error'); return; }
+  sendEmailLeadId = leadId;
+  const l = findLead(leadId);
+  document.getElementById('send-email-body').innerHTML = `
+    <div class="modal-header"><h2 class="modal-title">Send email — ${esc(l ? leadName(l) : '')}</h2>
+      <button class="modal-close" onclick="App.closeModal('send-email-modal')">✕</button></div>
+    <div class="form-group"><label class="form-label">Which email?</label>
+      <select id="se-template" class="form-select" onchange="previewSendEmail()">${emailTemplates.map(t => opt(t.id, t.name, false)).join('')}</select></div>
+    <div id="se-preview" class="text-secondary text-sm">Loading preview…</div>
+    <div id="se-alert" class="alert mb-4"></div>
+    <div class="flex gap-2 justify-end" style="margin-top:12px">
+      <button class="btn btn-ghost" onclick="App.closeModal('send-email-modal')">Cancel</button>
+      <button class="btn btn-primary" id="se-send-btn" onclick="doSendEmail()" disabled>Send</button>
+    </div>`;
+  App.openModal('send-email-modal');
+  previewSendEmail();
+}
+
+async function previewSendEmail() {
+  const tid = document.getElementById('se-template').value;
+  const box = document.getElementById('se-preview');
+  const btn = document.getElementById('se-send-btn');
+  btn.disabled = true;
+  box.innerHTML = 'Loading preview…';
+  try {
+    const r = await callEmailFn({ action: 'preview', template_id: tid, lead_id: sendEmailLeadId });
+    if (document.getElementById('se-template').value !== tid) return;
+    box.innerHTML = `<div class="text-sm" style="margin-bottom:6px"><strong>To:</strong> ${esc(r.to || '—')}<br><strong>Subject:</strong> ${esc(r.subject)}</div>
+      <div class="em-preview">${esc(r.body)}</div>`;
+    btn.textContent = r.to ? 'Send to ' + r.to : 'Send';
+    btn.disabled = !r.to || r.do_not_contact;
+    if (r.do_not_contact) box.insertAdjacentHTML('afterbegin', '<div class="alert alert-error" style="display:block;margin-bottom:8px">This contact is marked do not contact.</div>');
+  } catch (err) {
+    box.textContent = err.message;
+  }
+}
+
+async function doSendEmail() {
+  const tid = document.getElementById('se-template').value;
+  const id = sendEmailLeadId;
+  const btn = document.getElementById('se-send-btn');
+  App.setBtnLoading(btn, true);
+  try {
+    const r = await callEmailFn({ action: 'send', template_id: tid, lead_id: id });
+    App.closeModal('send-email-modal');
+    App.showToast('Email sent to ' + r.sent_to);
+    activitiesAll = null;
+    if (currentLeadId === id) loadLeadExtras(id);
+  } catch (err) {
+    App.showAlert('se-alert', err.message);
+  } finally {
+    App.setBtnLoading(btn, false);
+  }
+}
 
 async function loadServices() {
   try {
