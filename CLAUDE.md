@@ -169,6 +169,9 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   sent (manual send is refused until edited, automatic can't be enabled, the scheduler skips it). The Send email box lets the
   coach edit subject/body before sending (`crm-send-email.js` then sends those exact words). `supabase-migration-v66.sql`
   seeded Upstate Diving's 13 existing emails (all manual, off); it never overwrites a template that already exists by name.
+  `supabase-migration-v67.sql` finalizes them: real Instagram/Facebook/email-list links, the two "Information & Registration" emails send
+  `{{followup_link}}`, RIT trial door/greeter times became `[[markers]]`, and the outdated 2024 Olympics email is removed. Each update only
+  applies while the template text is still exactly what v66 loaded, so edits are never overwritten; v67 also works without v66.
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
   (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
