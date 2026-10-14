@@ -1117,10 +1117,25 @@ function localDateStr(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-function sourceColor(src) {
-  let h = 0;
-  for (const ch of String(src)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return SOURCE_COLORS[h % SOURCE_COLORS.length];
+// Imported spreadsheets left dozens of free-text "how did you find us" entries.
+// Anything that is not one of the standard choices (or Web Form / Email / Phone)
+// is shown as "Referral"; the original text stays in the database.
+const SOURCE_COLOR_MAP = {
+  'Internet search': '#2196F3', 'Friend or family': '#4CAF50', 'Social media': '#9C27B0',
+  'School': '#FF9800', 'Event or meet': '#00BCD4', 'Other': '#9E9E9E', 'Referral': '#E91E63',
+  'Web Form': '#607D8B', 'Email': '#795548', 'Phone': '#3F51B5',
+};
+const SOURCE_CATEGORIES = Object.keys(SOURCE_COLOR_MAP);
+function sourceCategory(src) {
+  const t = String(src == null ? '' : src).trim();
+  if (!t) return '';
+  return SOURCE_CATEGORIES.find(c => c.toLowerCase() === t.toLowerCase()) || 'Referral';
+}
+function sourceColor(src) { return SOURCE_COLOR_MAP[sourceCategory(src)] || '#9E9E9E'; }
+function sourceLabel(l) {
+  const cat = sourceCategory(l.source);
+  return cat === 'Referral' && String(l.source).trim().toLowerCase() !== 'referral'
+    ? `Referral (${String(l.source).trim()})` : cat;
 }
 
 function coachById(id) { return (coaches || []).find(c => c.id === id); }
@@ -1168,7 +1183,7 @@ function kanbanCardHtml(l, today, color) {
       </div>
       <div class="kb-card-parent"><span class="kb-label">Diver:</span> ${esc(leadName(l))}</div>
       ${(l.source || follow || l.notes) ? `<div class="kb-card-meta">
-        ${l.source ? `<span class="kb-pill" style="--pc:${sourceColor(l.source)}">${esc(l.source)}</span>` : ''}
+        ${l.source ? `<span class="kb-pill" style="--pc:${sourceColor(l.source)}" title="${esc(sourceLabel(l))}">${esc(sourceCategory(l.source))}</span>` : ''}
         ${follow}
         ${l.notes ? '<span title="Has notes">📝</span>' : ''}
       </div>` : ''}
@@ -1293,7 +1308,8 @@ function renderFilterOptions() {
   stageSel.value = filters.stage;
   document.getElementById('f-archived').checked = filters.archived;
 
-  const sources = [...new Set([...DEFAULT_SOURCES, ...leads.map(l => l.source).filter(Boolean)])].sort();
+  const present = new Set(leads.map(l => sourceCategory(l.source)).filter(Boolean));
+  const sources = SOURCE_CATEGORIES.filter(c => present.has(c) || DEFAULT_SOURCES.includes(c) || SOURCE_CHOICES.includes(c));
   const camps   = [...new Set(leads.map(l => l.campaign).filter(Boolean))].sort();
   filters.source   = fillSelect('f-source', 'All sources', sources, filters.source);
   filters.campaign = fillSelect('f-campaign', 'All campaigns', camps, filters.campaign);
@@ -1334,7 +1350,7 @@ function filteredLeads() {
     if (!filters.archived && ARCHIVED_STAGES.has(l.stage)) return false;
     if (filters.stage === 'open' ? !OPEN_STAGES.has(l.stage) : (filters.stage && l.stage !== filters.stage)) return false;
     if (filters.coach === 'none' ? l.assigned_coach_id : (filters.coach && l.assigned_coach_id !== filters.coach)) return false;
-    if (filters.source && (l.source || '') !== filters.source) return false;
+    if (filters.source && sourceCategory(l.source) !== filters.source) return false;
     if (filters.campaign && (l.campaign || '') !== filters.campaign) return false;
     if (q && !leadSearchText(l).includes(q)) return false;
     return true;
@@ -1387,7 +1403,7 @@ function rowHtml(l, today) {
   if (c.full_name) bits.push(`<span>👤 ${esc(c.full_name)}</span>`);
   if (c.email) bits.push(`<span>✉️ <a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a></span>`);
   if (c.phone) bits.push(`<span>📞 <a href="tel:${esc(c.phone)}" onclick="event.stopPropagation()">${esc(c.phone)}</a></span>`);
-  const tag = [l.source, l.campaign].filter(Boolean).join(' · ');
+  const tag = [sourceCategory(l.source), l.campaign].filter(Boolean).join(' · ');
   const meta2 = [];
   if (tag) meta2.push(`<span>📣 ${esc(tag)}</span>`);
   if (l.last_contacted_at) meta2.push(`<span>Last contact ${esc(App.formatRelative(l.last_contacted_at))}</span>`);
@@ -1651,7 +1667,7 @@ function leftPanelReadHtml(l) {
     <div class="ld-card">
       <div class="ld-card-title">Lead details</div>
       ${infoRow('Signed up', esc(fmtStamp(l.signed_up_at)))}
-      ${infoRow('Source (how they found us)', esc(l.source || ''))}
+      ${infoRow('How they found us', esc(l.source ? sourceLabel(l) : ''))}
       ${infoRow('Referred by', esc(l.referred_by || ''))}
       ${infoRow('Campaign', esc(l.campaign || ''))}
       ${infoRow('Assigned coach', coach ? esc(coach.full_name || coach.email) : '')}
@@ -2839,7 +2855,7 @@ function setResultsGroup(g) {
 
 function renderResults() {
   if (!leads.length) { document.getElementById('results-body').textContent = 'No leads yet.'; return; }
-  const groups = computeFunnel(leads, stageHistoryAll, l => l[resultsGroup]);
+  const groups = computeFunnel(leads, stageHistoryAll, l => (resultsGroup === 'source' ? sourceCategory(l.source) : l[resultsGroup]));
   const pct = (n, d) => (d ? Math.round((n / d) * 100) + '%' : '—');
   document.getElementById('results-body').innerHTML = `
     <div style="overflow-x:auto"><table class="crm-results-table">
