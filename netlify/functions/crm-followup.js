@@ -133,13 +133,14 @@ exports.handler = async (event) => {
     if (!r.data || !r.data.found) return json(404, { success: false, error: BAD_LINK });
     if (r.data.ok === false) return json(400, { success: false, error: NEED_AAU });
     if (r.data.registered === true) {
+      const diverName = r.data.diver_name || (r.data.parent_name ? `${r.data.parent_name}'s diver` : 'a diver');
       await notifyCoach({
-        subject: `Registration complete: ${r.data.diver_name} (Upstate Diving CRM)`,
+        subject: `Registration complete: ${diverName} (Upstate Diving CRM)`,
         heading: 'Registration complete',
         leadId: r.data.lead_id,
         replyTo: r.data.parent_email,
         rows: [
-          ['Diver', r.data.diver_name],
+          ['Diver', diverName],
           ['Parent / guardian', r.data.parent_name],
           ['Email', r.data.parent_email],
           ['Phone', r.data.parent_phone],

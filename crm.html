@@ -513,7 +513,17 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Diver first name <span style="color:var(--danger)">*</span></label>
+        <label class="form-label">Parent / guardian first name <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="a-pname" class="form-input" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Parent / guardian last name</label>
+        <input type="text" id="a-plast" class="form-input" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Diver first name</label>
         <input type="text" id="a-first" class="form-input" autocomplete="off">
       </div>
       <div class="form-group">
@@ -533,10 +543,6 @@
           <option value="Female">Female</option><option value="Other">Other</option>
         </select>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Parent / guardian name</label>
-      <input type="text" id="a-pname" class="form-input" autocomplete="off">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -565,7 +571,6 @@
     <details class="mb-4">
       <summary class="text-sm" style="cursor:pointer;margin-bottom:10px">More sign-up details</summary>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Parent / guardian last name</label><input type="text" id="a-plast" class="form-input" autocomplete="off"></div>
         <div class="form-group"><label class="form-label">Sign up timestamp</label><input type="datetime-local" id="a-signup" class="form-input"></div>
       </div>
       <div class="form-group"><label class="form-label">Street address</label><input type="text" id="a-street" class="form-input" autocomplete="off"></div>
@@ -582,8 +587,10 @@
         <div class="form-group"><label class="form-label">High school graduation year</label><input type="number" id="a-gradyear" class="form-input" min="1990" max="2100" autocomplete="off"></div>
       </div>
       <div class="form-group"><label class="form-label">Allergies &amp; medical conditions</label><textarea id="a-allergies" class="form-input" rows="2" style="resize:vertical"></textarea></div>
-      <div class="form-group"><label class="form-label">Prior diving experience</label><textarea id="a-pdive" class="form-input" rows="2" style="resize:vertical"></textarea></div>
-      <div class="form-group"><label class="form-label">Prior gymnastics experience</label><textarea id="a-pgym" class="form-input" rows="2" style="resize:vertical"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Prior diving experience</label><select id="a-pdive" class="form-select"><option value=""></option><option value="None">None</option><option value="Some Training">Some Training</option><option value="Extensive Training">Extensive Training</option></select></div>
+        <div class="form-group"><label class="form-label">Prior gymnastics experience</label><select id="a-pgym" class="form-select"><option value=""></option><option value="None">None</option><option value="Some Training">Some Training</option><option value="Extensive Training">Extensive Training</option></select></div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Diving location</label><select id="a-location" class="form-input"><option value=""></option><option value="RIT">RIT</option><option value="Canandaigua">Canandaigua</option></select></div>
         <div class="form-group"><label class="form-label">AAU membership number</label><input type="text" id="a-aau" class="form-input" autocomplete="off"></div>
@@ -1008,7 +1015,19 @@ function toLocalInput(s) {
 
 function multiline(s) { return s ? `<span style="white-space:pre-wrap">${esc(s)}</span>` : ''; }
 
-function leadName(l) { return [l.first_name, l.last_name].filter(Boolean).join(' '); }
+function leadName(l) {
+  const d = [l.first_name, l.last_name].filter(Boolean).join(' ');
+  if (d) return d;
+  const c = l.contact || {};
+  const p = [c.full_name, c.last_name].filter(Boolean).join(' ').trim();
+  return p ? `${p} (parent)` : 'Unnamed lead';
+}
+const EXPERIENCE_LEVELS = ['None', 'Some Training', 'Extensive Training'];
+function expOptions(cur) {
+  const extra = cur && !EXPERIENCE_LEVELS.includes(cur) ? [cur] : [];
+  return `<option value=""></option>` + [...EXPERIENCE_LEVELS, ...extra]
+    .map(o => `<option value="${esc(o)}" ${cur === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+}
 function findLead(id) { return leads.find(l => l.id === id); }
 
 function stageBadge(key) {
@@ -1470,7 +1489,7 @@ function openAdd(stage) {
 async function submitAdd() {
   const v = id => document.getElementById(id).value.trim();
   const first = v('a-first');
-  if (!first) { App.showAlert('add-alert', 'Diver first name is required.'); return; }
+  if (!v('a-pname')) { App.showAlert('add-alert', 'Parent / guardian first name is required.'); document.getElementById('a-pname').focus(); return; }
   const email = v('a-pemail');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { App.showAlert('add-alert', 'That email address does not look right.'); return; }
 
@@ -1673,10 +1692,12 @@ function leftPanelEditHtml(l) {
   return `
     <div class="ld-card">
       <div class="ld-card-title">Parent / contact</div>
-      <div class="form-group"><label class="form-label">Name</label><input id="lf-pname" class="form-input" value="${esc(c.full_name)}"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">First name</label><input id="lf-pname" class="form-input" value="${esc(c.full_name)}"></div>
+        <div class="form-group"><label class="form-label">Last name</label><input id="lf-plast" class="form-input" value="${esc(c.last_name)}"></div>
+      </div>
       <div class="form-group"><label class="form-label">Email</label><input type="email" id="lf-pemail" class="form-input" value="${esc(c.email)}"></div>
       <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="lf-pphone" class="form-input" value="${esc(c.phone)}"></div>
-      <div class="form-group"><label class="form-label">Last name</label><input id="lf-plast" class="form-input" value="${esc(c.last_name)}"></div>
       <div class="form-group"><label class="form-label">Street address</label><input id="lf-street" class="form-input" value="${esc(c.street_address)}"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">City or town</label><input id="lf-city" class="form-input" value="${esc(c.city)}"></div>
@@ -1690,7 +1711,7 @@ function leftPanelEditHtml(l) {
     <div class="ld-card">
       <div class="ld-card-title">Diver</div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">First name *</label><input id="lf-first" class="form-input" value="${esc(l.first_name)}"></div>
+        <div class="form-group"><label class="form-label">First name</label><input id="lf-first" class="form-input" value="${esc(l.first_name)}"></div>
         <div class="form-group"><label class="form-label">Last name</label><input id="lf-last" class="form-input" value="${esc(l.last_name)}"></div>
       </div>
       <div class="form-row">
@@ -1704,10 +1725,12 @@ function leftPanelEditHtml(l) {
       </div>
       <div class="form-group"><label class="form-label">Allergies &amp; medical conditions</label>
         <textarea id="lf-allergies" class="form-input" rows="2" style="resize:vertical">${esc(l.allergies_medical)}</textarea></div>
-      <div class="form-group"><label class="form-label">Prior diving experience</label>
-        <textarea id="lf-pdive" class="form-input" rows="2" style="resize:vertical">${esc(l.prior_diving_experience)}</textarea></div>
-      <div class="form-group"><label class="form-label">Prior gymnastics experience</label>
-        <textarea id="lf-pgym" class="form-input" rows="2" style="resize:vertical">${esc(l.prior_gymnastics_experience)}</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Prior diving experience</label>
+          <select id="lf-pdive" class="form-select">${expOptions(l.prior_diving_experience)}</select></div>
+        <div class="form-group"><label class="form-label">Prior gymnastics experience</label>
+          <select id="lf-pgym" class="form-select">${expOptions(l.prior_gymnastics_experience)}</select></div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Diving location</label><select id="lf-location" class="form-input"><option value=""></option>${['RIT', 'Canandaigua', ...(l.diving_location && !['RIT', 'Canandaigua'].includes(l.diving_location) ? [l.diving_location] : [])].map(o => `<option value="${esc(o)}" ${l.diving_location === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>
         <div class="form-group"><label class="form-label">AAU membership number</label><input id="lf-aau" class="form-input" value="${esc(l.aau_number)}"></div>
@@ -1914,7 +1937,6 @@ async function saveLead() {
   const v = id => document.getElementById(id).value.trim();
   const nn = x => (x === '' ? null : x);
   const first = v('lf-first');
-  if (!first) { App.showAlert('lead-alert', 'First name is required.'); return false; }
   const pemail = v('lf-pemail').toLowerCase();
   if (pemail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pemail)) { App.showAlert('lead-alert', `"${pemail}" does not look like an email address.`); return false; }
   const gradYear = v('lf-gradyear') === '' ? null : Number(v('lf-gradyear'));
@@ -1925,7 +1947,7 @@ async function saveLead() {
   const comp = v('lf-comp');
 
   const fields = {
-    first_name: first, last_name: nn(v('lf-last')), date_of_birth: nn(v('lf-dob')), gender: nn(v('lf-gender')),
+    first_name: nn(first), last_name: nn(v('lf-last')), date_of_birth: nn(v('lf-dob')), gender: nn(v('lf-gender')),
     signed_up_at: signup ? new Date(signup).toISOString() : null,
     school_district: nn(v('lf-district')), graduation_year: gradYear,
     allergies_medical: nn(v('lf-allergies')), prior_diving_experience: nn(v('lf-pdive')),
@@ -1992,6 +2014,7 @@ async function deleteLead(id) {
 async function openConvert(id) {
   const l = findLead(id);
   if (!l) return;
+  if (!l.first_name) { App.showToast("Add the diver's first name (Edit) before converting.", 'error'); return; }
   convertLeadId = id;
   await loadCoaches();
   const c = l.contact || {};
@@ -2074,6 +2097,7 @@ function diverLabel(d) {
 async function openLinkExisting(id) {
   const l = findLead(id);
   if (!l) return;
+  if (!l.first_name) { App.showToast("Add the diver's first name (Edit) before converting.", 'error'); return; }
   convertLeadId = id;
   const body = document.getElementById('convert-modal-body');
   body.innerHTML = '<div class="loading-overlay"><div class="loading-spinner loading-spinner-lg"></div><span>Loading divers…</span></div>';
@@ -2200,9 +2224,9 @@ function readImport() {
 function renderImportMap() {
   const headers = imp.rows[0];
   const objs = buildImportRows(imp.rows, imp.mapping);
-  const ready = objs.filter(o => o.first_name);
+  const ready = objs.filter(o => o.first_name || o.parent_name);
   const noName = objs.length - ready.length;
-  const hasName = imp.mapping.includes('first_name') || imp.mapping.includes('full_name');
+  const hasName = imp.mapping.includes('first_name') || imp.mapping.includes('full_name') || imp.mapping.includes('parent_name');
 
   const mapRows = headers.map((h, i) => `
     <tr><td>${esc(h || '(blank)')}</td><td>
@@ -2223,7 +2247,7 @@ function renderImportMap() {
     ${hasName ? '' : '<div class="alert alert-warning visible mb-4">Pick a First name (or Full name) column — every lead needs a name.</div>'}
     <div class="crm-section-title">Preview</div>
     <div class="crm-preview"><table class="crm-map-table"><thead><tr>${prevCols.map(k => `<th>${esc(IMPORT_FIELDS.find(f => f[0] === k)?.[1] || k)}</th>`).join('')}</tr></thead><tbody>${preview || '<tr><td>No rows with a name yet.</td></tr>'}</tbody></table></div>
-    <p class="text-sm mb-4"><strong>${ready.length}</strong> lead${ready.length === 1 ? '' : 's'} ready to import${noName ? ` · ${noName} row${noName === 1 ? '' : 's'} skipped (no first name)` : ''}</p>
+    <p class="text-sm mb-4"><strong>${ready.length}</strong> lead${ready.length === 1 ? '' : 's'} ready to import${noName ? ` · ${noName} row${noName === 1 ? '' : 's'} skipped (no parent or diver first name)` : ''}</p>
     <div id="imp-alert" class="alert mb-4"></div>
     <div class="flex gap-3 justify-end">
       <button class="btn btn-ghost" onclick="renderImportStart()">Back</button>
@@ -2238,7 +2262,7 @@ function setMap(i, field) {
 }
 
 async function runImport() {
-  const objs = buildImportRows(imp.rows, imp.mapping).filter(o => o.first_name);
+  const objs = buildImportRows(imp.rows, imp.mapping).filter(o => o.first_name || o.parent_name);
   const btn = document.getElementById('imp-run');
   btn.disabled = true;
   const total = { inserted: 0, skipped: 0, contacts_created: 0, dupes: 0 };
@@ -2385,7 +2409,7 @@ async function loadEmailLog() {
   if (!emailLog.length) { el.innerHTML = '<div class="text-secondary text-sm">Nothing has been sent yet.</div>'; return; }
   el.innerHTML = `<div style="overflow-x:auto"><table class="em-log"><thead><tr><th>When</th><th>Contact</th><th>Email</th><th>To</th><th>Result</th></tr></thead><tbody>${
     emailLog.map(r => {
-      const who = r.lead ? `${r.lead.first_name} ${r.lead.last_name || ''}`.trim() : 'Contact';
+      const who = r.lead ? leadName(r.lead) : 'Contact';
       const res = r.status === 'sent' ? '<span class="em-badge auto">Sent</span>'
         : r.status === 'failed' ? `<span class="em-badge failed" title="${esc(r.error || '')}">Failed</span>`
         : `<span class="em-badge" title="${esc(r.error || '')}">Skipped</span>`;

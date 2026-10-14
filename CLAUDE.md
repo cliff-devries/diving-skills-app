@@ -172,6 +172,11 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   `supabase-migration-v67.sql` finalizes them: real Instagram/Facebook/email-list links, the two "Information & Registration" emails send
   `{{followup_link}}`, RIT trial door/greeter times became `[[markers]]`, and the outdated 2024 Olympics email is removed. Each update only
   applies while the template text is still exactly what v66 loaded, so edits are never overwritten; v67 also works without v66.
+- Add Lead (supabase-migration-v68.sql): only the parent/guardian FIRST name is required; the diver's first name is optional
+  (`crm_leads.first_name` is nullable, never blank text). Parent first/last name sit side by side (`crm_contacts.full_name` is the
+  parent's FIRST name, `last_name` the last). A nameless diver shows as "<parent> (parent)" via `leadName`, emails say "your diver", and
+  Convert to Diver asks for the diver's first name first. Prior diving/gymnastics experience are selects: None / Some Training /
+  Extensive Training (legacy free text still shows as an extra option when editing).
 - Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
   (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
