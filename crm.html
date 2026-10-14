@@ -58,7 +58,6 @@
     .crm-activity-meta button { background: none; border: none; color: var(--text-secondary); font-size: 0.75rem; padding: 0; }
     .crm-activity-meta button:hover { color: var(--danger); }
     .crm-activity-body { white-space: pre-wrap; margin-top: 2px; }
-    .crm-history { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.7; }
     .crm-banner {
       background: var(--accent-dim); border: 1px solid rgba(33,150,243,0.35);
       border-radius: var(--radius-md); padding: 10px 12px; font-size: 0.85rem; margin-bottom: 14px;
@@ -1790,7 +1789,7 @@ function renderLeadPage() {
       <aside class="ld-left">${detailEdit ? leftPanelEditHtml(l) : leftPanelReadHtml(l)}</aside>
       <section class="ld-right">
         <div class="ld-tabs" role="tablist">
-          ${[['timeline', 'Timeline'], ['notes', 'Notes'], ['activities', 'Activities'], ['history', 'Stage History']]
+          ${[['timeline', 'Timeline'], ['notes', 'Notes'], ['activities', 'Activities']]
             .map(([k, label]) => `<button class="ld-tab ${detailTab === k ? 'active' : ''}" onclick="setDetailTab('${k}')">${label}</button>`).join('')}
         </div>
         <div id="ld-tab-body" class="ld-tab-body"></div>
@@ -1879,12 +1878,9 @@ function renderDetailTab() {
     el.innerHTML = logFormHtml(['note'], 'Add a note…') +
       (l && l.notes ? `<div class="ld-pinned"><div class="ld-card-title">Internal notes</div><div style="white-space:pre-wrap">${esc(l.notes)}</div></div>` : '') +
       (notes.length ? notes.map(a => activityItemHtml(a, canDel(a))).join('') : empty('No notes yet.'));
-  } else if (detailTab === 'activities') {
+  } else {
     el.innerHTML = logFormHtml(['call', 'email', 'in_person', 'text', 'trial', 'other'], 'What happened?') +
       (others.length ? others.map(a => activityItemHtml(a, canDel(a))).join('') : empty('No calls, emails or meetings logged yet.'));
-  } else {
-    const hist = detailData.hist.slice().reverse();
-    el.innerHTML = hist.length ? hist.map(stageItemHtml).join('') : empty('No stage changes recorded.');
   }
 }
 
