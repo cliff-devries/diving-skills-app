@@ -17,6 +17,7 @@ bumped across ALL HTML files before pushing to GitHub.
 ### HTML files to update (ALL of them):
 - index.html (DiveCentral hub — self-contained, loads no project JS/CSS; nothing to bump)
 - signup.html (public sign-up form — self-contained, loads no project JS/CSS; nothing to bump)
+- info.html (short information-request form — self-contained, loads no project JS/CSS; nothing to bump)
 - login.html (sign-in page — auth.js redirects here)
 - dashboard.html
 - skills.html
@@ -144,6 +145,11 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   `crm_consents` (exact text, version, typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`. A hand-added lead completes
   registration by submitting the sign-up form (matched by parent email + diver name); the `crm_leads_auto_register` trigger (v63) still moves a
   Lead to Registered once it has an AAU number AND a signed release. `{{followup_link}}` in an email template now just fills in the sign-up form URL.
+- Information request form (info.html at /info, supabase-migration-v72.sql): parent first/last name, email and how they want to connect (follow-up email /
+  follow-up call [asks for a phone] / join email list / talk with the bot [not built yet — see the project to-do]). Posts to `netlify/functions/crm-info.js` ->
+  `crm_public_inquiry` (service_role only): creates the contact and a Lead with NO diver name (or just logs on an existing contact by email), stores
+  `crm_leads.contact_preference`, no `signed_up_at` (so no automatic sign-up email), and emails the coach "Information request". When that parent later submits
+  the full sign-up form, `crm_public_signup` fills in the nameless Lead instead of creating a duplicate.
 - Coach notification emails (supabase-migration-v64.sql, `netlify/functions/lib/notify.js`): `crm-signup.js` emails
   cliff@upstatediving.com "New sign-up: <diver>" for a NEW lead only (a repeat submission sends nothing), (a repeat submission that moves a Lead to Registered emails "Registered: <diver>"). Sent through Brevo
   (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL` must be a verified sender; optional `NOTIFY_EMAIL` overrides the recipient). A failed

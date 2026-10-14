@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Request information from Upstate Diving.">
+  <title>Request Information — Upstate Diving</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <style>
+    @font-face {
+      font-family: 'Eras BQ';
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: local('Eras BQ'), local('ErasBQ-Regular'), local('Eras BQ Regular'),
+           url('assets/fonts/ErasBQ-Regular.woff2') format('woff2'),
+           url('assets/fonts/ErasBQ-Regular.woff') format('woff');
+    }
+    :root {
+      --bg: #ffffff;
+      --card: #ffffff;
+      --text: #020202;
+      --muted: #707070;
+      --border: #707070;
+      --accent: #020202;
+      --accent-dark: #707070;
+      --danger: #b3261e;
+      --title-font: 'Eras BQ', 'Eras ITC', 'Eras Medium ITC', 'Century Gothic', 'Avenir Next', Verdana, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 28px 16px 56px; }
+    header { text-align: center; margin-bottom: 20px; }
+    .brand { font-family: var(--title-font); font-size: 2.2rem; font-weight: 400; letter-spacing: 0.01em; color: var(--text); }
+    .logo-band { background: #020202; border-radius: 14px; padding: 18px 16px; margin-bottom: 4px; }
+    .logo-band img { display: block; margin: 0 auto; max-width: 320px; width: 70%; height: auto; }
+    header p { margin: 6px 0 0; color: var(--muted); }
+    form, .done {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+    }
+    fieldset { border: 0; margin: 0 0 26px; padding: 0; min-width: 0; }
+    legend {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 0 0 8px;
+      margin-bottom: 12px;
+      width: 100%;
+      border-bottom: 2px solid var(--accent);
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 14px; min-width: 0; }
+    label, .label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; }
+    .req { color: var(--text); }
+    .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; display: block; }
+    input[type=text], input[type=email], input[type=tel], input[type=date], input[type=number], select, textarea {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 12px;
+      min-height: 46px;
+    }
+    textarea { resize: vertical; min-height: 84px; }
+    input:focus, select:focus, textarea:focus {
+      outline: 3px solid rgba(2, 2, 2, .3);
+      border-color: var(--accent);
+    }
+    .pills { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pills label { position: relative; margin: 0; font-weight: 600; }
+    .pills input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .pills span {
+      display: inline-block;
+      padding: 11px 18px;
+      min-height: 46px;
+      line-height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pills input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pills input:focus-visible + span { outline: 3px solid rgba(2, 2, 2, .45); outline-offset: 2px; }
+    .privacy { font-size: 0.82rem; color: var(--muted); margin: -6px 0 14px; }
+    button[type=submit] {
+      width: 100%;
+      font: inherit;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+      background: var(--accent);
+      border: 0;
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 52px;
+      cursor: pointer;
+    }
+    button[type=submit]:hover { background: var(--accent-dark); }
+    button[type=submit]:disabled { opacity: .6; cursor: default; }
+    .error {
+      display: none;
+      background: #fdecea;
+      color: var(--danger);
+      border: 1px solid #f3c1bd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .error.visible { display: block; }
+    .done { text-align: center; padding: 40px 22px; }
+    .done h2 { margin: 0 0 8px; font-family: var(--title-font); font-weight: 400; color: var(--text); }
+    .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    @media (max-width: 520px) { .row { grid-template-columns: 1fr; gap: 0; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo-band"><img src="assets/upstate-diving-logo.png" alt="Upstate NY Diving" width="320" height="177"></div>
+    <p>Want to know more about Upstate Diving? Tell us how to reach you and how you would like to hear from us.</p>
+  </header>
+
+  <form id="info-form" novalidate>
+    <div id="form-error" class="error" role="alert"></div>
+
+    <fieldset>
+      <legend>About you</legend>
+      <div class="row">
+        <div class="field"><label for="parent_first_name">First name <span class="req">*</span></label>
+          <input type="text" id="parent_first_name" name="parent_first_name" autocomplete="given-name" maxlength="80" required></div>
+        <div class="field"><label for="parent_last_name">Last name <span class="req">*</span></label>
+          <input type="text" id="parent_last_name" name="parent_last_name" autocomplete="family-name" maxlength="80" required></div>
+      </div>
+      <div class="field"><label for="parent_email">Email <span class="req">*</span></label>
+        <input type="email" id="parent_email" name="parent_email" autocomplete="email" maxlength="254" required></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>How would you like to connect?</legend>
+      <div class="field" role="radiogroup" aria-labelledby="lbl-pref"><span class="label" id="lbl-pref">Choose one <span class="req">*</span></span>
+        <div class="pills">
+          <label><input type="radio" name="contact_preference" value="email"><span>Follow-up email</span></label>
+          <label><input type="radio" name="contact_preference" value="call"><span>Follow-up call</span></label>
+          <label><input type="radio" name="contact_preference" value="email_list"><span>Join our email list</span></label>
+          <label><input type="radio" name="contact_preference" value="bot"><span>Talk with our bot</span></label>
+        </div></div>
+      <div class="field" id="phone-field" style="display:none"><label for="parent_phone">Phone number <span class="req">*</span>
+          <span class="hint">So we know where to call.</span></label>
+        <input type="tel" id="parent_phone" name="parent_phone" autocomplete="tel" maxlength="40"></div>
+    </fieldset>
+
+    <div class="trap" aria-hidden="true">
+      <label for="website">Leave this field empty</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <button type="submit" id="submit-btn">Send</button>
+  </form>
+
+  <div id="done" class="done" hidden>
+    <h2>Thank you!</h2>
+    <p id="done-msg">We received your request.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var loadedAt = Date.now();
+  var form = document.getElementById('info-form');
+  var errBox = document.getElementById('form-error');
+  var btn = document.getElementById('submit-btn');
+  var phoneField = document.getElementById('phone-field');
+  var phone = document.getElementById('parent_phone');
+  var MSG = {
+    email: 'We will follow up by email soon.',
+    call: 'We will give you a call soon.',
+    email_list: 'You are on our email list. Welcome!',
+    bot: 'Thanks! Our question-and-answer assistant is not ready yet, so we will follow up by email to answer your questions.'
+  };
+
+  function pref() {
+    var c = form.querySelector('input[name=contact_preference]:checked');
+    return c ? c.value : '';
+  }
+  function showError(msg) {
+    errBox.textContent = msg;
+    errBox.classList.add('visible');
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  form.addEventListener('change', function () {
+    var call = pref() === 'call';
+    phoneField.style.display = call ? '' : 'none';
+    phone.required = call;
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errBox.classList.remove('visible');
+
+    var firstEmpty = Array.prototype.find.call(form.querySelectorAll('[required]'), function (el) {
+      return !el.value.trim();
+    });
+    if (firstEmpty) { firstEmpty.focus(); showError('Please fill in the fields marked with a star.'); return; }
+    var email = document.getElementById('parent_email');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) { email.focus(); showError('That email address does not look right.'); return; }
+    if (!pref()) { showError('Please choose how you would like to connect.'); return; }
+
+    var data = {};
+    new FormData(form).forEach(function (v, k) { data[k] = v; });
+    data.loaded_at = loadedAt;
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    fetch('/.netlify/functions/crm-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (res.ok && body.success) {
+          document.getElementById('done-msg').textContent = MSG[data.contact_preference] || MSG.email;
+          form.hidden = true;
+          document.getElementById('done').hidden = false;
+          window.scrollTo(0, 0);
+        } else {
+          showError(body.error || 'Something went wrong. Please try again.');
+          btn.disabled = false;
+          btn.textContent = 'Send';
+        }
+      });
+    }).catch(function () {
+      showError('We could not reach the server. Check your connection and try again.');
+      btn.disabled = false;
+      btn.textContent = 'Send';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1019,6 +1019,7 @@ function leadName(l) {
   const p = [c.full_name, c.last_name].filter(Boolean).join(' ').trim();
   return p ? `${p} (parent)` : 'Unnamed lead';
 }
+const CONTACT_PREFS = { email: 'Follow-up email', call: 'Follow-up call', email_list: 'Join the email list', bot: 'Talk with the bot' };
 const SOURCE_CHOICES = ['Internet search', 'Friend or family', 'Social media', 'School', 'Event or meet', 'Other'];
 function sourceOptions(cur) {
   const extra = cur && !SOURCE_CHOICES.includes(cur) ? [cur] : [];
@@ -1671,6 +1672,7 @@ function leftPanelReadHtml(l) {
       ${infoRow('Signed up', esc(fmtStamp(l.signed_up_at)))}
       ${infoRow('How they found us', esc(l.source ? sourceLabel(l) : ''))}
       ${infoRow('Referred by', esc(l.referred_by || ''))}
+      ${infoRow('Wants to connect by', esc(CONTACT_PREFS[l.contact_preference] || ''))}
       ${infoRow('Photo release & waiver', l.release_signed_at
         ? `✅ Signed by ${esc(l.release_signed_name || '')} · ${esc(fmtStamp(l.release_signed_at))}`
         : '<span class="text-secondary">Not signed</span>')}

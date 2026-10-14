@@ -52,6 +52,12 @@
   to     = "/index.html"
   status = 200
 
+# Short "request information" form (feeds DiveCRM via netlify/functions/crm-info.js).
+[[redirects]]
+  from   = "/info"
+  to     = "/info.html"
+  status = 200
+
 # Public sign-up form (feeds DiveCRM via netlify/functions/crm-signup.js).
 [[redirects]]
   from   = "/signup"
