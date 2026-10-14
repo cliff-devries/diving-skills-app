@@ -10,15 +10,18 @@
    Design tokens — matched to DiveDrills (divedrills.com)
    ============================================= */
 :root{
+  --color-primary:#43A047;
+  --color-primary-hover:#388E3C;
+  --color-primary-light:rgba(67,160,71,.15);
   --bg-primary:#0f0f0f;
   --bg-surface:#1a1a1a;
   --bg-surface-2:#242424;
   --border:#2e2e2e;
   --text-primary:#f0f0f0;
   --text-secondary:#a0a0a0;
-  --accent:#00c9a7;
-  --accent-hover:#00b596;
-  --accent-dim:rgba(0,201,167,.12);
+  --accent:var(--color-primary);
+  --accent-hover:var(--color-primary-hover);
+  --accent-dim:var(--color-primary-light);
   --pending:#f5a623;
   --pending-dim:rgba(245,166,35,.12);
   --danger:#e05252;
@@ -314,7 +317,7 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .skill-card.touch-dragging{transition:none;opacity:.85;box-shadow:0 8px 20px rgba(0,0,0,.35);position:relative;z-index:20;}
 /* Inline skill search — rendered after the last skill row/card (not fixed
    above the list) so it always sits where the next skill will land. The
-   teal tint + left border distinguish it from a skill row. scroll-margin
+   accent tint + left border distinguish it from a skill row. scroll-margin
    keeps it clear of the fixed .builder-savebar when scrollIntoView runs. */
 .skill-search-inline{width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border-radius:var(--radius-md);background:var(--accent-dim);border:1px solid var(--border);border-left:3px solid var(--accent);scroll-margin-bottom:90px;}
 .skill-card-top{display:flex;align-items:center;gap:8px;}
@@ -436,9 +439,9 @@ body.view-mode #content{padding:0;max-width:none;}
 .view-quote-mark{font-size:2.2rem;color:#cccccc;line-height:1;font-family:Georgia,serif;}
 .view-quote-text{font-size:1rem;font-style:italic;color:#333333;margin-top:6px;}
 .view-badge-sm{display:inline-block;font-size:.62rem;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:8px;margin-left:4px;}
-.view-badge-practice{background:rgba(0,201,167,.12);color:#00a88c;}
+.view-badge-practice{background:var(--accent-dim);color:var(--accent);}
 .view-badge-comp{background:rgba(245,166,35,.15);color:#c97f00;}
-.view-badge-dd{background:rgba(0,201,167,.12);color:#00a88c;}
+.view-badge-dd{background:var(--accent-dim);color:var(--accent);}
 .view-scf-btn{display:block;width:100%;box-sizing:border-box;background:#F76900;color:#ffffff;text-align:center;text-decoration:none;font-size:1rem;font-weight:700;padding:16px 20px;border-radius:12px;margin-bottom:14px;box-shadow:0 2px 6px rgba(247,105,0,.3);}
 .view-scf-btn:active{background:#d95c00;}
 .view-skill-count{font-size:.82rem;color:#666666;font-style:italic;margin-bottom:14px;}
@@ -516,9 +519,10 @@ function coachDisplayName(){
 // editable afterward from Settings -> Club Groups.
 const DEFAULT_GROUPS = ['Learn to Dive','Novice','Lessons','Pre-Team','Sparks','Fire','Blaze','Masters','RIT'];
 
-// Default plan color when no group is selected — same teal used everywhere
+// Default plan color when no group is selected — same green used everywhere
 // else in the app as the generic accent.
-const GROUP_DEFAULT_COLOR = '#00c9a7';
+const GROUP_DEFAULT_COLOR = '#43A047';
+const LEGACY_DEFAULT_COLOR = '#00c9a7';
 
 // Per-group default plan colors, auto-applied when a coach picks a group in
 // the Practice Builder (see buildGroupCfg's onChange). RIT matches the
@@ -1683,7 +1687,7 @@ function mountMiniMonthCalendar(host){
           const plans=DB.plans.filter(p=>p.date===iso);
           return `<div class="month-cell ${iso===todayIso?'today':''}" onclick="handleCalendarDateClick('${iso}')">
             <div class="num">${day}</div>
-            ${plans.slice(0,2).map(p=>`<div class="plan-chip" style="background:${p.color||'#00c9a7'}" title="${escAttr(p.name)}" onclick="event.stopPropagation();navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
+            ${plans.slice(0,2).map(p=>`<div class="plan-chip" style="background:${p.color||GROUP_DEFAULT_COLOR}" title="${escAttr(p.name)}" onclick="event.stopPropagation();navigate('plans/edit/${p.id}')">${esc(p.name)}</div>`).join('')}
           </div>`;
         }).join('')}
         ${Array.from({length:trailingBlanks}).map(()=>`<div class="month-cell blank"></div>`).join('')}
@@ -1828,7 +1832,7 @@ function generateAIPlan(){
     rows.push({id:uid('row'),activity:d.name,min:m,category:categoryName(d.categoryId),notes:d.notes||'',image:null,stations:d.stations});
     remaining-=m;i++;guard++;
   }
-  const plan={id:uid('plan'),name,date,location:'',startTime:'3:00',ampm:'PM',duration:minutes,color:'#00c9a7',
+  const plan={id:uid('plan'),name,date,location:'',startTime:'3:00',ampm:'PM',duration:minutes,color:GROUP_DEFAULT_COLOR,
     announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:cat,groups:[],visibility:'club',dateCreated:nowStamp(),coachName:coachDisplayName(),rows};
   DB.plans.push(plan);saveDB();closeModal();
   navigate('plans/edit/'+plan.id);
@@ -2025,7 +2029,7 @@ function loadBuilderDraft(id){
     const defaultTime=parseDefaultStartTime(DB.prefs.defaultStartTime);
     builderDraft={id:uid('plan'),name:'Practice '+n,date:todayISO(),location:'',
       startTime:defaultTime?defaultTime.startTime:'12:00', ampm:defaultTime?defaultTime.ampm:'AM',
-      duration:DB.prefs.defaultDuration||'', color:'#00c9a7',
+      duration:DB.prefs.defaultDuration||'', color:GROUP_DEFAULT_COLOR,
       announcements:'',quote:'',practiceEmphasis:'',competitionEmphasis:'',filterCategory:'',groups:[],visibility:'club',
       announcementList:[],practicePoints:[],notes:'',dateCreated:nowStamp(),rows:[],isShared:false,__sourceId:null};
   }
@@ -2237,8 +2241,8 @@ function renderPracticeBuilder(id,container){
       const currentColor=(plan.color||GROUP_DEFAULT_COLOR).toLowerCase();
       // Only follow the group's default color if the coach hasn't already
       // overridden it — i.e. the color is still whatever the previous
-      // group set it to (or the untouched teal default on a fresh plan).
-      const stillOnDefault = currentColor===prevDefaultColor || currentColor===GROUP_DEFAULT_COLOR;
+      // group set it to (or the untouched green default on a fresh plan).
+      const stillOnDefault = currentColor===prevDefaultColor || currentColor===GROUP_DEFAULT_COLOR.toLowerCase() || currentColor===LEGACY_DEFAULT_COLOR;
       plan.groups=newGroupName?[newGroupName]:[];
       if(stillOnDefault){
         plan.color=GROUP_COLORS[newGroupName]||GROUP_DEFAULT_COLOR;
@@ -2893,7 +2897,7 @@ function addSkillToPlan(planId,skillId){
 // pdf* function takes that theme object instead of a hardcoded palette,
 // so RIT plans get fully re-themed and every other group is byte-for-byte
 // unchanged from before.
-const PDF_COLORS = { accent:'#00c9a7', textPrimary:'#1a1a1a', textSecondary:'#666666', rowAlt:'#f5f5f5', border:'#e0e0e0', org:'Upstate Diving', orgShort:'Upstate Diving', isRIT:false };
+const PDF_COLORS = { accent:'#43A047', textPrimary:'#1a1a1a', textSecondary:'#666666', rowAlt:'#f5f5f5', border:'#e0e0e0', org:'Upstate Diving', orgShort:'Upstate Diving', isRIT:false };
 function buildPdfTheme(plan){
   const isRIT = plan.group==='RIT' || (Array.isArray(plan.groups) && plan.groups.includes('RIT'));
   if(!isRIT) return PDF_COLORS;
