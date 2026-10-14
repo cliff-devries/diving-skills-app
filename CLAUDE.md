@@ -135,6 +135,10 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   table or RPC access. Needs the Netlify env var `SUPABASE_SERVICE_ROLE_KEY` (secret; never in js/config.js). It creates a
   `lead`-stage contact with `created_by` NULL, `signed_up_at` = now, `source` = the "how did you find us" answer (else
   'Web Form'), and a timeline note; a repeat submission only adds a note. Never return existing CRM data from it.
+- Sign-up registers on the spot (supabase-migration-v69.sql): the public form REQUIRES the AAU membership number, and `crm_public_signup`
+  creates the contact at `registered` (stage history shows it). Leads added by hand/imported stay in the Lead pool; a repeat
+  submission by a diver still at Lead saves the AAU number and moves them to Registered. The photo release/waiver is signed later via
+  the follow-up link and no longer gates Registered for web sign-ups (the v63 trigger still moves hand-added leads once they have an AAU number AND a signed release).
 - Follow-up form (supabase-migration-v61.sql, followup.html at /followup?t=<token>): a coach clicks "Copy follow-up link" on the
   contact page (`crm_followup_link` RPC, coach-only, creates a 64-hex `crm_leads.followup_token` on first use). The family opens
   the link (no login), enters the AAU number (required unless already on file), and signs the combined photo release / accident waiver / release of

@@ -70,6 +70,7 @@ exports.handler = async (event) => {
     prior_diving_experience:     str(d.prior_diving_experience, 40),
     prior_gymnastics_experience: str(d.prior_gymnastics_experience, 40),
     diving_location:  str(d.diving_location, 160),
+    aau_number:       str(d.aau_number, 60),
     participates_in_competitions: str(d.participates_in_competitions, 5).toLowerCase(),
     source:           str(d.source, 100),
     referred_by:      str(d.referred_by, 160),
@@ -85,6 +86,7 @@ exports.handler = async (event) => {
   if (!row.parent_phone) missing.push('a phone number');
   if (!row.emergency_contact_name) missing.push('an emergency contact name');
   if (!row.emergency_contact_phone) missing.push('an emergency contact phone number');
+  if (!row.aau_number) missing.push('the AAU membership number');
   if (missing.length) {
     return json(400, { success: false, error: `Please enter ${missing.join(', ')}.` });
   }
@@ -140,10 +142,10 @@ exports.handler = async (event) => {
     }
     let result = null;
     try { result = JSON.parse(await res.text()); } catch { result = null; }
-    if (result && result.created === true) {
+    if (result && (result.created === true || result.registered === true)) {
       await notifyCoach({
-        subject: `New sign-up: ${row.first_name} ${row.last_name} (Upstate Diving CRM)`,
-        heading: 'New sign-up',
+        subject: `${result.created ? 'New sign-up' : 'Registered'}: ${row.first_name} ${row.last_name} (Upstate Diving CRM)`,
+        heading: result.created ? 'New sign-up' : 'Registered',
         leadId: result.lead_id,
         replyTo: row.parent_email,
         rows: [
@@ -152,12 +154,13 @@ exports.handler = async (event) => {
           ['Email', row.parent_email],
           ['Phone', row.parent_phone],
           ['Diving location', row.diving_location],
+          ['AAU number', row.aau_number],
           ['Found us through', row.source],
         ],
       });
       // The family's confirmation email (any enabled "after sign-up" template);
       // the 10-minute scheduler retries it if this attempt fails.
-      await processDue({ leadId: result.lead_id });
+      if (result.created) await processDue({ leadId: result.lead_id });
     }
     return json(200, { success: true });
   } catch (err) {
