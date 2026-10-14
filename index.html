@@ -88,16 +88,15 @@
     }
 
     /* ---- Cards ---- */
-    /* 3 + 2 + 2 layout on a 6-track grid: every card spans 2 tracks, and the
-       paired cards in rows 2 and 3 start at tracks 2 and 4 so they sit centered. */
+    /* 4 + 3 layout on an 8-track grid: every card spans 2 tracks, and the
+       second row starts at track 2 so its three cards sit centered. */
     .grid {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(8, minmax(0, 1fr));
       gap: 22px;
     }
     .grid > .card { grid-column: span 2; }
-    .grid > .card:nth-child(n+4):nth-child(even) { grid-column: 2 / span 2; }
-    .grid > .card:nth-child(n+5):nth-child(odd) { grid-column: 4 / span 2; }
+    .grid > .card:nth-child(5) { grid-column: 2 / span 2; }
     .card {
       --accent: var(--teal);
       position: relative;
@@ -233,10 +232,36 @@
       .hero { margin-bottom: 36px; }
       .grid { grid-template-columns: 1fr; gap: 18px; }
       .grid > .card,
-      .grid > .card:nth-child(n+4):nth-child(even),
-      .grid > .card:nth-child(n+5):nth-child(odd) { grid-column: auto; }
+      .grid > .card:nth-child(5) { grid-column: auto; }
       .card { padding: 28px 22px 22px; }
       footer { padding: 0 16px 28px; }
+    }
+    /* Compact desktop cards so all seven fit above the fold on a 1366x768 laptop. */
+    @media (min-width: 761px) {
+      .wrap { max-width: 1100px; padding: 36px 24px 20px; }
+      .hero { margin-bottom: 28px; }
+      .wordmark { font-size: clamp(2.2rem, 5vw, 2.8rem); }
+      .tagline { margin-top: 8px; font-size: 1.05rem; }
+      .subtitle { margin-top: 2px; }
+      .grid { gap: 16px; }
+      .card { padding: 20px; border-radius: 16px; }
+      .card::before { left: 20px; right: 20px; }
+      .icon { width: 44px; height: 44px; font-size: 1.5rem; border-radius: 12px; margin-bottom: 10px; }
+      .name { font-size: 1.1rem; }
+      .app-sub { font-size: .72rem; }
+      .desc {
+        font-size: .8rem;
+        line-height: 1.35;
+        margin: 8px 0 14px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .btn { padding: 8px 14px; font-size: .85rem; border-radius: 10px; }
+      .badge { top: 14px; right: 14px; font-size: .6rem; padding: 4px 8px; }
+      footer { max-width: 1100px; padding: 0 24px 20px; }
+      .divider { margin-bottom: 12px; }
     }
     @media (prefers-reduced-motion: reduce) {
       .card, .btn { transition: none; }
@@ -312,7 +337,7 @@
       <span class="badge soon">Coming Soon</span>
       <div class="icon" aria-hidden="true">🎯</div>
       <h2 class="name">DiveManager</h2>
-      <div class="app-sub">Club Management</div>
+      <div class="app-sub">Client Relationships</div>
       <p class="desc">Set and track club goals using OKR, KPI and TQM frameworks to drive performance and growth.</p>
       <button class="btn" type="button" disabled>Coming Soon</button>
     </article>
