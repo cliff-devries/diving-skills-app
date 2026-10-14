@@ -712,7 +712,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=43"></script>
+<script src="js/supabase.js?v=44"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -1121,8 +1121,8 @@ function localDateStr(d) {
 // Anything that is not one of the standard choices (or Web Form / Email / Phone)
 // is shown as "Referral"; the original text stays in the database.
 const SOURCE_COLOR_MAP = {
-  'Internet search': '#2196F3', 'Friend or family': '#4CAF50', 'Social media': '#9C27B0',
-  'School': '#FF9800', 'Event or meet': '#00BCD4', 'Other': '#9E9E9E', 'Referral': '#E91E63',
+  'Internet search': '#2196F3', 'Friend or family': '#E91E63', 'Social media': '#9C27B0',
+  'School': '#FF9800', 'Event or meet': '#00BCD4', 'Other': '#9E9E9E', 'Referral': '#4CAF50',
   'Web Form': '#607D8B', 'Email': '#795548', 'Phone': '#3F51B5',
 };
 const SOURCE_CATEGORIES = Object.keys(SOURCE_COLOR_MAP);
@@ -1669,6 +1669,9 @@ function leftPanelReadHtml(l) {
       ${infoRow('Signed up', esc(fmtStamp(l.signed_up_at)))}
       ${infoRow('How they found us', esc(l.source ? sourceLabel(l) : ''))}
       ${infoRow('Referred by', esc(l.referred_by || ''))}
+      ${infoRow('Photo release & waiver', l.release_signed_at
+        ? `✅ Signed by ${esc(l.release_signed_name || '')} · ${esc(fmtStamp(l.release_signed_at))}`
+        : '<span class="text-secondary">Not signed</span>')}
       ${infoRow('Campaign', esc(l.campaign || ''))}
       ${infoRow('Assigned coach', coach ? esc(coach.full_name || coach.email) : '')}
       ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
@@ -1680,33 +1683,10 @@ function leftPanelReadHtml(l) {
       <div class="text-secondary text-sm" style="margin-bottom:8px">${c.email ? 'Goes to ' + esc(c.email) : 'This contact has no parent email address yet.'}</div>
       <button class="btn btn-secondary btn-sm" onclick="openSendEmail('${l.id}')" ${c.email ? '' : 'disabled'}>✉️ Send email</button>
     </div>
-    <div class="ld-card">
-      <div class="ld-card-title">Follow-up form</div>
-      ${infoRow('Photo release & waiver', l.release_signed_at
-        ? `✅ Signed by ${esc(l.release_signed_name || '')}<div class="text-secondary text-sm">${esc(fmtStamp(l.release_signed_at))}</div>`
-        : '<span class="text-secondary">Not signed</span>')}
-      <div class="text-secondary text-sm" style="margin:6px 0 8px">Private link for the family to enter the AAU number and sign the photo release &amp; waiver.</div>
-      <button class="btn btn-secondary btn-sm" onclick="copyFollowupLink('${l.id}')">🔗 Copy follow-up link</button>
-    </div>
     <div class="flex gap-2" style="flex-wrap:wrap">
       ${l.converted_diver_id || l.stage === 'graduated' ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
       ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}
     </div>`;
-}
-
-async function copyFollowupLink(leadId) {
-  try {
-    const token = await SupabaseDB.crmGetFollowupLink(leadId);
-    const url = location.origin + '/followup?t=' + token;
-    try {
-      await navigator.clipboard.writeText(url);
-      App.showToast('Follow-up link copied');
-    } catch {
-      window.prompt('Copy this follow-up link:', url);
-    }
-  } catch (err) {
-    App.showToast(err.message, 'error');
-  }
 }
 
 function leftPanelEditHtml(l) {
@@ -2364,7 +2344,7 @@ let emailLog = [];
 const EMAIL_TAGS = [
   ['parent_first_name', "Parent's first name"], ['parent_name', "Parent's full name"],
   ['diver_first_name', "Diver's first name"], ['diver_name', "Diver's full name"],
-  ['diving_location', 'Diving location'], ['trial_date', 'Trial date'], ['followup_link', 'Registration link'],
+  ['diving_location', 'Diving location'], ['trial_date', 'Trial date'], ['followup_link', 'Sign-up form link'],
 ];
 
 async function loadEmailTemplates() {

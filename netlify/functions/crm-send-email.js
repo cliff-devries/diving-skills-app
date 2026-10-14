@@ -74,7 +74,7 @@ exports.handler = async (event) => {
 
     if (action === 'test') {
       if (!p.coach_email) return json(400, { success: false, error: 'Your profile has no email address.' });
-      const vars = Object.assign({}, SAMPLE, { followup_link: `${siteUrl()}/followup?t=SAMPLE-LINK-NOT-ACTIVE` });
+      const vars = Object.assign({}, SAMPLE, { followup_link: `${siteUrl()}/signup` });
       const r = await sendEmail({ to: p.coach_email, subject: `[TEST] ${render(t.subject, vars)}`, text: render(t.body, vars), diver: 'Sam' });
       return r.ok ? json(200, { success: true, sent_to: p.coach_email })
         : json(502, { success: false, error: 'The email service refused it. ' + r.error });

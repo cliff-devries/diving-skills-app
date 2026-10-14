@@ -17,7 +17,6 @@ bumped across ALL HTML files before pushing to GitHub.
 ### HTML files to update (ALL of them):
 - index.html (DiveCentral hub — self-contained, loads no project JS/CSS; nothing to bump)
 - signup.html (public sign-up form — self-contained, loads no project JS/CSS; nothing to bump)
-- followup.html (private follow-up form, opened at /followup?t=<token> — self-contained, loads no project JS/CSS; nothing to bump)
 - login.html (sign-in page — auth.js redirects here)
 - dashboard.html
 - skills.html
@@ -66,7 +65,7 @@ This has caused repeated bugs throughout development.
 | File | Version |
 |------|---------|
 | js/app.js | v=13 |
-| js/supabase.js | v=43 |
+| js/supabase.js | v=44 |
 | js/auth.js | v=4 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
@@ -138,23 +137,15 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
 - Sign-up registers on the spot (supabase-migration-v69.sql + v70): the public form REQUIRES the AAU membership number AND the signed photo
   release/waiver (typed-name signature, text from `lib/release.js` fetched via GET on crm-signup; stored in `crm_consents` like the follow-up form),
   and `crm_public_signup` creates the contact at `registered` (stage history shows it). Registered = info form + AAU + signed release. Leads added by hand/imported stay in the Lead pool; a repeat
-  submission by a diver still at Lead saves the AAU number and moves them to Registered. The follow-up link remains for hand-added leads (the v63 trigger moves them once they have an AAU number AND a signed release).
-- Follow-up form (supabase-migration-v61.sql, followup.html at /followup?t=<token>): a coach clicks "Copy follow-up link" on the
-  contact page (`crm_followup_link` RPC, coach-only, creates a 64-hex `crm_leads.followup_token` on first use). The family opens
-  the link (no login), enters the AAU number (required unless already on file), and signs the combined photo release / accident waiver / release of
-  liability by ticking the box and typing their name. `netlify/functions/crm-followup.js` calls `crm_followup_get` /
-  `crm_followup_submit` (service_role ONLY). The signed agreement is stored in `crm_consents` (exact text shown, version,
-  typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`; a timeline note is logged. Signs once only.
-  The AAU number is REQUIRED (no one is allowed on deck without it) but it does not matter who entered it: a number a coach
-  typed into the CRM satisfies the form (`crm_followup_get` returns `has_aau`, yes/no only — v63). A contact still at `lead` moves
-  to `registered` once it has both an AAU number and a signed release, whichever order and whoever supplied the number: the
-  `crm_leads_auto_register` trigger (v63; v62 first did it inside `crm_followup_submit`) handles it. Other stages are never
-  touched; the move shows in Stage History.
-  The agreement wording and its version label live in `netlify/functions/lib/release.js` — never reword it; to change it,
-  edit the text AND bump `VERSION` so past signatures keep the text that was actually shown.
+  submission by a diver still at Lead saves the AAU number and moves them to Registered. 
+- The private follow-up form was retired (supabase-migration-v71.sql): the public sign-up form collects everything, and the follow-up page/function,
+  `crm_followup_*` RPCs and `crm_leads.followup_token` are gone. Agreement wording and version live in `netlify/functions/lib/release.js` — never
+  reword it; to change it, edit the text AND bump `VERSION` so past signatures keep the text that was actually shown. Signed releases are in
+  `crm_consents` (exact text, version, typed name, time, IP, user-agent) and `crm_leads.release_signed_at/name`. A hand-added lead completes
+  registration by submitting the sign-up form (matched by parent email + diver name); the `crm_leads_auto_register` trigger (v63) still moves a
+  Lead to Registered once it has an AAU number AND a signed release. `{{followup_link}}` in an email template now just fills in the sign-up form URL.
 - Coach notification emails (supabase-migration-v64.sql, `netlify/functions/lib/notify.js`): `crm-signup.js` emails
-  cliff@upstatediving.com "New sign-up: <diver>" for a NEW lead only (a repeat submission sends nothing), and `crm-followup.js`
-  emails "Registration complete: <diver>" when that submission moved the contact from Lead to Registered. Sent through Brevo
+  cliff@upstatediving.com "New sign-up: <diver>" for a NEW lead only (a repeat submission sends nothing), (a repeat submission that moves a Lead to Registered emails "Registered: <diver>"). Sent through Brevo
   (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL` must be a verified sender; optional `NOTIFY_EMAIL` overrides the recipient). A failed
   email never fails the sign-up. Emails carry only name/parent contact/location/source — never medical, allergy or release text.
 - Emails tab (supabase-migration-v65.sql; `#emails` in crm.html): coaches write/edit templates (`crm_email_templates`: subject,
@@ -167,7 +158,7 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   `NOTIFY_EMAIL`); `crm-email-scheduler.js` runs every 10 min (schedule in netlify.toml, production deploy only);
   `crm-signup.js` sends the "Sign-up confirmation" at once; `crm-send-email.js` handles preview/test/send for a coach, proving
   coach status by calling `crm_email_prepare` with the coach's own login (needs `SUPABASE_ANON_KEY`). `crm_email_due`,
-  `crm_email_record`, `crm_followup_token` are service_role ONLY. Sends are logged on the contact's timeline (kind `email`) and
+  `crm_email_record` are service_role ONLY. Sends are logged on the contact's timeline (kind `email`) and
   in the Recent sends list. Every email carries a footer saying replying stops them.
   A `[[marker]]` in a template means "still to fill in" (a missing link or per-family blank): nothing containing one is ever
   sent (manual send is refused until edited, automatic can't be enabled, the scheduler skips it). The Send email box lets the
@@ -181,7 +172,7 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
   parent's FIRST name, `last_name` the last). A nameless diver shows as "<parent> (parent)" via `leadName`, emails say "your diver", and
   Convert to Diver asks for the diver's first name first. Prior diving/gymnastics experience are selects: None / Some Training /
   Extensive Training (legacy free text still shows as an extra option when editing).
-- Public pages (signup.html, followup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
+- Public page (signup.html) use the brand colors #020202 / #707070 and the Eras BQ title font
   (`assets/fonts/ErasBQ-Regular.woff2/.woff` if the font file is added; falls back to similar system fonts).
 - All CRM DB calls are `SupabaseDB.crm*` methods in `js/supabase.js`. Pure helpers (CSV parse, header mapping, funnel math)
   sit between the `CRM-PURE-START` / `CRM-PURE-END` markers in crm.html and are unit-tested in Node.

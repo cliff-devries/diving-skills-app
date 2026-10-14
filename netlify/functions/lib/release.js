@@ -1,6 +1,6 @@
 // Combined photo release, accident waiver and release of liability, exactly as
-// supplied by Upstate Diving. Do not reword it here: the follow-up page shows
-// this text and crm_followup_submit stores a copy of it with every signature.
+// supplied by Upstate Diving. Do not reword it here: the sign-up page shows
+// this text and crm_public_signup stores a copy of it with every signature.
 // If the wording ever changes, change VERSION too so old signatures keep the
 // text they actually agreed to.
 

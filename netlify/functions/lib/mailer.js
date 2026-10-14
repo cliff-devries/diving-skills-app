@@ -34,7 +34,7 @@ function render(text, vars) {
 
 function varsFor(row) {
   const v = Object.assign({}, row);
-  v.followup_link = row.followup_token ? `${siteUrl()}/followup?t=${row.followup_token}` : '';
+  v.followup_link = `${siteUrl()}/signup`;
   return v;
 }
 
@@ -116,9 +116,6 @@ async function processDue({ leadId } = {}) {
             row.do_not_contact ? 'Contact is marked do not contact' : 'No email address', true);
           out.skipped++;
           continue;
-        }
-        if (/\{\{\s*followup_link\s*\}\}/.test(row.subject + row.body) && !row.followup_token) {
-          row.followup_token = await serviceRpc('crm_followup_token', { p_lead_id: row.lead_id });
         }
         const vars = varsFor(row);
         const subject = render(row.subject, vars);

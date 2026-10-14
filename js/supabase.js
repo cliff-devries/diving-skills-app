@@ -1349,14 +1349,6 @@ const SupabaseDB = {
     return data;
   },
 
-  // Private follow-up link token for a lead (AAU number + photo release);
-  // created on first call (migration v61).
-  async crmGetFollowupLink(leadId) {
-    const { data, error } = await this.db.rpc('crm_followup_link', { p_lead_id: leadId });
-    if (error) throw new Error(error.message);
-    return data;
-  },
-
   async crmGetActivities(leadId) {
     const { data, error } = await this.db
       .from('crm_activities')
