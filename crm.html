@@ -556,8 +556,8 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Source</label>
-        <input type="text" id="a-source" class="form-input" list="dl-source" placeholder="Web Form, Email, Phone, Referral…" autocomplete="off">
+        <label class="form-label">How did you find Upstate Diving?</label>
+        <select id="a-source" class="form-select"><option value=""></option><option value="Internet search">Internet search</option><option value="Friend or family">Friend or family</option><option value="Social media">Social media</option><option value="School">School</option><option value="Event or meet">Event or meet</option><option value="Other">Other</option></select>
       </div>
       <div class="form-group">
         <label class="form-label">Referred by</label>
@@ -1013,6 +1013,12 @@ function leadName(l) {
   const c = l.contact || {};
   const p = [c.full_name, c.last_name].filter(Boolean).join(' ').trim();
   return p ? `${p} (parent)` : 'Unnamed lead';
+}
+const SOURCE_CHOICES = ['Internet search', 'Friend or family', 'Social media', 'School', 'Event or meet', 'Other'];
+function sourceOptions(cur) {
+  const extra = cur && !SOURCE_CHOICES.includes(cur) ? [cur] : [];
+  return `<option value=""></option>` + [...SOURCE_CHOICES, ...extra]
+    .map(o => `<option value="${esc(o)}" ${cur === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
 }
 const EXPERIENCE_LEVELS = ['None', 'Some Training', 'Extensive Training'];
 function expOptions(cur) {
@@ -1726,7 +1732,7 @@ function leftPanelEditHtml(l) {
       <div class="form-group"><label class="form-label">Sign up timestamp</label><input type="datetime-local" id="lf-signup" class="form-input" value="${esc(toLocalInput(l.signed_up_at))}"></div>
       <div class="form-group"><label class="form-label">Referred by</label><input id="lf-referred" class="form-input" value="${esc(l.referred_by)}"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Source (how they found us)</label><input id="lf-source" class="form-input" list="dl-source" value="${esc(l.source)}"></div>
+        <div class="form-group"><label class="form-label">How did you find Upstate Diving?</label><select id="lf-source" class="form-select">${sourceOptions(l.source)}</select></div>
         <div class="form-group"><label class="form-label">Campaign</label><input id="lf-campaign" class="form-input" list="dl-campaign" value="${esc(l.campaign)}"></div>
       </div>
       <div class="form-group"><label class="form-label">Assigned coach</label><select id="lf-coach" class="form-select">${coachOpts}</select></div>
