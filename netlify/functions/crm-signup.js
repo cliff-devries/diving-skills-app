@@ -92,7 +92,6 @@ exports.handler = async (event) => {
   if (!row.emergency_contact_name) missing.push('an emergency contact name');
   if (!row.emergency_contact_phone) missing.push('an emergency contact phone number');
   if (!row.aau_number) missing.push('the AAU membership number');
-  const signedName = str(d.signed_name, 160);
   if (missing.length) {
     return json(400, { success: false, error: `Please enter ${missing.join(', ')}.` });
   }
