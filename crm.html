@@ -129,6 +129,8 @@
       border-bottom: 1px solid var(--border);
     }
     .kb-col-name { font-weight: 800; font-size: 0.92rem; color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .kb-col-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; text-align: left; cursor: pointer; }
+    .kb-col-link:hover { text-decoration: underline; }
     .kb-count {
       min-width: 22px; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 10px;
       color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
@@ -1159,7 +1161,7 @@ function kanbanCardHtml(l, today, color) {
     follow = `<span class="kb-follow ${overdue ? 'overdue' : isToday ? 'today' : ''}">${overdue ? '⚠️' : '📅'} ${isToday ? 'Today' : esc(fmtDay(l.follow_up_date))}</span>`;
   }
   return `
-    <button class="kb-card" style="--c:${color}" onclick="openLead('${l.id}')">
+    <button class="kb-card" style="--c:${color}" onclick="openKbLead('${l.id}')">
       <div class="kb-card-top">
         <div class="kb-card-name"><span class="kb-label">Parent:</span> ${c.full_name ? esc(c.full_name) : '<span class="kb-none">—</span>'}</div>
         ${initials ? `<span class="kb-avatar" title="${esc(coachName)}">${esc(initials)}</span>` : ''}
@@ -1173,18 +1175,37 @@ function kanbanCardHtml(l, today, color) {
     </button>`;
 }
 
+const kbOrder = {};
+// Previous/Next on the contact page then walks only this column.
+function openKbLead(id) {
+  const l = findLead(id);
+  if (l && kbOrder[l.stage]) leadNavIds = kbOrder[l.stage].map(x => x.id);
+  openLead(id);
+}
+
+function openStageList(key) {
+  Object.assign(filters, { search: '', stage: key, source: '', campaign: '', coach: '', due: false, archived: ARCHIVED_STAGES.has(key) });
+  document.getElementById('f-search').value = '';
+  ['f-source', 'f-campaign', 'f-coach'].forEach(id => { document.getElementById(id).value = ''; });
+  syncControlValues();
+  visibleCount = 100;
+  renderList();
+  goToView('leads');
+}
+
 function renderDashboard() {
   const today = todayLocal();
   renderKanbanStats(today);
   document.getElementById('kb-board').innerHTML = KANBAN.map((col, i) => {
     const items = leads.filter(l => l.stage === col.key);
+    kbOrder[col.key] = items;
     if (col.key === 'lead' || col.key === 'registered' || col.key === 'trial_completed') {
       items.sort((a, b) => (a.follow_up_date || '9999-12-31').localeCompare(b.follow_up_date || '9999-12-31'));
     }
     return `
       <div class="kb-col ${i === kbIndex ? 'is-current' : ''}" style="--c:${col.color}" data-col="${i}">
         <div class="kb-col-head">
-          <span class="kb-col-name" title="${esc(col.label)}">${esc(col.label)}</span>
+          <button class="kb-col-name kb-col-link" onclick="openStageList('${col.key}')" title="Show all ${esc(col.label)} contacts">${esc(col.label)}</button>
           <span class="kb-count">${items.length}</span>
           ${KANBAN_ADDABLE.has(col.key) ? `<button class="kb-add" onclick="openAdd('${col.key}')" title="Add a lead to ${esc(col.label)}">+ Add</button>` : ''}
         </div>
@@ -1200,7 +1221,7 @@ function updateKanbanMobileNav() {
   const col = KANBAN[kbIndex];
   const count = leads.filter(l => l.stage === col.key).length;
   document.getElementById('kb-mobile-title').innerHTML =
-    `<span style="color:${col.color}">${esc(col.label)}</span> <span class="text-secondary text-sm">(${kbIndex + 1} of ${KANBAN.length}) · ${count}</span>`;
+    `<a href="javascript:void(0)" onclick="openStageList('${col.key}')" style="color:${col.color};text-decoration:underline">${esc(col.label)}</a> <span class="text-secondary text-sm">(${kbIndex + 1} of ${KANBAN.length}) · ${count}</span>`;
   document.getElementById('kb-prev').disabled = kbIndex === 0;
   document.getElementById('kb-next').disabled = kbIndex === KANBAN.length - 1;
 }
