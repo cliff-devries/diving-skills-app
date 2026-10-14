@@ -922,14 +922,6 @@ function csvCell(v) {
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
-function nextStageAction(lead) {
-  if (lead.converted_diver_id) return null;
-  if (lead.stage === 'lead')            return { to: 'registered',      label: 'Mark Registered' };
-  if (lead.stage === 'registered')      return { to: 'trial_completed', label: 'Trial Completed' };
-  if (lead.stage === 'trial_completed') return { to: 'member',          label: 'Make Member →' };
-  return null;
-}
-
 // Stages a lead may be moved to from the picker.
 function allowedStages(lead) {
   return lead.converted_diver_id
@@ -1363,7 +1355,6 @@ function showMore() { visibleCount += 100; renderList(); }
 
 function rowHtml(l, today) {
   const c = l.contact || {};
-  const next = nextStageAction(l);
   const due = isFollowUpDue(l, today);
   const bits = [];
   if (c.full_name) bits.push(`<span>👤 ${esc(c.full_name)}</span>`);
@@ -1382,18 +1373,10 @@ function rowHtml(l, today) {
         ${bits.length ? `<div class="crm-meta">${bits.join('')}</div>` : ''}
         ${meta2.length ? `<div class="crm-meta">${meta2.join('')}</div>` : ''}
       </div>
-      ${next ? `<div class="crm-row-actions"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();quickAdvance('${l.id}')">${esc(next.label)}</button></div>` : ''}
     </div>`;
 }
 
 /* ---------- stage changes ---------- */
-
-async function quickAdvance(id) {
-  const l = findLead(id);
-  const next = l && nextStageAction(l);
-  if (!next) return;
-  await changeStage(id, next.to);
-}
 
 async function changeStage(id, to) {
   const l = findLead(id);
