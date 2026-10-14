@@ -1008,6 +1008,10 @@ function toLocalInput(s) {
 
 function multiline(s) { return s ? `<span style="white-space:pre-wrap">${esc(s)}</span>` : ''; }
 
+function parentFullName(c) {
+  const f = (c.full_name || '').trim(), l = (c.last_name || '').trim();
+  return l && !f.toLowerCase().includes(l.toLowerCase()) ? `${f} ${l}`.trim() : (f || l);
+}
 function leadName(l) {
   const d = [l.first_name, l.last_name].filter(Boolean).join(' ');
   if (d) return d;
@@ -1637,11 +1641,10 @@ function leftPanelReadHtml(l) {
   return `
     <div class="ld-card">
       <div class="ld-card-title">Parent / contact</div>
-      <div class="ld-contact-name">${c.full_name ? esc(c.full_name) : '<span class="text-secondary">No contact yet</span>'}</div>
+      <div class="ld-contact-name">${parentFullName(c) ? esc(parentFullName(c)) : '<span class="text-secondary">No contact yet</span>'}</div>
       ${c.relationship ? `<div class="text-secondary text-sm">${esc(c.relationship)}</div>` : ''}
       ${infoRow('Email', c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '')}
       ${infoRow('Phone', c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '')}
-      ${infoRow('Last name', esc(c.last_name || ''))}
       ${infoRow('Street address', esc(c.street_address || ''))}
       ${infoRow('City or town', esc(c.city || ''))}
       ${infoRow('Zip code', esc(c.zip_code || ''))}
