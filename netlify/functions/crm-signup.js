@@ -89,6 +89,9 @@ exports.handler = async (event) => {
   if (!row.parent_last_name) missing.push('the parent/guardian last name');
   if (!row.parent_email) missing.push('an email address');
   if (!row.parent_phone) missing.push('a phone number');
+  if (!row.street_address) missing.push('a street address');
+  if (!row.city) missing.push('a city or town');
+  if (!row.zip_code) missing.push('a zip code');
   if (!row.emergency_contact_name) missing.push('an emergency contact name');
   if (!row.emergency_contact_phone) missing.push('an emergency contact phone number');
   if (!row.aau_number) missing.push('the AAU membership number');

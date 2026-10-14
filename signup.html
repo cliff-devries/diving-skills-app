@@ -182,18 +182,19 @@
 
     <fieldset>
       <legend>Address</legend>
-      <div class="field"><label for="street_address">Street address</label>
-        <input type="text" id="street_address" name="street_address" autocomplete="street-address" maxlength="200"></div>
+      <div class="field"><label for="street_address">Street address <span class="req">*</span></label>
+        <input type="text" id="street_address" name="street_address" autocomplete="street-address" maxlength="200" required></div>
       <div class="row">
-        <div class="field"><label for="city">City or town</label>
-          <input type="text" id="city" name="city" autocomplete="address-level2" maxlength="100"></div>
-        <div class="field"><label for="zip_code">Zip code</label>
-          <input type="text" id="zip_code" name="zip_code" autocomplete="postal-code" inputmode="numeric" maxlength="20"></div>
+        <div class="field"><label for="city">City or town <span class="req">*</span></label>
+          <input type="text" id="city" name="city" autocomplete="address-level2" maxlength="100" required></div>
+        <div class="field"><label for="zip_code">Zip code <span class="req">*</span></label>
+          <input type="text" id="zip_code" name="zip_code" autocomplete="postal-code" inputmode="numeric" maxlength="20" required></div>
       </div>
     </fieldset>
 
     <fieldset>
       <legend>Emergency contact</legend>
+      <p class="privacy" style="margin-top:0">Must be different than the parent or guardian listed above.</p>
       <div class="row">
         <div class="field"><label for="emergency_contact_name">Name <span class="req">*</span></label>
           <input type="text" id="emergency_contact_name" name="emergency_contact_name" autocomplete="off" maxlength="160" required></div>
