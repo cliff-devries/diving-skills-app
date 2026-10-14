@@ -124,6 +124,10 @@
     .done h2 { margin: 0 0 8px; font-family: var(--title-font); font-weight: 400; color: var(--text); }
     .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
     @media (max-width: 520px) { .row { grid-template-columns: 1fr; gap: 0; } }
+      .agreement { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 0.86rem; line-height: 1.55; background: #fafafa; margin-bottom: 14px; }
+    .agree-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+    .agree-row input { width: 22px; height: 22px; margin: 2px 0 0; flex: none; accent-color: var(--accent); }
+    .agree-row label { font-weight: 600; margin: 0; }
   </style>
 </head>
 <body>
@@ -254,6 +258,18 @@
         <input type="text" id="referred_by" name="referred_by" autocomplete="off" maxlength="160"></div>
     </fieldset>
 
+    <fieldset>
+      <legend>Photo release, accident waiver and release of liability</legend>
+      <div class="agreement" id="release-text" tabindex="0" role="region" aria-label="Photo release, accident waiver and release of liability">Loading…</div>
+      <div class="agree-row">
+        <input type="checkbox" id="agree" name="agree">
+        <label for="agree">I have read and agree to the photo release, accident waiver and release of liability above. <span class="req">*</span></label>
+      </div>
+      <div class="field"><label for="signed_name">Type your full name to sign <span class="req">*</span></label>
+        <input type="text" id="signed_name" name="signed_name" autocomplete="name" maxlength="160"></div>
+      <p class="privacy">Typing your name is your electronic signature. The date and time are recorded with it.</p>
+    </fieldset>
+
     <div class="trap" aria-hidden="true">
       <label for="website">Leave this field empty</label>
       <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
@@ -274,6 +290,12 @@
   var form = document.getElementById('signup-form');
   var errBox = document.getElementById('form-error');
   var btn = document.getElementById('submit-btn');
+
+  var releaseLoaded = false;
+  fetch('/.netlify/functions/crm-signup').then(function (r) { return r.json(); }).then(function (b) {
+    if (b && b.release_text) { document.getElementById('release-text').textContent = b.release_text; releaseLoaded = true; }
+    else { document.getElementById('release-text').textContent = 'We could not load the agreement. Please reload this page.'; }
+  }).catch(function () { document.getElementById('release-text').textContent = 'We could not load the agreement. Please reload this page.'; });
 
   function showError(msg) {
     errBox.textContent = msg;
@@ -300,8 +322,13 @@
       return;
     }
 
+    if (!releaseLoaded) { showError('The photo release is still loading. Please wait a moment and try again.'); return; }
+    if (!document.getElementById('agree').checked) { document.getElementById('agree').focus(); showError('Please tick the box to confirm you agree to the photo release and waiver.'); return; }
+    if (document.getElementById('signed_name').value.trim().length < 2) { document.getElementById('signed_name').focus(); showError('Please type your full name to sign.'); return; }
+
     var data = {};
     new FormData(form).forEach(function (v, k) { data[k] = v; });
+    data.agree = true;
     data.loaded_at = loadedAt;
 
     btn.disabled = true;

@@ -14,6 +14,7 @@
 
 const { notifyCoach } = require('./lib/notify.js');
 const { processDue } = require('./lib/mailer.js');
+const { VERSION, TEXT } = require('./lib/release.js');
 
 const MIN_FILL_MS = 4000;
 const MAX_BODY = 30000;
@@ -27,6 +28,9 @@ const json = (statusCode, body) => ({
 const str = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 
 exports.handler = async (event) => {
+  if (event.httpMethod === 'GET') {
+    return json(200, { success: true, release_version: VERSION, release_text: TEXT });
+  }
   if (event.httpMethod !== 'POST') {
     return json(405, { success: false, error: 'Method not allowed.' });
   }
@@ -76,6 +80,7 @@ exports.handler = async (event) => {
     referred_by:      str(d.referred_by, 160),
   };
 
+  const signedName = str(d.signed_name, 160);
   const missing = [];
   if (!row.first_name) missing.push("the diver's first name");
   if (!row.last_name) missing.push("the diver's last name");
@@ -87,8 +92,16 @@ exports.handler = async (event) => {
   if (!row.emergency_contact_name) missing.push('an emergency contact name');
   if (!row.emergency_contact_phone) missing.push('an emergency contact phone number');
   if (!row.aau_number) missing.push('the AAU membership number');
+  const signedName = str(d.signed_name, 160);
   if (missing.length) {
     return json(400, { success: false, error: `Please enter ${missing.join(', ')}.` });
+  }
+
+  if (d.agree !== true) {
+    return json(400, { success: false, error: 'Please tick the box to agree to the photo release and waiver.' });
+  }
+  if (signedName.length < 2) {
+    return json(400, { success: false, error: 'Please type your full name to sign the photo release and waiver.' });
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.parent_email)) {
@@ -130,7 +143,14 @@ exports.handler = async (event) => {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ p: row }),
+      body: JSON.stringify({ p: Object.assign({}, row, {
+        signed_name: signedName,
+        release_version: VERSION,
+        release_text: TEXT,
+        ip: str((event.headers || {})['x-nf-client-connection-ip'] ||
+          String((event.headers || {})['x-forwarded-for'] || '').split(',')[0], 64),
+        ua: str((event.headers || {})['user-agent'], 400),
+      }) }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
