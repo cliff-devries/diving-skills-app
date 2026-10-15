@@ -86,6 +86,10 @@
     .dcrm-wordmark { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; text-decoration: none; }
     .dcrm-wordmark .dive { color: var(--text-primary); }
     .dcrm-wordmark .crm  { color: var(--accent); }
+    .dcrm-wordmark .dive, .dcrm-wordmark .crm { transition: color .15s; }
+    .dcrm-wordmark:hover { text-decoration: none; }
+    .dcrm-wordmark:hover .dive { color: color-mix(in srgb, var(--text-primary) 70%, white); }
+    .dcrm-wordmark:hover .crm  { color: color-mix(in srgb, var(--accent) 70%, white); }
     .dcrm-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .dcrm-coach { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dcrm-tabs { max-width: var(--dcrm-max); margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; overflow-x: auto; }
@@ -129,7 +133,8 @@
     }
     .kb-col-name { font-weight: 800; font-size: 0.92rem; color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .kb-col-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; text-align: left; cursor: pointer; }
-    .kb-col-link:hover { text-decoration: underline; }
+    .kb-col-link { color: var(--c); transition: color .15s; }
+    .kb-col-link:hover { color: color-mix(in srgb, var(--c) 70%, white); text-decoration: none; }
     .kb-count {
       min-width: 22px; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 10px;
       color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
@@ -1240,7 +1245,7 @@ function updateKanbanMobileNav() {
   const col = KANBAN[kbIndex];
   const count = leads.filter(l => l.stage === col.key).length;
   document.getElementById('kb-mobile-title').innerHTML =
-    `<a href="javascript:void(0)" onclick="openStageList('${col.key}')" style="color:${col.color};text-decoration:underline">${esc(col.label)}</a> <span class="text-secondary text-sm">(${kbIndex + 1} of ${KANBAN.length}) · ${count}</span>`;
+    `<button class="kb-col-link" style="--c:${col.color}" onclick="openStageList('${col.key}')">${esc(col.label)}</button> <span class="text-secondary text-sm">(${kbIndex + 1} of ${KANBAN.length}) · ${count}</span>`;
   document.getElementById('kb-prev').disabled = kbIndex === 0;
   document.getElementById('kb-next').disabled = kbIndex === KANBAN.length - 1;
 }
