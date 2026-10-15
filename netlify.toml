@@ -45,8 +45,9 @@
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
-# Bare domain → index.html, the public DiveCentral hub. The sign-in page
-# lives at login.html (js/auth.js redirects signed-out users there).
+# Bare domain → index.html, the public DiveCentral splash (Sign In button only).
+# The coach-only app hub is hub.html; signed-out users on any protected page
+# go to login.html?redirect=<page> (js/auth.js) and come back after sign-in.
 [[redirects]]
   from   = "/"
   to     = "/index.html"

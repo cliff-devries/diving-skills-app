@@ -15,7 +15,8 @@ bumped across ALL HTML files before pushing to GitHub.
 - `css/styles.css?v=X` — bump when styles.css changes
 
 ### HTML files to update (ALL of them):
-- index.html (DiveCentral hub — self-contained, loads no project JS/CSS; nothing to bump)
+- index.html (public DiveCentral splash — no styles.css; bump its supabase.js/auth.js versions)
+- hub.html (coach-only DiveCentral app hub — no styles.css; bump its supabase.js/auth.js versions)
 - signup.html (public sign-up form — self-contained, loads no project JS/CSS; nothing to bump)
 - info.html (short information-request form — self-contained, loads no project JS/CSS; nothing to bump)
 - login.html (sign-in page — auth.js redirects here)
@@ -67,7 +68,7 @@ This has caused repeated bugs throughout development.
 |------|---------|
 | js/app.js | v=13 |
 | js/supabase.js | v=44 |
-| js/auth.js | v=4 |
+| js/auth.js | v=5 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
 | css/styles.css | v=11 |
@@ -79,6 +80,11 @@ This has caused repeated bugs throughout development.
 Pure HTML/CSS/JS — no bundler, no build step. Supabase (auth + DB). Netlify (deploy from root).
 
 **3 roles:** coach (full access), diver (own profile), parent (read-only linked diver)
+
+**Auth flow:** index.html is the public splash (signed-in users skip to their home). Signed-out users on a
+protected page go to `login.html?redirect=<page>` and return there after sign-in (`Auth.safeRedirect` only
+accepts same-site `*.html` pages). Without `?redirect=`, coaches/super users land on hub.html and
+divers/parents on dashboard.html (`Auth.homeUrl`).
 
 **DB tables:** profiles, roster, parent_diver, skill_completions, skill_test_attempts, level_completions, club_settings, skill_ratings, crm_contacts, crm_leads, crm_activities, crm_stage_history
 
@@ -118,7 +124,7 @@ Upstate Diving's pre-membership pipeline lives in the same Supabase project as D
 - Access is active coaches/super users only (`crm_is_coach()`); anon has no table or RPC access; hard delete is super-user only.
 - crm.html is the standalone DiveCRM app (own header + hash tabs #dashboard (kanban)/#leads/#services/#activities/#reports,
   plus a full-page lead detail at #lead/<id>; blue `#2196F3` accent) — it does NOT call `App.renderNav()` and is not
-  linked from the DiveDrills nav; it's reached from the DiveCentral hub (index.html).
+  linked from the DiveDrills nav; it's reached from the DiveCentral hub (hub.html).
 - Services live in `crm_services` (supabase-migration-v54.sql, which also adds `crm_leads.service_id` and seeds the
   defaults). crm.html degrades gracefully if v54 hasn't been run (Services tab shows a setup message).
 - Sign-up form fields (supabase-migration-v55.sql): `crm_contacts` carries parent `last_name`, `street_address`, `city`,

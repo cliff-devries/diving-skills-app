@@ -478,7 +478,7 @@ body.view-mode #content{padding:0;max-width:none;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=44"></script>
-<script src="js/auth.js?v=4"></script>
+<script src="js/auth.js?v=5"></script>
 <script src="js/skills.js?v=5"></script>
 <script src="js/app.js?v=13"></script>
 
@@ -4255,7 +4255,7 @@ function saveBuilderSettings(){
     // Public share link (practice.html#/view/:id) — must work with zero
     // login, even on a device that has never signed in. Skip Auth.init()
     // (and the whole coach-oriented DB/sync bootstrap) entirely — calling
-    // it would redirect straight to index.html the instant there's no
+    // it would redirect straight to login.html the instant there's no
     // session. router()'s #/view/:id branch -> renderPlanViewPage() hits
     // get_shared_practice_plan directly, which is anon-granted and
     // itself enforces is_shared=true (supabase-migration-v50.sql).
@@ -4265,7 +4265,7 @@ function saveBuilderSettings(){
   }
 
   const user = await Auth.init(true);
-  if(!user)return; // Auth.init() already redirected to index.html
+  if(!user)return; // Auth.init() already redirected to login.html
 
   if(user.role!=='coach'){
     window.location.href='dashboard.html';

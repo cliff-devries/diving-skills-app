@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="DiveCentral — the central hub for all Upstate Diving apps.">
+  <meta name="description" content="DiveCentral — your complete diving platform from Upstate Diving.">
   <title>DiveCentral — Upstate Diving</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <script>
-    // Sign-in moved to login.html when this hub took over the root URL.
     // Supabase email links (confirm, magic link, reset) and old
-    // ?status=pending_coach links still land here — hand them to the
-    // sign-in page intact so it can finish the auth flow.
+    // ?status=pending_coach links still land on the root URL — hand them to
+    // the sign-in page intact so it can finish the auth flow.
     (function () {
       var q = location.search, h = location.hash;
       if (/[?&](code|token_hash|status|error)=/.test(q) || /(access_token|refresh_token|error_description|type=)/.test(h)) {
@@ -21,19 +20,9 @@
   <style>
     :root {
       --bg: #0f0f0f;
-      --surface: #1a1a1a;
-      --surface-raised: #202020;
-      --border: #2a2a2a;
       --text: #f5f5f5;
       --muted: #9a9a9a;
       --teal: #00c9a7;
-      --purple: #7C3AED;
-      --orange: #F76900;
-      --blue: #2196F3;
-      --green: #43A047;
-      --red: #E53935;
-      --sky: #03A9F4;
-      --radius: 20px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; }
@@ -54,301 +43,82 @@
       pointer-events: none;
       z-index: 0;
     }
-    .wrap {
+    main {
       position: relative;
       z-index: 1;
-      width: 100%;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 72px 24px 40px;
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 48px 16px;
     }
-
-    /* ---- Header ---- */
-    .hero { text-align: center; margin-bottom: 56px; }
     .wordmark {
-      font-size: clamp(2.6rem, 8vw, 3.6rem);
+      font-size: clamp(2.6rem, 9vw, 4rem);
       font-weight: 800;
       letter-spacing: -0.03em;
       line-height: 1.05;
     }
-    .wordmark .dive { color: var(--text); }
     .wordmark .central { color: var(--teal); }
     .tagline {
-      font-size: clamp(1.05rem, 3vw, 1.25rem);
-      color: var(--text);
+      font-size: clamp(1.05rem, 3vw, 1.3rem);
       font-weight: 500;
       margin-top: 14px;
     }
-    .subtitle {
-      font-size: .88rem;
-      color: var(--muted);
-      margin-top: 6px;
-      letter-spacing: .01em;
-    }
-
-    /* ---- Cards ---- */
-    /* 4 + 3 layout on an 8-track grid: every card spans 2 tracks, and the
-       second row starts at track 2 so its three cards sit centered. */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
-      gap: 22px;
-    }
-    .grid > .card { grid-column: span 2; }
-    .grid > .card:nth-child(5) { grid-column: 2 / span 2; }
-    .card {
-      --accent: var(--teal);
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 32px 28px 28px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
-      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-    }
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 28px; right: 28px;
-      height: 3px;
-      border-radius: 0 0 3px 3px;
-      background: var(--accent);
-    }
-    .card.live:hover {
-      transform: translateY(-3px);
-      border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-      box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
-    }
-    .card.purple { --accent: var(--purple); }
-    .card.orange { --accent: var(--orange); }
-    .card.blue { --accent: var(--blue); }
-    .card.green { --accent: var(--green); }
-    .card.red { --accent: var(--red); }
-    .card.sky { --accent: var(--sky); }
-    .card.soon { opacity: .7; }
-
-    .icon {
-      width: 64px; height: 64px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2rem;
-      border-radius: 16px;
-      background: color-mix(in srgb, var(--accent) 14%, transparent);
-      margin-bottom: 20px;
-    }
-    .name { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
-    .app-sub {
-      font-size: .82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color: var(--accent);
-      margin-top: 2px;
-    }
-    .desc {
-      color: var(--muted);
-      font-size: .95rem;
-      margin: 14px 0 26px;
-      flex: 1;
-    }
-    .btn {
-      display: block;
-      width: 100%;
-      text-align: center;
-      text-decoration: none;
-      font: inherit;
-      font-size: 1rem;
-      font-weight: 700;
-      padding: 14px 18px;
+    .signin {
+      display: inline-block;
+      margin-top: 40px;
+      min-width: 220px;
+      padding: 15px 32px;
       border-radius: 12px;
-      border: none;
-      background: var(--accent);
+      background: var(--teal);
       color: #0f0f0f;
-      cursor: pointer;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
       transition: filter .15s ease;
     }
-    .btn:hover { filter: brightness(1.08); }
-    .btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
-    .btn[disabled] {
-      background: var(--surface-raised);
-      color: var(--muted);
-      border: 1px solid var(--border);
-      cursor: not-allowed;
-      filter: none;
-    }
-    .badge {
-      position: absolute;
-      top: 18px; right: 18px;
-      font-size: .66rem;
-      font-weight: 800;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      padding: 5px 10px;
-      border-radius: 999px;
-    }
-    .badge.live {
-      color: var(--accent);
-      background: color-mix(in srgb, var(--accent) 12%, transparent);
-      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    }
-    .badge.live::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      margin-right: 6px;
-      vertical-align: 1px;
-    }
-    .badge.soon {
-      color: var(--text);
-      background: color-mix(in srgb, var(--accent) 25%, transparent);
-      border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
-    }
-
-    /* ---- Footer ---- */
+    .signin:hover { filter: brightness(1.08); }
+    .signin:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
     footer {
       position: relative;
       z-index: 1;
-      width: 100%;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 0 24px 36px;
       text-align: center;
-    }
-    .divider {
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--teal), transparent);
-      margin-bottom: 22px;
-      opacity: .7;
-    }
-    .copy { font-size: .88rem; color: var(--text); }
-    .powered { font-size: .75rem; color: var(--muted); margin-top: 4px; }
-
-    @media (max-width: 760px) {
-      .wrap { padding: 48px 16px 32px; }
-      .hero { margin-bottom: 36px; }
-      .grid { grid-template-columns: 1fr; gap: 18px; }
-      .grid > .card,
-      .grid > .card:nth-child(5) { grid-column: auto; }
-      .card { padding: 28px 22px 22px; }
-      footer { padding: 0 16px 28px; }
-    }
-    /* Compact desktop cards so all seven fit above the fold on a 1366x768 laptop. */
-    @media (min-width: 761px) {
-      .wrap { max-width: 1100px; padding: 36px 24px 20px; }
-      .hero { margin-bottom: 28px; }
-      .wordmark { font-size: clamp(2.2rem, 5vw, 2.8rem); }
-      .tagline { margin-top: 8px; font-size: 1.05rem; }
-      .subtitle { margin-top: 2px; }
-      .grid { gap: 16px; }
-      .card { padding: 20px; border-radius: 16px; }
-      .card::before { left: 20px; right: 20px; }
-      .icon { width: 44px; height: 44px; font-size: 1.5rem; border-radius: 12px; margin-bottom: 10px; }
-      .name { font-size: 1.1rem; }
-      .app-sub { font-size: .72rem; }
-      .desc {
-        font-size: .8rem;
-        line-height: 1.35;
-        margin: 8px 0 14px;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .btn { padding: 8px 14px; font-size: .85rem; border-radius: 10px; }
-      .badge { top: 14px; right: 14px; font-size: .6rem; padding: 4px 8px; }
-      footer { max-width: 1100px; padding: 0 24px 20px; }
-      .divider { margin-bottom: 12px; }
+      font-size: .8rem;
+      color: var(--muted);
+      padding: 0 16px 28px;
     }
     @media (prefers-reduced-motion: reduce) {
-      .card, .btn { transition: none; }
-      .card.live:hover { transform: none; }
+      .signin { transition: none; }
     }
   </style>
 </head>
 <body>
 
-<main class="wrap">
-  <header class="hero">
-    <h1 class="wordmark"><span class="dive">Dive</span><span class="central">Central</span></h1>
-    <p class="tagline">Your complete diving platform</p>
-    <p class="subtitle">Upstate Diving</p>
-  </header>
-
-  <section class="grid" aria-label="Apps">
-    <article class="card live">
-      <span class="badge live">Live</span>
-      <div class="icon" aria-hidden="true">🎯</div>
-      <h2 class="name">DiveDrills</h2>
-      <div class="app-sub">Skills Tracker</div>
-      <p class="desc">Track skill progression, run testing sessions, and monitor diver development across all levels.</p>
-      <a class="btn" href="dashboard.html">Open DiveDrills</a>
-    </article>
-
-    <article class="card live green">
-      <span class="badge live">Live</span>
-      <div class="icon" aria-hidden="true">📋</div>
-      <h2 class="name">DivePractice</h2>
-      <div class="app-sub">Practice Planner</div>
-      <p class="desc">Build and share professional practice plans with your coaching staff and divers.</p>
-      <a class="btn" href="practice.html">Open DivePractice</a>
-    </article>
-
-    <article class="card live blue">
-      <span class="badge live">Live</span>
-      <div class="icon" aria-hidden="true">📇</div>
-      <h2 class="name">DiveCRM</h2>
-      <div class="app-sub">Client Relationships</div>
-      <p class="desc">Manage leads, track diver recruitment, and convert prospects into registered club members.</p>
-      <a class="btn" href="crm.html">Open DiveCRM</a>
-    </article>
-
-    <article class="card soon purple" aria-disabled="true">
-      <span class="badge soon">Coming Soon</span>
-      <div class="icon" aria-hidden="true">🎬</div>
-      <h2 class="name">DiveLibrary</h2>
-      <div class="app-sub">Video Database</div>
-      <p class="desc">Browse thousands of competitive diving videos organized by skill, level, and diver.</p>
-      <button class="btn" type="button" disabled>Coming Soon</button>
-    </article>
-
-    <article class="card soon orange" aria-disabled="true">
-      <span class="badge soon">Coming Soon</span>
-      <div class="icon" aria-hidden="true">🏆</div>
-      <h2 class="name">DiveTrainer</h2>
-      <div class="app-sub">Training Plans</div>
-      <p class="desc">Set goals and build a personalized year-long training program across all five areas of diving.</p>
-      <button class="btn" type="button" disabled>Coming Soon</button>
-    </article>
-
-    <article class="card soon red" aria-disabled="true">
-      <span class="badge soon">Coming Soon</span>
-      <div class="icon" aria-hidden="true">🎬</div>
-      <h2 class="name">DiveOverlay</h2>
-      <div class="app-sub">Video Analysis</div>
-      <p class="desc">Compare elite and developing divers frame by frame with synchronized video overlay technology.</p>
-      <button class="btn" type="button" disabled>Coming Soon</button>
-    </article>
-
-    <article class="card soon sky" aria-disabled="true">
-      <span class="badge soon">Coming Soon</span>
-      <div class="icon" aria-hidden="true">🎯</div>
-      <h2 class="name">DiveManager</h2>
-      <div class="app-sub">Club Management</div>
-      <p class="desc">Set and track club goals using OKR, KPI and TQM frameworks to drive performance and growth.</p>
-      <button class="btn" type="button" disabled>Coming Soon</button>
-    </article>
-  </section>
+<main>
+  <h1 class="wordmark"><span>Dive</span><span class="central">Central</span></h1>
+  <p class="tagline">Your complete diving platform</p>
+  <a class="signin" href="login.html">Sign In</a>
 </main>
 
-<footer>
-  <div class="divider"></div>
-  <div class="copy">&copy; 2026 Upstate Diving &middot; DiveCentral</div>
-  <div class="powered">Powered by DiveDrills</div>
-</footer>
+<footer>&copy; 2026 Upstate Diving</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=44"></script>
+<script src="js/auth.js?v=5"></script>
+<script>
+  // Already signed in → skip the splash and go to the role's home page.
+  (async function initSplash() {
+    if (!window.supabase) return;
+    initSupabase();
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) return;
+    const profile = await SupabaseDB.getProfile(session.user.id);
+    window.location.replace(profile ? Auth.homeUrl(profile) : '/hub.html');
+  })();
+</script>
 
 </body>
 </html>

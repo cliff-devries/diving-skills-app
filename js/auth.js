@@ -33,18 +33,19 @@ const Auth = {
     // ---- Not logged in ----
     if (!session) {
       if (requireAuth) {
-        // Protected page — send to login
+        // Protected page — send to login, remembering where to come back to
         if (!window.location.pathname.endsWith('login.html') &&
             window.location.pathname !== '/') {
-          window.location.href = '/login.html';
+          window.location.href = this.loginUrl();
         }
       }
       return null;
     }
 
-    // ---- Logged in, but on the login page → redirect to dashboard ----
+    // ---- Logged in, but on the login page → redirect to the requested page or role home ----
     if (!requireAuth) {
-      window.location.href = '/dashboard.html';
+      const profile = await SupabaseDB.getProfile(session.user.id);
+      window.location.href = this.postLoginUrl(profile);
       return null;
     }
 
@@ -240,6 +241,37 @@ const Auth = {
     if (!this.currentUser || !allowed.includes(this.currentUser.role)) {
       window.location.href = '/dashboard.html';
     }
+  },
+
+  // ---- Redirect helpers ----
+
+  // login.html?redirect=<current page>, keeping query + hash so practice.html
+  // and crm.html hash routes survive the round trip.
+  loginUrl() {
+    const page = window.location.pathname.replace(/^\//, '') + window.location.search + window.location.hash;
+    return '/login.html' + (page ? '?redirect=' + encodeURIComponent(page) : '');
+  },
+
+  // Only same-site page names are honoured — anything else (absolute URLs,
+  // protocol-relative //host, javascript:) is dropped to prevent open redirects.
+  safeRedirect(target) {
+    if (!target) return null;
+    const m = /^\/?([A-Za-z0-9_-]+\.html)([?#].*)?$/.exec(target);
+    if (!m || m[1] === 'login.html' || m[1] === 'index.html') return null;
+    return '/' + m[1] + (m[2] || '');
+  },
+
+  isCoachOrSuper(profile) {
+    return !!profile && (profile.role === 'coach' || profile.role === 'super_user' || profile.is_super_user === true);
+  },
+
+  homeUrl(profile) {
+    return this.isCoachOrSuper(profile) ? '/hub.html' : '/dashboard.html';
+  },
+
+  postLoginUrl(profile) {
+    const requested = this.safeRedirect(new URLSearchParams(window.location.search).get('redirect'));
+    return requested || this.homeUrl(profile);
   },
 
   // ---- Helpers ----

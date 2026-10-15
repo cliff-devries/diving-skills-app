@@ -123,17 +123,18 @@
 <!-- App scripts -->
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=44"></script>
-<script src="js/auth.js?v=4"></script>
+<script src="js/auth.js?v=5"></script>
 <script src="js/app.js?v=13"></script>
 
 <script>
   (async function initLoginPage() {
     initSupabase();
 
-    // If already signed in, skip login and go straight to dashboard
+    // If already signed in, skip login and go to the requested page or role home
     const { data: { session } } = await window.supabaseClient.auth.getSession();
     if (session) {
-      window.location.href = '/dashboard.html';
+      const profile = await SupabaseDB.getProfile(session.user.id);
+      window.location.href = Auth.postLoginUrl(profile);
       return;
     }
 
@@ -185,9 +186,8 @@
       App.setBtnLoading(loginBtn, true);
 
       try {
-        await Auth.login(email, password);
-        // Redirect to dashboard on success
-        window.location.href = '/dashboard.html';
+        const profile = await Auth.login(email, password);
+        window.location.href = Auth.postLoginUrl(profile);
       } catch (err) {
         if (err.pendingCoach) {
           window.location.href = '/login.html?status=pending_coach';
