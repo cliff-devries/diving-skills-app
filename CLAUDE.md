@@ -68,7 +68,7 @@ This has caused repeated bugs throughout development.
 |------|---------|
 | js/app.js | v=13 |
 | js/supabase.js | v=44 |
-| js/auth.js | v=5 |
+| js/auth.js | v=6 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
 | css/styles.css | v=11 |

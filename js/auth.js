@@ -91,8 +91,9 @@ const Auth = {
       return null;
     }
 
-    // Active profile required — pending/unclaimed divers can't log in yet
-    if (profile.status === 'pending') {
+    // Pending/unclaimed divers can't log in yet — but parents and coaches
+    // can have status='pending' for different reasons and must not be blocked here.
+    if (profile.status === 'pending' && profile.role === 'diver') {
       await window.supabaseClient.auth.signOut();
       if (!window.location.pathname.endsWith('claim.html')) {
         window.location.href = '/claim.html';

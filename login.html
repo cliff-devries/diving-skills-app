@@ -106,10 +106,31 @@
         Sign In
       </button>
 
+      <div style="text-align:center;margin-top:12px">
+        <button type="button" id="forgot-btn" class="btn btn-ghost btn-sm" style="font-size:0.82rem;color:var(--text-secondary)">
+          Forgot password?
+        </button>
+      </div>
+
     </form>
 
+    <!-- Forgot-password panel (hidden until clicked) -->
+    <div id="forgot-panel" style="display:none;margin-top:4px">
+      <p class="text-sm text-secondary mb-3" style="text-align:center">
+        Enter your email and we'll send a reset link.
+      </p>
+      <div class="form-group">
+        <input id="reset-email" type="email" class="form-input" placeholder="you@example.com"
+               autocomplete="email" inputmode="email">
+      </div>
+      <div id="reset-alert" class="alert mb-3" role="status"></div>
+      <button id="reset-btn" class="btn btn-primary btn-full">Send Reset Link</button>
+      <button type="button" id="reset-cancel" class="btn btn-ghost btn-full mt-2"
+              style="font-size:0.85rem">Cancel</button>
+    </div>
+
     <div class="login-footer">
-      <p>No account yet? Ask your coach to set one up for you.</p>
+      <p>Parent or family member? Use the invite link your coach sent you.</p>
       <p style="margin-top: 10px">
         Coach? <a href="coach-signup.html">Sign up for access</a>
       </p>
@@ -123,7 +144,7 @@
 <!-- App scripts -->
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=44"></script>
-<script src="js/auth.js?v=5"></script>
+<script src="js/auth.js?v=6"></script>
 <script src="js/app.js?v=13"></script>
 
 <script>
@@ -204,6 +225,56 @@
     });
     passInput.addEventListener('input', () => {
       document.getElementById('password-error').classList.remove('visible');
+    });
+
+    // ---- Forgot password ----
+    const forgotBtn   = document.getElementById('forgot-btn');
+    const forgotPanel = document.getElementById('forgot-panel');
+    const resetEmail  = document.getElementById('reset-email');
+    const resetAlert  = document.getElementById('reset-alert');
+    const resetBtn    = document.getElementById('reset-btn');
+    const resetCancel = document.getElementById('reset-cancel');
+
+    function showForgot() {
+      document.getElementById('login-form').style.display = 'none';
+      forgotPanel.style.display = 'block';
+      // Pre-fill with whatever email they typed on the sign-in form
+      if (emailInput.value.trim()) resetEmail.value = emailInput.value.trim();
+      resetEmail.focus();
+    }
+    function hideForgot() {
+      forgotPanel.style.display = 'none';
+      document.getElementById('login-form').style.display = 'block';
+      resetAlert.className = 'alert mb-3';
+      resetAlert.textContent = '';
+    }
+
+    forgotBtn.addEventListener('click', showForgot);
+    resetCancel.addEventListener('click', hideForgot);
+
+    resetBtn.addEventListener('click', async () => {
+      const email = resetEmail.value.trim();
+      resetAlert.className = 'alert mb-3';
+      resetAlert.textContent = '';
+      if (!email || !/\S+@\S+\.\S+/.test(email)) {
+        resetAlert.className   = 'alert alert-error visible mb-3';
+        resetAlert.textContent = 'Please enter a valid email address.';
+        return;
+      }
+      App.setBtnLoading(resetBtn, true);
+      try {
+        const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/login.html',
+        });
+        if (error) throw new Error(error.message);
+        resetAlert.className   = 'alert alert-success visible mb-3';
+        resetAlert.textContent = 'Reset link sent! Check your email (including spam).';
+        resetBtn.disabled = true;
+      } catch (err) {
+        resetAlert.className   = 'alert alert-error visible mb-3';
+        resetAlert.textContent = err.message;
+        App.setBtnLoading(resetBtn, false);
+      }
     });
   })();
 </script>
