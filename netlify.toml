@@ -65,6 +65,12 @@
   to     = "/signup.html"
   status = 200
 
+# Dive Overlay — video comparison tool (self-contained, no auth required).
+[[redirects]]
+  from   = "/overlay"
+  to     = "/overlay.html"
+  status = 200
+
 # =============================================
 # Public leaderboard subdomain — leaderboard.divedrills.com
 # Serves the standalone, unauthenticated leaderboard-public.html at its

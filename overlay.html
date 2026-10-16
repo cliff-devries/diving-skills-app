@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dive Overlay</title>
+<style>
+  :root { --bg:#0f1419; --panel:#1a212b; --line:#2b3544; --text:#e6edf3; --muted:#8b98a9; --accent:#3aa0ff; --a:#38d6ff; --b:#ff6a4d; --ok:#2ecc71; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  .steps { display:flex; gap:8px; }
+  .step { padding:4px 12px; border-radius:99px; border:1px solid var(--line); color:var(--muted); font-size:12px; }
+  .step.on { background:var(--accent); border-color:var(--accent); color:#04121f; font-weight:600; }
+  .step.done { border-color:var(--ok); color:var(--ok); }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:14px; padding:14px; }
+  @media (max-width:1000px){ main { grid-template-columns:1fr; } }
+
+  .windows { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  @media (max-width:700px){ .windows { grid-template-columns:1fr; } }
+  .pnl { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .ptitle { display:flex; align-items:center; gap:8px; font-weight:600; margin-bottom:8px; }
+  .ptitle .dot { width:10px; height:10px; border-radius:50%; }
+  .ptitle .ptime { margin-left:auto; color:var(--muted); font-weight:400; font-variant-numeric:tabular-nums; font-size:12px; }
+  .vwrap { background:#000; border-radius:6px; overflow:hidden; min-height:120px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+  .vwrap video { width:100%; max-height:36vh; display:block; background:#000; }
+  .pnl .pscrub { width:100%; margin:8px 0 4px; }
+  .pnl .row { justify-content:center; }
+
+  .stage { background:#000; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  body:not(.locked) .stage { max-width:760px; }
+  .stagelabel { color:var(--muted); font-size:12px; margin:0 0 6px; }
+  body.locked .stagelabel { display:none; }
+  canvas { width:100%; height:auto; display:block; cursor:grab; }
+  canvas.dragging { cursor:grabbing; }
+
+  .transport { display:none; margin-top:10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  body.locked .transport { display:block; }
+  body.locked .windows, body.locked .setupOnly { display:none; }
+  body:not(.locked) .lockedOnly { display:none; }
+
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .row + .row { margin-top:8px; }
+  input[type=range] { flex:1; min-width:120px; accent-color:var(--accent); }
+  button, select, .filebtn { background:#243041; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+  button:hover, .filebtn:hover { background:#2d3b50; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04121f; font-weight:600; }
+  button.rec { background:#c0392b; border-color:#c0392b; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  input[type=file] { display:none; }
+  input[type=text], input[type=number] { background:#0f1419; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; width:100%; }
+  aside .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  aside h2 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  label.field { display:block; margin-top:8px; color:var(--muted); font-size:12px; }
+  label.field .val { float:right; color:var(--text); }
+  .dotA, .dotB { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+  .dotA { background:var(--a); } .dotB { background:var(--b); }
+  .time { font-variant-numeric:tabular-nums; color:var(--muted); min-width:110px; text-align:right; }
+  .hint { color:var(--muted); font-size:12px; margin-top:6px; }
+  .syncbox { margin-top:8px; padding:8px; border-radius:6px; background:#0f1419; border:1px solid var(--line); font-variant-numeric:tabular-nums; font-size:12px; }
+  .check { display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .check input { accent-color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dive Overlay</h1>
+  <div class="steps">
+    <span class="step on" id="st1">1 · Sync &amp; size</span>
+    <span class="step" id="st2">2 · Overlay</span>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="windows">
+      <div class="pnl" id="pnlA"></div>
+      <div class="pnl" id="pnlB"></div>
+    </div>
+
+    <p class="stagelabel setupOnly">Overlay preview of the two frames above. Drag on it to move the Upstate diver, scroll to resize.</p>
+    <div class="stage"><canvas id="cv" width="1280" height="720"></canvas></div>
+
+    <div class="transport">
+      <div class="row">
+        <button id="play" class="primary" style="min-width:74px">Play</button>
+        <button id="toSync" title="Jump to the synchronized frame">⏮ Sync frame</button>
+        <button id="stepBack" title="Back one frame (←)">◀ Frame</button>
+        <button id="stepFwd" title="Forward one frame (→)">Frame ▶</button>
+        <span class="time" id="timeLabel">0.000 / 0.000</span>
+      </div>
+      <div class="row"><input id="scrub" type="range" min="0" max="1" step="0.001" value="0"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>Videos</h2>
+      <div class="row">
+        <label class="filebtn"><span class="dotA"></span>Olympian (background)<input id="fileA" type="file" accept="video/*"></label>
+      </div>
+      <label class="field">Label<input id="labelA" type="text" value="Olympian"></label>
+      <div class="row" style="margin-top:10px">
+        <label class="filebtn"><span class="dotB"></span>Upstate diver (foreground)<input id="fileB" type="file" accept="video/*"></label>
+      </div>
+      <label class="field">Label<input id="labelB" type="text" value="Upstate Diver"></label>
+      <div class="row" style="margin-top:10px">
+        <label style="color:var(--muted);font-size:12px">Frame rate (fps)
+          <input id="fps" type="number" value="30" min="1" max="240" style="width:70px;display:inline-block">
+        </label>
+        <label style="color:var(--muted);font-size:12px">Speed
+          <select id="speed"><option value="0.1">0.1×</option><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card setupOnly">
+      <h2>1 · Sync &amp; size</h2>
+      <div class="hint">Scrub each window on its own until both divers are at the same moment (for example, feet leaving the board). Then use the controls below to match the size and position of the Upstate diver in the preview.</div>
+      <div class="syncbox" id="syncInfo">Load both videos to begin.</div>
+      <div class="row" style="margin-top:10px">
+        <button id="lock" class="primary" disabled>🔒 Lock &amp; build overlay</button>
+      </div>
+    </div>
+
+    <div class="card lockedOnly">
+      <h2>Locked</h2>
+      <div class="syncbox" id="lockInfo"></div>
+      <div class="row" style="margin-top:8px">
+        <button id="nudgeBBack">Shift B −1 frame</button>
+        <button id="nudgeBFwd">Shift B +1 frame</button>
+      </div>
+      <div class="row" style="margin-top:8px"><button id="unlock">🔓 Unlock &amp; re-sync</button></div>
+    </div>
+
+    <div class="card">
+      <h2>View</h2>
+      <label class="field lockedOnly">Mode
+        <select id="mode" style="width:100%;margin-top:4px">
+          <option value="overlay" selected>Overlay (blend)</option>
+          <option value="difference">Difference (highlights gaps)</option>
+          <option value="side">Side by side</option>
+        </select>
+      </label>
+      <label class="field">Foreground opacity <span class="val" id="opVal">50%</span>
+        <input id="opacity" type="range" min="0" max="100" value="50"></label>
+      <label class="field">Foreground size <span class="val" id="scVal">100%</span>
+        <input id="scale" type="range" min="30" max="250" value="100"></label>
+      <label class="field">Foreground X <span class="val" id="xVal">0</span>
+        <input id="offX" type="range" min="-640" max="640" value="0"></label>
+      <label class="field">Foreground Y <span class="val" id="yVal">0</span>
+        <input id="offY" type="range" min="-360" max="360" value="0"></label>
+      <div class="check"><input id="tint" type="checkbox" checked><label for="tint">Tint foreground red</label></div>
+      <div class="check"><input id="tintA" type="checkbox"><label for="tintA">Tint background cyan</label></div>
+      <div class="check"><input id="flipB" type="checkbox"><label for="flipB">Flip foreground horizontally</label></div>
+      <div class="check"><input id="legend" type="checkbox" checked><label for="legend">Show labels</label></div>
+      <div class="row" style="margin-top:10px"><button id="resetView">Reset position &amp; size</button></div>
+    </div>
+
+    <div class="card lockedOnly">
+      <h2>Export</h2>
+      <div class="hint">Records the comparison from the current position to the end of the background video. Saves a .webm file.</div>
+      <div class="row" style="margin-top:8px"><button id="record" class="primary" disabled>Record comparison</button></div>
+      <div class="hint" id="recStatus"></div>
+      <div class="hint">Shortcuts: Space play/pause · ← → frame · Shift+← → shift B · 1–4 speed</div>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const octx = off.getContext('2d');
+
+  const mk = () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; return v; };
+  const A = mk(), B = mk();
+  let hasA = false, hasB = false;
+  let locked = false, playing = false;
+  let syncOffset = 0;      // locked: B time = A time + syncOffset
+  let syncTimeA = 0;       // A time at the lock moment
+  let recorder = null;
+
+  const view = { offX: 0, offY: 0, scale: 1 };
+  const fps = () => Math.max(1, +$('fps').value || 30);
+  const frame = () => 1 / fps();
+  const fmt = t => (isFinite(t) ? t : 0).toFixed(3);
+
+  /* ---------- the two sync windows ---------- */
+  function buildPanel(el, v, color, title, which){
+    el.innerHTML =
+      `<div class="ptitle"><span class="dot" style="background:${color}"></span>${title}<span class="ptime">0.000 / 0.000</span></div>
+       <div class="vwrap">Load a video</div>
+       <div class="pstatus hint"></div>
+       <input type="range" class="pscrub" min="0" max="1" step="0.001" value="0" disabled>
+       <div class="row">
+         <button data-s="-10">−10</button><button data-s="-1">−1</button>
+         <button class="pplay">Play</button>
+         <button data-s="1">+1</button><button data-s="10">+10</button>
+       </div>`;
+    const scrub = el.querySelector('.pscrub');
+    scrub.oninput = () => { v.pause(); v.currentTime = +scrub.value; };
+    el.querySelectorAll('button[data-s]').forEach(b => b.onclick = () => {
+      if (!v.duration) return;
+      v.pause();
+      v.currentTime = Math.min(Math.max(0, v.currentTime + (+b.dataset.s) * frame()), v.duration);
+    });
+    el.querySelector('.pplay').onclick = () => {
+      if (!v.duration) return;
+      if (v.paused){ v.playbackRate = +$('speed').value; if (v.ended) v.currentTime = 0; v.play(); } else v.pause();
+    };
+    return {
+      el, scrub,
+      status(msg, bad){ const s = el.querySelector('.pstatus'); s.textContent = msg; s.style.color = bad ? '#ff8a7a' : ''; },
+      time: el.querySelector('.ptime'),
+      play: el.querySelector('.pplay'),
+      attach(){ const w = el.querySelector('.vwrap'); w.textContent = ''; w.appendChild(v); scrub.disabled = false; scrub.max = v.duration; },
+      refresh(){
+        if (!v.duration) return;
+        if (document.activeElement !== scrub) scrub.value = v.currentTime;
+        this.time.textContent = fmt(v.currentTime) + ' / ' + fmt(v.duration);
+        this.play.textContent = v.paused ? 'Play' : 'Pause';
+      }
+    };
+  }
+  const pA = buildPanel($('pnlA'), A, '#38d6ff', 'Olympian (background)', 'A');
+  const pB = buildPanel($('pnlB'), B, '#ff6a4d', 'Upstate diver (foreground)', 'B');
+
+  function load(file, v, panel, which){
+    if (!file) return;
+    const codecMsg = 'The browser can read this file\'s length but cannot decode its picture (often HEVC/H.265 from a phone or camera). Convert it to H.264 MP4 and load it again. Example: ffmpeg -i input.mov -c:v libx264 -pix_fmt yuv420p -crf 18 -an output.mp4';
+    panel.status('Loading ' + file.name + '…');
+    v.onerror = () => panel.status('The browser could not open ' + file.name + '. ' + codecMsg, true);
+    v.src = URL.createObjectURL(file);
+    v.onloadedmetadata = () => {
+      if (which === 'A'){ hasA = true; $('scrub').max = A.duration; }
+      else hasB = true;
+      v.currentTime = 0;
+      panel.attach();
+      updateButtons();
+      if (!v.videoWidth) panel.status(codecMsg, true);
+      else panel.status(file.name + ' · ' + v.videoWidth + '×' + v.videoHeight);
+    };
+  }
+  $('fileA').onchange = e => load(e.target.files[0], A, pA, 'A');
+  $('fileB').onchange = e => load(e.target.files[0], B, pB, 'B');
+
+  function updateButtons(){
+    $('lock').disabled = !(hasA && hasB);
+    $('record').disabled = !hasA;
+    $('syncInfo').textContent = (hasA && hasB) ? '' : 'Load both videos to begin.';
+  }
+
+  function updateSyncInfo(){
+    if (!(hasA && hasB)) return;
+    const d = B.currentTime - A.currentTime;
+    $('syncInfo').innerHTML =
+      `Sync frame<br>Olympian: <b>${fmt(A.currentTime)} s</b><br>Upstate: <b>${fmt(B.currentTime)} s</b><br>` +
+      `Upstate is ${d >= 0 ? fmt(d) + ' s ahead in its clip' : fmt(-d) + ' s behind in its clip'}`;
+  }
+
+  /* ---------- drawing ---------- */
+  function containRect(v, x, y, w, h){
+    const vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+    const s = Math.min(w / vw, h / vh);
+    return { w: vw * s, h: vh * s, x: x + (w - vw * s) / 2, y: y + (h - vh * s) / 2 };
+  }
+  function drawVideo(c, v, r, flip){
+    c.save();
+    if (flip){ c.translate(r.x + r.w / 2, 0); c.scale(-1, 1); c.translate(-(r.x + r.w / 2), 0); }
+    c.drawImage(v, r.x, r.y, r.w, r.h);
+    c.restore();
+  }
+  function tintOnto(c, color, a){
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = color; c.globalAlpha = a; c.fillRect(0, 0, W, H);
+    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  }
+  function bVisible(){
+    if (!hasB) return false;
+    if (!locked) return true;
+    const tb = A.currentTime + syncOffset;
+    return tb >= 0 && tb <= B.duration;
+  }
+
+  function render(){
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    const mode = locked ? $('mode').value : 'overlay';
+    const flip = $('flipB').checked;
+    const alpha = +$('opacity').value / 100;
+
+    if (mode === 'side'){
+      const half = W / 2;
+      if (hasA) drawVideo(ctx, A, containRect(A, 0, 0, half, H), false);
+      if (bVisible()) drawVideo(ctx, B, containRect(B, half, 0, half, H), flip);
+      ctx.strokeStyle = '#333'; ctx.beginPath(); ctx.moveTo(half, 0); ctx.lineTo(half, H); ctx.stroke();
+    } else {
+      if (hasA){
+        const rA = containRect(A, 0, 0, W, H);
+        if ($('tintA').checked){
+          octx.clearRect(0, 0, W, H); drawVideo(octx, A, rA, false); tintOnto(octx, '#00d0ff', 0.30);
+          ctx.drawImage(off, 0, 0);
+        } else drawVideo(ctx, A, rA, false);
+      }
+      if (bVisible()){
+        const base = containRect(B, 0, 0, W, H);
+        const w = base.w * view.scale, h = base.h * view.scale;
+        const r = { w, h, x: W / 2 - w / 2 + view.offX, y: H / 2 - h / 2 + view.offY };
+        octx.clearRect(0, 0, W, H);
+        drawVideo(octx, B, r, flip);
+        if ($('tint').checked && mode === 'overlay') tintOnto(octx, '#ff3b2f', 0.35);
+        if (mode === 'difference'){ ctx.globalCompositeOperation = 'difference'; ctx.globalAlpha = 1; }
+        else ctx.globalAlpha = alpha;
+        ctx.drawImage(off, 0, 0);
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+
+    if ($('legend').checked){
+      ctx.font = '600 22px system-ui, sans-serif'; ctx.textBaseline = 'top';
+      const items = [[$('labelA').value, '#38d6ff'], [$('labelB').value, '#ff6a4d']];
+      let x = 18;
+      items.forEach(([t, col], i) => {
+        if (mode === 'side') x = i === 0 ? 18 : W / 2 + 18;
+        const wt = ctx.measureText(t).width;
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x - 8, 12, wt + 38, 34);
+        ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x + 6, 29, 6, 0, 7); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(t, x + 22, 17);
+        if (mode !== 'side') x += wt + 56;
+      });
+    }
+  }
+
+  /* ---------- locked playback ---------- */
+  function syncB(){
+    if (!locked || !hasA || !hasB) return;
+    const target = A.currentTime + syncOffset;
+    if (target < 0 || target > B.duration){ if (!B.paused) B.pause(); return; }
+    const drift = Math.abs(B.currentTime - target);
+    if (playing){
+      if (B.paused) B.play().catch(() => {});
+      if (drift > 0.08) B.currentTime = target;
+    } else if (drift > 0.001){
+      B.currentTime = target;
+    }
+  }
+  function setPlaying(p){
+    if (!hasA || !locked) return;
+    playing = p;
+    $('play').textContent = p ? 'Pause' : 'Play';
+    A.playbackRate = B.playbackRate = +$('speed').value;
+    if (p){
+      if (A.ended || A.currentTime >= A.duration - 0.01) A.currentTime = 0;
+      A.play(); syncB();
+    } else {
+      A.pause(); B.pause();
+      if (recorder && recorder.state === 'recording') recorder.stop();
+    }
+  }
+  function seek(t){ if (hasA) A.currentTime = Math.min(Math.max(0, t), A.duration); }
+
+  function loop(){
+    if (locked){
+      syncB();
+      if (hasA){
+        $('scrub').value = A.currentTime;
+        $('timeLabel').textContent = fmt(A.currentTime) + ' / ' + fmt(A.duration);
+        $('lockInfo').innerHTML = `Offset: <b>${fmt(syncOffset)} s</b><br>Upstate time = Olympian time ${syncOffset >= 0 ? '+' : '−'} ${fmt(Math.abs(syncOffset))}`;
+      }
+      if (playing && A.ended) setPlaying(false);
+    } else {
+      pA.refresh(); pB.refresh(); updateSyncInfo();
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- lock / unlock ---------- */
+  $('lock').onclick = () => {
+    A.pause(); B.pause();
+    syncTimeA = A.currentTime;
+    syncOffset = B.currentTime - A.currentTime;
+    locked = true; playing = false;
+    document.body.classList.add('locked');
+    $('st1').className = 'step done'; $('st2').className = 'step on';
+    $('play').textContent = 'Play';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  $('unlock').onclick = () => {
+    setPlaying(false);
+    locked = false;
+    document.body.classList.remove('locked');
+    $('st1').className = 'step on'; $('st2').className = 'step';
+    // leave each window where the sync was made so it can be refined
+    A.currentTime = syncTimeA;
+    B.currentTime = Math.max(0, syncTimeA + syncOffset);
+  };
+  $('toSync').onclick = () => { setPlaying(false); seek(syncTimeA); };
+  $('nudgeBFwd').onclick = () => { syncOffset += frame(); };
+  $('nudgeBBack').onclick = () => { syncOffset -= frame(); };
+
+  $('play').onclick = () => setPlaying(!playing);
+  $('stepBack').onclick = () => { setPlaying(false); seek(A.currentTime - frame()); };
+  $('stepFwd').onclick  = () => { setPlaying(false); seek(A.currentTime + frame()); };
+  $('scrub').oninput = e => { setPlaying(false); seek(+e.target.value); };
+  $('speed').onchange = () => { A.playbackRate = B.playbackRate = +$('speed').value; };
+
+  /* ---------- view controls ---------- */
+  function bindRange(id, valId, fn, suffix){
+    $(id).oninput = e => { fn(+e.target.value); $(valId).textContent = e.target.value + suffix; };
+  }
+  bindRange('opacity', 'opVal', () => {}, '%');
+  bindRange('scale', 'scVal', v => view.scale = v / 100, '%');
+  bindRange('offX', 'xVal', v => view.offX = v, '');
+  bindRange('offY', 'yVal', v => view.offY = v, '');
+  function syncSliders(){
+    $('scale').value = Math.round(view.scale * 100); $('scVal').textContent = Math.round(view.scale * 100) + '%';
+    $('offX').value = Math.round(view.offX); $('xVal').textContent = Math.round(view.offX);
+    $('offY').value = Math.round(view.offY); $('yVal').textContent = Math.round(view.offY);
+  }
+  $('resetView').onclick = () => { view.offX = view.offY = 0; view.scale = 1; syncSliders(); };
+
+  let drag = null;
+  const toCanvas = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
+  const sideMode = () => locked && $('mode').value === 'side';
+  cv.addEventListener('pointerdown', e => {
+    if (sideMode()) return;
+    drag = { p: toCanvas(e), ox: view.offX, oy: view.offY };
+    cv.setPointerCapture(e.pointerId); cv.classList.add('dragging');
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = toCanvas(e);
+    view.offX = drag.ox + (p.x - drag.p.x); view.offY = drag.oy + (p.y - drag.p.y);
+    syncSliders();
+  });
+  cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('dragging'); });
+  cv.addEventListener('wheel', e => {
+    if (sideMode()) return;
+    e.preventDefault();
+    view.scale = Math.min(2.5, Math.max(0.3, view.scale * (e.deltaY < 0 ? 1.03 : 0.97)));
+    syncSliders();
+  }, { passive: false });
+
+  document.addEventListener('keydown', e => {
+    if (!locked) return;
+    if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+    if (e.code === 'Space'){ e.preventDefault(); setPlaying(!playing); }
+    else if (e.code === 'ArrowRight'){ e.preventDefault(); if (e.shiftKey) syncOffset += frame(); else { setPlaying(false); seek(A.currentTime + frame()); } }
+    else if (e.code === 'ArrowLeft'){ e.preventDefault(); if (e.shiftKey) syncOffset -= frame(); else { setPlaying(false); seek(A.currentTime - frame()); } }
+    else if ('1234'.includes(e.key) && e.key){ $('speed').value = ['0.1','0.25','0.5','1'][+e.key - 1]; $('speed').onchange(); }
+  });
+
+  /* ---------- export ---------- */
+  $('record').onclick = () => {
+    if (!hasA || !locked) return;
+    if (recorder && recorder.state === 'recording'){ setPlaying(false); return; }
+    const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
+    if (!mime){ $('recStatus').textContent = 'This browser cannot record video. Try Chrome or Edge.'; return; }
+    const chunks = [];
+    recorder = new MediaRecorder(cv.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8000000 });
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+      a.download = 'dive-comparison.webm'; a.click();
+      $('record').textContent = 'Record comparison'; $('record').classList.remove('rec');
+      $('recStatus').textContent = 'Saved dive-comparison.webm to your downloads.';
+      recorder = null;
+    };
+    recorder.start();
+    $('record').textContent = 'Stop recording'; $('record').classList.add('rec');
+    $('recStatus').textContent = 'Recording…';
+    setPlaying(true);
+  };
+
+  updateButtons();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
