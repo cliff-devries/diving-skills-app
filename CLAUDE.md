@@ -34,7 +34,7 @@ bumped across ALL HTML files before pushing to GitHub.
 - leaderboard.html
 - crm.html
 - practice.html (no `css/styles.css` link — it's self-contained; only bump its JS versions)
-- overlay.html (self-contained video comparison tool — loads no project JS/CSS; nothing to bump)
+- overlay.html (coach-only video comparison tool — no styles.css; bump its supabase.js/auth.js versions)
 - Any new HTML files added to the project
 
 ### Rule: Before every git push, run this check:

@@ -168,6 +168,21 @@
   </aside>
 </main>
 
+<!-- Supabase + auth stack -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=44"></script>
+<script src="js/auth.js?v=6"></script>
+
+<script>
+(async () => {
+  initSupabase();
+  const profile = await Auth.init();
+  if (!profile) return;
+  Auth.requireRole(['coach', 'super_user']);
+})();
+</script>
+
 <script>
 (() => {
   const $ = id => document.getElementById(id);
