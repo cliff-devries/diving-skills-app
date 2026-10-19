@@ -350,6 +350,8 @@ tbody tr:hover{background:var(--bg-surface-2);}
 .builder-compact .field{margin-bottom:10px;}
 .builder-compact .field label{font-size:.72rem;margin-bottom:4px;}
 .builder-compact .input,.builder-compact select.input,.builder-compact textarea.input{padding:7px 10px;font-size:.83rem;}
+#pb_name{padding:11px 13px;font-size:1rem;}
+#pb_notes{padding:11px 13px;font-size:.9rem;}
 .builder-compact .field-row{gap:10px;}
 .builder-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;display:block;}
 .builder-subsection{padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);}
@@ -2508,7 +2510,7 @@ function renderPracticeBuilder(id,container){
 
       <div class="card builder-card">
         <label class="builder-label">Practice Notes</label>
-        <textarea class="input" id="pb_notes" rows="4" placeholder="Free-form notes for this practice…" ${dis}>${esc(plan.notes||'')}</textarea>
+        <textarea class="input" id="pb_notes" rows="6" placeholder="Free-form notes for this practice…" ${dis}>${esc(plan.notes||'')}</textarea>
       </div>
 
       <div class="builder-savebar">
