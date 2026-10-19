@@ -1795,6 +1795,18 @@ function duplicatePlan(id){
   DB.plans.push(copy);saveDB();router();
   toast('Plan duplicated');
 }
+function copyBuilderPlan(id){
+  const p=DB.plans.find(p=>p.id===id);
+  const copy=JSON.parse(JSON.stringify(p));
+  copy.id=uid('plan');copy.name=p.name+' (Copy)';copy.dateCreated=nowStamp();
+  copy.coachId=SYNC_COACH_ID;
+  copy.coachName=coachDisplayName();
+  copy.isShared=false;
+  copy.rows=copy.rows.map(r=>({...r,id:uid('row')}));
+  DB.plans.push(copy);saveDB();
+  navigate('builder/'+copy.id);
+  toast('Practice copied — editing new copy');
+}
 function deletePlan(id){
   confirmDelete('This will permanently delete this practice plan. Continue?',()=>{
     DB.plans=DB.plans.filter(p=>p.id!==id);saveDB();router();
@@ -2505,6 +2517,7 @@ function renderPracticeBuilder(id,container){
           <button class="btn btn-sm" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')" title="Print">${ic('printer')}<span class="btn-label"> Print</span></button>
           <button class="btn btn-sm" onclick="sharePracticePlan()" title="Share">🔗<span class="btn-label"> Share</span></button>
           ${plan.isShared?`<button class="btn btn-sm btn-ghost" onclick="unsharePracticePlan()" title="Make this practice private again">Unshare</button>`:''}
+          <button class="btn btn-sm" onclick="copyBuilderPlan('${plan.id}')" title="Copy Practice">${ic('duplicate')}<span class="btn-label"> Copy</span></button>
           ${readOnly?'':`<button class="btn btn-sm btn-primary" onclick="saveBuilderDraft()" title="Save Practice">💾<span class="btn-label"> Save</span></button>`}
         </div>
       </div>
