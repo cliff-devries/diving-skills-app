@@ -1859,12 +1859,17 @@ function signupItemHtml(l) {
 }
 
 function logFormHtml(kinds, placeholder) {
+  const todayLocal = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
   return `<div class="ld-log">
     ${kinds.length > 1
       ? `<select id="act-kind" class="form-select">${kinds.map(k => `<option value="${k}">${ACT_ICON[k]} ${ACT_LABEL[k]}</option>`).join('')}</select>`
       : `<input type="hidden" id="act-kind" value="${kinds[0]}">`}
     <textarea id="act-body" class="form-input" rows="2" placeholder="${esc(placeholder)}" style="resize:vertical"></textarea>
     <button class="btn btn-primary btn-sm" onclick="addActivity()">Add</button>
+    <span style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--text-secondary);">
+      <label for="act-date" style="white-space:nowrap;">Activity date</label>
+      <input type="date" id="act-date" class="form-input" value="${todayLocal}" style="width:auto;padding:4px 8px;font-size:.8rem;">
+    </span>
   </div>`;
 }
 
@@ -1922,10 +1927,12 @@ async function addActivity() {
   const body = document.getElementById('act-body').value.trim();
   if (!id || !body) return;
   const kind = document.getElementById('act-kind').value;
+  const dateVal = document.getElementById('act-date').value; // YYYY-MM-DD local
+  const occurredAt = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
   try {
-    await SupabaseDB.crmAddActivity(id, kind, body);
+    await SupabaseDB.crmAddActivity(id, kind, body, occurredAt);
     const l = findLead(id);
-    if (l && ['call', 'email', 'text', 'in_person'].includes(kind)) { l.last_contacted_at = new Date().toISOString(); renderList(); }
+    if (l && ['call', 'email', 'text', 'in_person'].includes(kind)) { l.last_contacted_at = occurredAt; renderList(); }
     activitiesAll = null;
     loadLeadExtras(id);
   } catch (err) {
