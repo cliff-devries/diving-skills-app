@@ -1894,7 +1894,7 @@ function renderDetailTab() {
       (l && l.notes ? `<div class="ld-pinned"><div class="ld-card-title">Internal notes</div><div style="white-space:pre-wrap">${esc(l.notes)}</div></div>` : '') +
       (notes.length ? notes.map(a => activityItemHtml(a, canDel(a))).join('') : empty('No notes yet.'));
   } else {
-    el.innerHTML = logFormHtml(['call', 'email', 'in_person', 'text', 'trial', 'other'], 'What happened?') +
+    el.innerHTML = logFormHtml(['email', 'call', 'in_person', 'text', 'trial', 'other'], 'What happened?') +
       (others.length ? others.map(a => activityItemHtml(a, canDel(a))).join('') : empty('No calls, emails or meetings logged yet.'));
   }
 }
