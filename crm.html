@@ -194,6 +194,14 @@
     .em-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
     .em-chip { font-size: 0.78rem; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-surface); color: var(--text-primary); cursor: pointer; }
     .em-body { font-family: inherit; line-height: 1.5; resize: vertical; }
+    .em-editor-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+    @media (max-width: 680px) { .em-editor-wrap { grid-template-columns: 1fr; } }
+    .em-editor-wrap .em-body { resize: none; height: 280px; }
+    .em-preview-pane { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column; height: 280px; }
+    .em-preview-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--bg-hover); flex-shrink: 0; }
+    .em-preview-body { padding: 12px; font-size: 0.88rem; line-height: 1.55; color: var(--text-primary); overflow-y: auto; flex: 1; }
+    .em-preview-body a { color: #2196F3; }
+    .em-preview-body p { margin: 0 0 12px; }
     .em-preview { white-space: pre-wrap; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; font-size: 0.9rem; max-height: 260px; overflow: auto; background: var(--bg-surface); }
     .em-log { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     .em-log th, .em-log td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -659,7 +667,7 @@
 
 <!-- EMAIL TEMPLATE -->
 <div class="modal-overlay" id="email-modal">
-  <div class="modal" style="max-width:640px">
+  <div class="modal" style="max-width:900px">
     <div class="modal-header">
       <h2 class="modal-title" id="em-title">Email</h2>
       <button class="modal-close" onclick="App.closeModal('email-modal')">✕</button>
@@ -668,8 +676,14 @@
     <div class="form-group"><label class="form-label">Subject *</label><input id="em-subject" class="form-input" autocomplete="off"></div>
     <div class="form-group"><label class="form-label">Message *</label>
       <div class="em-chips" id="em-chips"></div>
-      <textarea id="em-body" class="form-input em-body" rows="12"></textarea>
-      <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Tags in double braces are filled in for each family.</div></div>
+      <div class="em-editor-wrap">
+        <textarea id="em-body" class="form-input em-body" rows="12" oninput="updateEmailPreview()"></textarea>
+        <div class="em-preview-pane" id="em-preview">
+          <div class="em-preview-label">Preview</div>
+          <div class="em-preview-body" id="em-preview-body"></div>
+        </div>
+      </div>
+      <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Use <code>[Label](URL)</code> for a clickable link. Tags in double braces are filled in for each family.</div></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">When is it sent?</label>
         <select id="em-trigger" class="form-select" onchange="syncEmailForm()">
@@ -705,7 +719,7 @@
 
 <!-- SEND EMAIL TO A CONTACT -->
 <div class="modal-overlay" id="send-email-modal">
-  <div class="modal" style="max-width:600px" id="send-email-body"></div>
+  <div class="modal" style="max-width:860px" id="send-email-body"></div>
 </div>
 
 <!-- CONVERT TO DIVER -->
@@ -2382,6 +2396,28 @@ function emailDelayText(mins) {
 
 function hourLabel(h) { return h === 0 ? '12 am' : h < 12 ? h + ' am' : h === 12 ? '12 pm' : (h - 12) + ' pm'; }
 
+function crmBodyToHtml(text) {
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const linkify = (s) => {
+    const LINK = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/[^\s<]+)/g;
+    let out = ''; let last = 0; let m;
+    while ((m = LINK.exec(s)) !== null) {
+      out += esc(s.slice(last, m.index));
+      if (m[1] != null) {
+        out += `<a href="${esc(m[2])}" target="_blank" rel="noopener">${esc(m[1])}</a>`;
+      } else {
+        const bare = m[3].match(/^(.*?)([.,;:!?)]*)$/);
+        out += `<a href="${esc(bare[1])}" target="_blank" rel="noopener">${esc(bare[1])}</a>${esc(bare[2])}`;
+      }
+      last = m.index + m[0].length;
+    }
+    return out + esc(s.slice(last));
+  };
+  return String(text || '').replace(/\r\n/g, '\n').split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 12px">${linkify(p).replace(/\n/g, '<br>')}</p>`).join('');
+}
+
 function emailTriggerText(t) {
   if (t.trigger_type === 'manual') return 'Sent by hand from a contact\'s page';
   const when = t.trigger_type === 'signup'
@@ -2488,9 +2524,15 @@ function openEmailTemplate(id) {
   document.getElementById('em-delete-wrap').innerHTML = t
     ? `<button class="btn btn-danger btn-sm" onclick="deleteEmailTemplate('${t.id}')">Delete</button>` : '';
   syncEmailForm();
+  updateEmailPreview();
   App.hideAlert('em-alert');
   App.openModal('email-modal');
   document.getElementById('em-name').focus();
+}
+
+function updateEmailPreview() {
+  const body = document.getElementById('em-body').value;
+  document.getElementById('em-preview-body').innerHTML = crmBodyToHtml(body);
 }
 
 async function saveEmailTemplate() {
@@ -2596,7 +2638,13 @@ function openSendEmail(leadId) {
     <div id="se-edit" hidden>
       <div class="form-group"><label class="form-label">Subject</label><input id="se-subject" class="form-input" autocomplete="off" oninput="checkSendMarkers()"></div>
       <div class="form-group"><label class="form-label">Message (you can edit it before sending)</label>
-        <textarea id="se-body" class="form-input em-body" rows="14" oninput="checkSendMarkers()"></textarea></div>
+        <div class="em-editor-wrap">
+          <textarea id="se-body" class="form-input em-body" rows="14" oninput="checkSendMarkers();updateSendPreview()"></textarea>
+          <div class="em-preview-pane" id="se-preview-pane">
+            <div class="em-preview-label">Preview</div>
+            <div class="em-preview-body" id="se-preview-body"></div>
+          </div>
+        </div></div>
       <div id="se-marker-warn" class="alert alert-error" style="display:none"></div>
     </div>
     <div id="se-alert" class="alert mb-4"></div>
@@ -2640,9 +2688,15 @@ async function previewSendEmail() {
     edit.hidden = false;
     btn.textContent = r.to ? 'Send to ' + r.to : 'Send';
     checkSendMarkers();
+    updateSendPreview();
   } catch (err) {
     box.textContent = err.message;
   }
+}
+
+function updateSendPreview() {
+  const el = document.getElementById('se-preview-body');
+  if (el) el.innerHTML = crmBodyToHtml(document.getElementById('se-body').value);
 }
 
 async function doSendEmail() {

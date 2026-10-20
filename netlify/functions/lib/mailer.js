@@ -41,14 +41,29 @@ function varsFor(row) {
 const FOOTER = (diver) => `You are receiving this email because ${diver || 'a diver'} was signed up with Upstate Diving. ` +
   'If you would rather not receive these messages, just reply and let us know.';
 
-// Plain text in, simple HTML out: blank line = new paragraph, links become clickable.
+// Plain text in, simple HTML out: blank line = new paragraph, [Label](URL) and bare URLs become clickable.
+// Splits each line into link tokens and plain-text segments so each part is escaped correctly.
 function toHtml(text, diver) {
-  const link = (s) => esc(s).replace(/(https?:\/\/[^\s<]+)/g, (u) => {
-    const m = u.match(/^(.*?)([.,;:!?)]*)$/);
-    return `<a href="${m[1]}">${m[1]}</a>${m[2]}`;
-  });
+  const linkify = (s) => {
+    const LINK = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/[^\s<]+)/g;
+    let out = '';
+    let last = 0;
+    let m;
+    while ((m = LINK.exec(s)) !== null) {
+      out += esc(s.slice(last, m.index));
+      if (m[1] != null) {
+        out += `<a href="${esc(m[2])}">${esc(m[1])}</a>`;
+      } else {
+        const bare = m[3].match(/^(.*?)([.,;:!?)]*)$/);
+        out += `<a href="${esc(bare[1])}">${esc(bare[1])}</a>${esc(bare[2])}`;
+      }
+      last = m.index + m[0].length;
+    }
+    out += esc(s.slice(last));
+    return out;
+  };
   const paras = String(text).replace(/\r\n/g, '\n').split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 14px">${link(p).replace(/\n/g, '<br>')}</p>`).join('');
+    .map((p) => `<p style="margin:0 0 14px">${linkify(p).replace(/\n/g, '<br>')}</p>`).join('');
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#020202">${paras}` +
     `<p style="margin:24px 0 0;font-size:12px;color:#707070">${esc(FOOTER(diver))}</p></div>`;
 }
