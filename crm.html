@@ -1687,11 +1687,6 @@ function leftPanelReadHtml(l) {
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
     </div>
-    <div class="ld-card">
-      <div class="ld-card-title">Email</div>
-      <div class="text-secondary text-sm" style="margin-bottom:8px">${c.email ? 'Goes to ' + esc(c.email) : 'This contact has no parent email address yet.'}</div>
-      <button class="btn btn-secondary btn-sm" onclick="openSendEmail('${l.id}')" ${c.email ? '' : 'disabled'}>✉️ Send email</button>
-    </div>
     <div class="flex gap-2" style="flex-wrap:wrap">
       ${l.converted_diver_id || l.stage === 'graduated' ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
       ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}
@@ -1790,6 +1785,7 @@ function renderLeadPage() {
         <button class="btn btn-ghost btn-sm" onclick="leadNav(-1)" ${nav.prev && !detailEdit ? '' : 'disabled'} aria-label="Previous contact">‹ Previous</button>
         ${nav.total > 1 ? `<span class="text-secondary text-sm">${nav.pos} of ${nav.total}</span>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="leadNav(1)" ${nav.next && !detailEdit ? '' : 'disabled'} aria-label="Next contact">Next ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="openSendEmail('${l.id}')" ${(l.contact||{}).email ? '' : 'disabled'} title="${(l.contact||{}).email ? 'Send email to ' + esc((l.contact||{}).email) : 'No parent email on file'}">✉️ Send Email</button>
         ${detailEdit ? '<span class="text-secondary text-sm">Editing…</span>' : '<button class="btn btn-secondary btn-sm" onclick="setDetailEdit(true)">✏️ Edit</button>'}
       </div>
     </div>
