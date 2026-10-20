@@ -1081,6 +1081,7 @@ function renderAll() {
   renderList();
   renderDashboard();
   if (currentView === 'activities' && activitiesAll) renderActivities();
+  if (currentView === 'emails') { renderEmails(); loadEmailLog(); }
 }
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
