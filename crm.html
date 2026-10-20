@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DiveDrills — CRM</title>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=11">
+  <link rel="stylesheet" href="css/styles.css?v=12">
   <style>
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
@@ -330,6 +330,7 @@
   <div class="dcrm-header-inner">
     <a class="dcrm-wordmark" href="#dashboard" title="DiveCRM Dashboard"><span class="dive">Dive</span><span class="crm">CRM</span></a>
     <div class="dcrm-user">
+      <a href="hub.html" style="font-size:0.8rem;color:var(--text-secondary);text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);" onmouseover="this.style.color='var(--text-primary)';this.style.borderColor='var(--text-secondary)'" onmouseout="this.style.color='var(--text-secondary)';this.style.borderColor='var(--border)'">⬡ DiveCentral</a>
       <span class="dcrm-coach" id="dcrm-coach"></span>
       <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Sign Out</button>
     </div>
@@ -737,7 +738,7 @@
 <script src="js/config.js"></script>
 <script src="js/supabase.js?v=44"></script>
 <script src="js/auth.js?v=6"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/app.js?v=14"></script>
 
 <script>
 /* CRM-PURE-START — no DOM access in this block; it is unit-tested in Node. */

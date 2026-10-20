@@ -67,12 +67,12 @@ This has caused repeated bugs throughout development.
 
 | File | Version |
 |------|---------|
-| js/app.js | v=13 |
+| js/app.js | v=14 |
 | js/supabase.js | v=44 |
 | js/auth.js | v=6 |
 | js/skills.js | v=5 |
 | js/reports.js | v=12 |
-| css/styles.css | v=11 |
+| css/styles.css | v=12 |
 
 ---
 

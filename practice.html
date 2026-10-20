@@ -482,7 +482,7 @@ body.view-mode #content{padding:0;max-width:none;}
 <script src="js/supabase.js?v=44"></script>
 <script src="js/auth.js?v=6"></script>
 <script src="js/skills.js?v=5"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/app.js?v=14"></script>
 
 <!-- PDF generation (practice plan report) — same libs as progress.html/stats.html -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1338,6 +1338,9 @@ function renderSidebar(){
       </div>
       <span class="nav-icon" style="color:var(--text-secondary);flex-shrink:0;">→</span>
     </div>
+    <a href="hub.html" class="nav-item" style="font-size:.85rem;color:var(--text-secondary);margin-bottom:6px;">
+      <span class="nav-icon">⬡</span><span>DiveCentral</span>
+    </a>
     <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="Auth.logout()">Sign Out</button>
   </div>`;
   document.getElementById('sidebar').innerHTML=html;

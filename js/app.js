@@ -63,6 +63,12 @@ const App = {
             <span class="nav-icon">${reportsLink.icon}</span>
             <span>${reportsLink.label}</span>
           </a>
+          ${role === 'coach' || role === 'super' ? `
+          <div class="sidebar-nav-divider"></div>
+          <a href="hub.html" class="nav-item nav-item-hub">
+            <span class="nav-icon">⬡</span>
+            <span>DiveCentral</span>
+          </a>` : ''}
         </nav>
         <div class="sidebar-footer">
           <a href="profile.html" class="user-info-nav" style="text-decoration:none;display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
