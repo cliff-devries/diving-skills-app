@@ -1687,10 +1687,7 @@ function leftPanelReadHtml(l) {
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
     </div>
-    <div class="flex gap-2" style="flex-wrap:wrap">
-      ${l.converted_diver_id || l.stage === 'graduated' ? '' : `<button class="btn btn-secondary btn-sm" onclick="openConvert('${l.id}')">Convert to Diver →</button>`}
-      ${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}
-    </div>`;
+  `;
 }
 
 function leftPanelEditHtml(l) {
@@ -1766,9 +1763,12 @@ function leftPanelEditHtml(l) {
         <textarea id="lf-notes" class="form-input" rows="3" style="resize:vertical">${esc(l.notes)}</textarea></div>
     </div>
     <div id="lead-alert" class="alert mb-2"></div>
-    <div class="flex gap-2 justify-end">
-      <button class="btn btn-ghost" onclick="setDetailEdit(false)">Cancel</button>
-      <button class="btn btn-primary" id="lead-save-btn" onclick="saveLead()">Save</button>
+    <div class="flex gap-2" style="justify-content:space-between;align-items:center;">
+      <div>${currentUser.is_super_user ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">Delete lead</button>` : ''}</div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost" onclick="setDetailEdit(false)">Cancel</button>
+        <button class="btn btn-primary" id="lead-save-btn" onclick="saveLead()">Save</button>
+      </div>
     </div>`;
 }
 
