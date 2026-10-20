@@ -1299,6 +1299,7 @@ const NAV = [
   {type:'link',route:'details',label:'Practice Details',icon:'details'},
   {type:'link',route:'skills',label:'Skills',icon:'skill'},
   {type:'link',route:'plans',label:'Practice Plans',icon:'plans'},
+  {type:'link',route:'templates',label:'Templates',icon:'duplicate'},
 ];
 const BOTTOM_NAV = [
   {route:'dashboard',label:'Dashboard',icon:'home'},
@@ -1415,6 +1416,7 @@ function router(){
     details:renderPracticeDetails,
     'practice-points':renderPracticePointsHub,
     plans:renderPlanList,
+    templates:renderTemplateList,
     groups:()=>renderSimpleList(CFG.groups),
     locations:()=>renderSimpleList(CFG.locations),
     announcements:()=>renderSimpleList(CFG.announcements),
@@ -1721,11 +1723,13 @@ function renderPlanList(container){
   let groupFilter='';
   function draw(){
     const list=[...DB.plans]
+      .filter(p=>!p.isTemplate)
       .filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase()))
       .filter(p=>!groupFilter||(p.groups||[]).includes(groupFilter))
       .sort((a,b)=>b.date.localeCompare(a.date));
     container.innerHTML = pageHeader('Practice Plans', `
       <button class="btn" onclick="openAIPlanModal()">${ic('wand')} Generate AI Plan</button>
+      <button class="btn" onclick="navigate('templates')">${ic('duplicate')} Practice Templates</button>
       <button class="btn btn-primary" onclick="createPlan()">${ic('plus')}New Plan</button>
     `) +
     `<div class="toolbar">
@@ -1772,6 +1776,83 @@ function renderPlanList(container){
   }
   draw();
 }
+function renderTemplateList(container){
+  let search='';
+  let groupFilter='';
+  function draw(){
+    const list=[...DB.plans]
+      .filter(p=>p.isTemplate)
+      .filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase()))
+      .filter(p=>!groupFilter||(p.groups||[]).includes(groupFilter))
+      .sort((a,b)=>a.name.localeCompare(b.name));
+    container.innerHTML = pageHeader('Practice Templates', `
+      <button class="btn" onclick="navigate('plans')">${ic('plans')} Practice Plans</button>
+      <button class="btn btn-primary" onclick="createTemplate()">${ic('plus')}New Template</button>
+    `) +
+    `<p class="mutedtext" style="margin:0 0 16px;">Templates are reusable practice structures. Use <strong>Copy to Plan</strong> to create a new practice plan from any template.</p>
+    <div class="toolbar">
+      <div class="search-wrap"><span class="s-icon">${ic('search')}</span><input class="input" id="tpl-search" placeholder="Search templates"></div>
+      <select class="input" id="tpl-group-filter"><option value="">All Groups</option>${DB.groups.map(g=>`<option value="${escAttr(g.name)}">${esc(g.name)}</option>`).join('')}</select>
+    </div>
+    <div class="tablewrap plans-desktop-table"><table><thead><tr>
+      <th>Template Name</th><th>Group</th><th>Duration</th><th>Coach</th><th style="text-align:right">Action</th>
+    </tr></thead><tbody>
+    ${list.length===0?`<tr class="empty-row"><td colspan="5">No templates yet. Create one with the button above, or save an existing plan as a template from the builder.</td></tr>`:
+      list.map(p=>`<tr>
+        <td><a onclick="navigate('builder/${p.id}')">${esc(p.name)}</a></td>
+        <td>${p.groups&&p.groups[0]?`<span class="badge badge-accent">${esc(p.groups[0])}</span>`:''}</td>
+        <td>${p.duration?esc(String(p.duration))+' min':'—'}</td>
+        <td>${esc(p.coachName||'—')}</td>
+        <td><div class="row-actions">
+          <button class="btn btn-sm btn-primary" onclick="copyTemplateToplan('${p.id}')">${ic('duplicate')} Copy to Plan</button>
+          <button class="icon-btn" title="Edit template" onclick="navigate('builder/${p.id}')">${ic('edit')}</button>
+          ${isMine(p)?`<button class="icon-btn" title="Delete" onclick="deletePlan('${p.id}')">${ic('trash')}</button>`:''}
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table></div>
+    <div class="plan-cards-mobile">
+      ${list.length===0?`<p class="mutedtext">No templates yet.</p>`:
+        list.map(p=>`<div class="plan-card">
+          <div class="plan-card-top">
+            <a onclick="navigate('builder/${p.id}')" style="font-weight:700;">${esc(p.name)}</a>
+            ${p.groups&&p.groups[0]?`<span class="badge badge-accent">${esc(p.groups[0])}</span>`:''}
+          </div>
+          <div class="plan-card-row mutedtext">${p.duration?esc(String(p.duration))+' min &middot; ':''}Coach: ${esc(p.coachName||'—')}</div>
+          <div class="plan-card-actions">
+            <button class="btn btn-sm btn-primary" onclick="copyTemplateToplan('${p.id}')">${ic('duplicate')} Copy to Plan</button>
+            <button class="icon-btn" title="Edit template" onclick="navigate('builder/${p.id}')">${ic('edit')}</button>
+            ${isMine(p)?`<button class="icon-btn" title="Delete" onclick="deletePlan('${p.id}')">${ic('trash')}</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+    document.getElementById('tpl-search').value=search;
+    document.getElementById('tpl-search').oninput=e=>{search=e.target.value;draw();};
+    document.getElementById('tpl-group-filter').value=groupFilter;
+    document.getElementById('tpl-group-filter').onchange=e=>{groupFilter=e.target.value;draw();};
+  }
+  draw();
+}
+function createTemplate(){
+  requireLeaveConfirmation(()=>{
+    loadBuilderDraft(null);
+    builderDraft.isTemplate=true;
+    builderDraft.name='Template '+((DB.plans.filter(p=>p.isTemplate).length)+1);
+    navigate('builder');
+  });
+}
+function copyTemplateToplan(id){
+  const p=DB.plans.find(p=>p.id===id);
+  const copy=JSON.parse(JSON.stringify(p));
+  copy.id=uid('plan');copy.name=p.name+' (Copy)';copy.dateCreated=nowStamp();
+  copy.coachId=SYNC_COACH_ID;copy.coachName=coachDisplayName();
+  copy.isShared=false;copy.isTemplate=false;
+  copy.date=todayISO();
+  copy.rows=copy.rows.map(r=>({...r,id:uid('row')}));
+  DB.plans.push(copy);saveDB();
+  navigate('builder/'+copy.id);
+  toast('Template copied — editing new practice plan');
+}
+
 // "Start a new practice" everywhere (Practice Plans list, calendar day
 // click, Builder's own New Practice button) lands on a blank Builder draft
 // — nothing is written to DB.plans until Save Practice is tapped.
@@ -2514,13 +2595,18 @@ function renderPracticeBuilder(id,container){
       </div>
 
       <div class="builder-savebar">
-        <div>${readOnly?'':`<button class="btn btn-sm btn-danger" onclick="deleteBuilderPlan()" title="Delete">${ic('trash')}<span class="btn-label"> Delete</span></button>`}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${readOnly?'':`<button class="btn btn-sm btn-danger" onclick="deleteBuilderPlan()" title="Delete">${ic('trash')}<span class="btn-label"> Delete</span></button>`}
+          ${plan.isTemplate?`<span class="badge badge-accent" title="This is a Practice Template — use 'Copy to Plan' to create a practice from it">📋 Template</span>`:''}
+        </div>
         <div class="builder-savebar-right">
-          <button class="btn btn-sm" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')" title="Print">${ic('printer')}<span class="btn-label"> Print</span></button>
-          <button class="btn btn-sm" onclick="sharePracticePlan()" title="Share">🔗<span class="btn-label"> Share</span></button>
-          ${plan.isShared?`<button class="btn btn-sm btn-ghost" onclick="unsharePracticePlan()" title="Make this practice private again">Unshare</button>`:''}
-          <button class="btn btn-sm" onclick="copyBuilderPlan('${plan.id}')" title="Copy Practice">${ic('duplicate')}<span class="btn-label"> Copy</span></button>
-          ${readOnly?'':`<button class="btn btn-sm btn-primary" onclick="saveBuilderDraft()" title="Save Practice">💾<span class="btn-label"> Save</span></button>`}
+          ${plan.isTemplate?'':`<button class="btn btn-sm" id="pdfPrintBtn" onclick="generatePracticePDF('${plan.id}')" title="Print">${ic('printer')}<span class="btn-label"> Print</span></button>`}
+          ${plan.isTemplate?'':`<button class="btn btn-sm" onclick="sharePracticePlan()" title="Share">🔗<span class="btn-label"> Share</span></button>`}
+          ${(!plan.isTemplate && plan.isShared)?`<button class="btn btn-sm btn-ghost" onclick="unsharePracticePlan()" title="Make this practice private again">Unshare</button>`:''}
+          ${plan.isTemplate
+            ? `<button class="btn btn-sm btn-primary" onclick="copyTemplateToplan('${plan.id}')" title="Copy this template to a new practice plan">${ic('duplicate')}<span class="btn-label"> Copy to Plan</span></button>`
+            : `<button class="btn btn-sm" onclick="copyBuilderPlan('${plan.id}')" title="Copy Practice">${ic('duplicate')}<span class="btn-label"> Copy</span></button>`}
+          ${readOnly?'':`<button class="btn btn-sm ${plan.isTemplate?'':'btn-primary'}" onclick="saveBuilderDraft()" title="Save">💾<span class="btn-label"> Save</span></button>`}
         </div>
       </div>
       </div>
