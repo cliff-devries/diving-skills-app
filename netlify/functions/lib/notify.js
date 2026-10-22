@@ -2,9 +2,9 @@
 // Never throws: the sign-up or registration is already saved, so a failed email only logs.
 //
 // Netlify env vars: BREVO_API_KEY (required), BREVO_SENDER_EMAIL / BREVO_SENDER_NAME
-// (sender must be verified in Brevo), NOTIFY_EMAIL (default cliff@upstatediving.com).
+// (sender must be verified in Brevo), NOTIFY_EMAIL (default admin@upstatediving.com).
 
-const DEFAULT_TO = 'cliff@upstatediving.com';
+const DEFAULT_TO = 'admin@upstatediving.com';
 
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

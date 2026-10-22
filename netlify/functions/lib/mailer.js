@@ -7,9 +7,9 @@
 //
 // Netlify env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BREVO_API_KEY,
 // BREVO_SENDER_EMAIL (verified in Brevo), optional BREVO_SENDER_NAME,
-// NOTIFY_EMAIL (reply-to address, default cliff@upstatediving.com).
+// NOTIFY_EMAIL (reply-to address, default admin@upstatediving.com).
 
-const REPLY_TO = () => process.env.NOTIFY_EMAIL || 'cliff@upstatediving.com';
+const REPLY_TO = () => process.env.NOTIFY_EMAIL || 'admin@upstatediving.com';
 const siteUrl = () => (process.env.URL || 'https://divedrills.com').replace(/\/+$/, '');
 
 const esc = (s) => String(s == null ? '' : s)
