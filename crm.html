@@ -258,6 +258,12 @@
     .ld-log { display: grid; grid-template-columns: 150px 1fr auto; gap: 8px; align-items: start; margin-bottom: 14px; }
     .ld-log:has(input[type=hidden]) { grid-template-columns: 1fr auto; }
     .ld-pinned { background: var(--bg-surface-2); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.88rem; }
+    .ld-onboard-list { display: flex; flex-direction: column; gap: 2px; }
+    .ld-onboard-item { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.88rem; }
+    .ld-onboard-item:last-child { border-bottom: none; }
+    .ld-onboard-cb { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .ld-onboard-label { flex: 1; }
+    .ld-onboard-label.is-done { color: var(--text-secondary); text-decoration: line-through; }
     .ld-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .ld-item:last-child { border-bottom: none; }
     .ld-item-icon { flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--bg-surface-2); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
@@ -1708,7 +1714,38 @@ function leftPanelReadHtml(l) {
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
     </div>
+    <div class="ld-card ld-onboard-card">
+      <div class="ld-card-title">Onboarding checklist</div>
+      <div class="ld-onboard-list">
+        ${[
+          ['onboard_quickbooks', 'QuickBooks'],
+          ['onboard_alora',      'Alora (attendance)'],
+          ['onboard_zoho',       'Zoho Mail'],
+          ['onboard_groupme',    'GroupMe'],
+          ['onboard_divedrills', 'DiveDrills'],
+          ['onboard_aau',        'AAU membership current'],
+        ].map(([field, label]) => `
+        <label class="ld-onboard-item">
+          <input type="checkbox" class="ld-onboard-cb" ${l[field] ? 'checked' : ''}
+            onchange="onboardCheck('${l.id}','${field}',this.checked)">
+          <span class="ld-onboard-label ${l[field] ? 'is-done' : ''}">${esc(label)}</span>
+        </label>`).join('')}
+      </div>
+    </div>
   `;
+}
+
+async function onboardCheck(leadId, field, checked) {
+  const l = findLead(leadId);
+  if (!l) return;
+  l[field] = checked;
+  try {
+    await SupabaseDB.crmUpdateLead(leadId, { [field]: checked });
+  } catch (err) {
+    App.showToast('Could not save — ' + err.message, 'error');
+    l[field] = !checked;
+    renderLeadPage();
+  }
 }
 
 function leftPanelEditHtml(l) {
