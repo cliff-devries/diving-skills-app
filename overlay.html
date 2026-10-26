@@ -3,17 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dive Overlay</title>
+<title>DiveOverlay</title>
 <style>
-  :root { --bg:#0f1419; --panel:#1a212b; --line:#2b3544; --text:#e6edf3; --muted:#8b98a9; --accent:#3aa0ff; --a:#38d6ff; --b:#ff6a4d; --ok:#2ecc71; }
+  :root { --bg:#0f1419; --panel:#1a212b; --line:#2b3544; --text:#e6edf3; --muted:#8b98a9; --accent:#3aa0ff; --a:#38d6ff; --b:#ff6a4d; --ok:#2ecc71; --red:#E53935; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  header { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  .steps { display:flex; gap:8px; }
-  .step { padding:4px 12px; border-radius:99px; border:1px solid var(--line); color:var(--muted); font-size:12px; }
+  header { padding:10px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+
+  /* DiveCentral-style wordmark */
+  .wordmark { font-size:20px; font-weight:800; letter-spacing:-0.02em; white-space:nowrap; line-height:1; }
+  .wordmark .dive { color:var(--text); }
+  .wordmark .overlay { color:var(--red); }
+
+  .steps { display:flex; gap:6px; }
+  .step { padding:5px 14px; border-radius:99px; border:1px solid var(--line); color:var(--muted); font-size:12px; cursor:default; user-select:none; transition:background .15s,color .15s; }
   .step.on { background:var(--accent); border-color:var(--accent); color:#04121f; font-weight:600; }
-  .step.done { border-color:var(--ok); color:var(--ok); }
+  .step.done { border-color:var(--ok); color:var(--ok); cursor:pointer; }
+  .step.done:hover { background:rgba(46,204,113,.12); }
+
+  /* mode toggle */
+  .modetoggle { display:flex; gap:0; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .modetoggle button { background:transparent; border:none; color:var(--muted); font:inherit; font-size:12px; font-weight:600; padding:5px 13px; cursor:pointer; transition:background .12s,color .12s; white-space:nowrap; }
+  .modetoggle button:hover { background:rgba(255,255,255,.06); }
+  .modetoggle button.sel { background:var(--accent); color:#04121f; }
+
+  /* reset */
+  .resetbtn { margin-left:auto; background:transparent; border:1px solid var(--line); color:var(--muted); font:inherit; font-size:12px; padding:5px 12px; border-radius:6px; cursor:pointer; transition:border-color .12s,color .12s; white-space:nowrap; }
+  .resetbtn:hover { border-color:var(--red); color:var(--red); }
+
   main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:14px; padding:14px; }
   @media (max-width:1000px){ main { grid-template-columns:1fr; } }
 
@@ -21,8 +38,12 @@
   @media (max-width:700px){ .windows { grid-template-columns:1fr; } }
   .pnl { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; }
   .ptitle { display:flex; align-items:center; gap:8px; font-weight:600; margin-bottom:8px; }
-  .ptitle .dot { width:10px; height:10px; border-radius:50%; }
+  .ptitle .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .ptitle .ptime { margin-left:auto; color:var(--muted); font-weight:400; font-variant-numeric:tabular-nums; font-size:12px; }
+  /* clickable panel title */
+  .ptitle-btn { background:none; border:none; font:inherit; font-weight:600; font-size:inherit; color:var(--text); padding:0; cursor:pointer; display:flex; align-items:center; gap:8px; flex:1; text-align:left; }
+  .ptitle-btn:hover .ptitle-text { text-decoration:underline; text-underline-offset:3px; }
+  .ptitle-btn .clip-hint { font-size:11px; font-weight:400; color:var(--muted); margin-left:4px; }
   .vwrap { background:#000; border-radius:6px; overflow:hidden; min-height:120px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
   .vwrap video { width:100%; max-height:36vh; display:block; background:#000; }
   .pnl .pscrub { width:100%; margin:8px 0 4px; }
@@ -61,16 +82,28 @@
   .syncbox { margin-top:8px; padding:8px; border-radius:6px; background:#0f1419; border:1px solid var(--line); font-variant-numeric:tabular-nums; font-size:12px; }
   .check { display:flex; align-items:center; gap:8px; margin-top:8px; }
   .check input { accent-color:var(--accent); }
+
+  /* hide overlay-only controls in side-by-side mode */
+  body.sbs .overlayOnly { display:none; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Dive Overlay</h1>
+  <h1 class="wordmark"><span class="dive">Dive</span><span class="overlay">Overlay</span></h1>
+
   <div class="steps">
     <span class="step on" id="st1">1 · Sync &amp; size</span>
     <span class="step" id="st2">2 · Overlay</span>
   </div>
-  <a href="hub.html" style="margin-left:auto;font-size:0.78rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);">⬡ DiveCentral</a>
+
+  <div class="modetoggle" title="Choose comparison mode">
+    <button id="modeOverlay" class="sel" onclick="setCompareMode('overlay')">⧉ Overlay</button>
+    <button id="modeSide"             onclick="setCompareMode('side')">⬛⬛ Side by side</button>
+  </div>
+
+  <button class="resetbtn" id="resetAll" title="Clear both videos and start over">↺ Reset</button>
+
+  <a href="hub.html" style="font-size:0.78rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);">⬡ DiveCentral</a>
 </header>
 
 <main>
@@ -118,10 +151,11 @@
 
     <div class="card setupOnly">
       <h2>1 · Sync &amp; size</h2>
-      <div class="hint">Scrub each window on its own until both divers are at the same moment (for example, feet leaving the board). Then use the controls below to match the size and position of the Upstate diver in the preview.</div>
+      <div class="hint overlayOnly">Scrub each window on its own until both divers are at the same moment (for example, feet leaving the board). Then use the controls below to match the size and position of the Upstate diver in the preview.</div>
+      <div class="hint" id="sbsSetupHint" style="display:none">Scrub each window on its own until both divers are at the same moment (for example, feet leaving the board), then lock to enable synchronized frame-by-frame playback.</div>
       <div class="syncbox" id="syncInfo">Load both videos to begin.</div>
       <div class="row" style="margin-top:10px">
-        <button id="lock" class="primary" disabled>🔒 Lock &amp; build overlay</button>
+        <button id="lock" class="primary" disabled>🔒 Lock &amp; go</button>
       </div>
     </div>
 
@@ -137,26 +171,25 @@
 
     <div class="card">
       <h2>View</h2>
-      <label class="field lockedOnly">Mode
-        <select id="mode" style="width:100%;margin-top:4px">
+      <label class="field overlayOnly">Blend mode
+        <select id="blendMode" style="width:100%;margin-top:4px">
           <option value="overlay" selected>Overlay (blend)</option>
           <option value="difference">Difference (highlights gaps)</option>
-          <option value="side">Side by side</option>
         </select>
       </label>
-      <label class="field">Foreground opacity <span class="val" id="opVal">50%</span>
+      <label class="field overlayOnly">Foreground opacity <span class="val" id="opVal">50%</span>
         <input id="opacity" type="range" min="0" max="100" value="50"></label>
-      <label class="field">Foreground size <span class="val" id="scVal">100%</span>
+      <label class="field overlayOnly">Foreground size <span class="val" id="scVal">100%</span>
         <input id="scale" type="range" min="30" max="250" value="100"></label>
-      <label class="field">Foreground X <span class="val" id="xVal">0</span>
+      <label class="field overlayOnly">Foreground X <span class="val" id="xVal">0</span>
         <input id="offX" type="range" min="-640" max="640" value="0"></label>
-      <label class="field">Foreground Y <span class="val" id="yVal">0</span>
+      <label class="field overlayOnly">Foreground Y <span class="val" id="yVal">0</span>
         <input id="offY" type="range" min="-360" max="360" value="0"></label>
-      <div class="check"><input id="tint" type="checkbox" checked><label for="tint">Tint foreground red</label></div>
-      <div class="check"><input id="tintA" type="checkbox"><label for="tintA">Tint background cyan</label></div>
-      <div class="check"><input id="flipB" type="checkbox"><label for="flipB">Flip foreground horizontally</label></div>
+      <div class="check overlayOnly"><input id="tint" type="checkbox" checked><label for="tint">Tint foreground red</label></div>
+      <div class="check overlayOnly"><input id="tintA" type="checkbox"><label for="tintA">Tint background cyan</label></div>
+      <div class="check overlayOnly"><input id="flipB" type="checkbox"><label for="flipB">Flip foreground horizontally</label></div>
       <div class="check"><input id="legend" type="checkbox" checked><label for="legend">Show labels</label></div>
-      <div class="row" style="margin-top:10px"><button id="resetView">Reset position &amp; size</button></div>
+      <div class="row" style="margin-top:10px overlayOnly"><button id="resetView" class="overlayOnly">Reset position &amp; size</button></div>
     </div>
 
     <div class="card lockedOnly">
@@ -193,22 +226,79 @@
   const octx = off.getContext('2d');
 
   const mk = () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; return v; };
-  const A = mk(), B = mk();
+  let A = mk(), B = mk();
   let hasA = false, hasB = false;
   let locked = false, playing = false;
-  let syncOffset = 0;      // locked: B time = A time + syncOffset
-  let syncTimeA = 0;       // A time at the lock moment
+  let syncOffset = 0;
+  let syncTimeA = 0;
   let recorder = null;
+  let compareMode = 'overlay'; // 'overlay' | 'side'
 
   const view = { offX: 0, offY: 0, scale: 1 };
   const fps = () => Math.max(1, +$('fps').value || 30);
   const frame = () => 1 / fps();
   const fmt = t => (isFinite(t) ? t : 0).toFixed(3);
 
+  /* ---------- compare mode toggle ---------- */
+  window.setCompareMode = function(m) {
+    compareMode = m;
+    $('modeOverlay').classList.toggle('sel', m === 'overlay');
+    $('modeSide').classList.toggle('sel', m === 'side');
+    document.body.classList.toggle('sbs', m === 'side');
+    $('sbsSetupHint').style.display = m === 'side' ? '' : 'none';
+    const lockBtn = $('lock');
+    lockBtn.textContent = m === 'side' ? '🔒 Lock &amp; go' : '🔒 Lock &amp; build overlay';
+    lockBtn.innerHTML = m === 'side' ? '🔒 Lock &amp; go' : '🔒 Lock &amp; build overlay';
+    // update mode select to match if locked
+    if (locked) {
+      const sel = $('blendMode');
+      if (sel && m === 'overlay' && sel.value === 'side') sel.value = 'overlay';
+    }
+  };
+
+  /* ---------- reset ---------- */
+  $('resetAll').onclick = () => {
+    if (!confirm('Clear both videos and start over?')) return;
+    setPlaying(false);
+    locked = false;
+    playing = false;
+    document.body.classList.remove('locked');
+    $('st1').className = 'step on';
+    $('st2').className = 'step';
+
+    // revoke old object URLs
+    if (A.src) { try { URL.revokeObjectURL(A.src); } catch(e){} }
+    if (B.src) { try { URL.revokeObjectURL(B.src); } catch(e){} }
+    A = mk(); B = mk();
+    hasA = false; hasB = false;
+    syncOffset = 0; syncTimeA = 0;
+    view.offX = view.offY = 0; view.scale = 1;
+
+    // rebuild panels
+    buildPanel($('pnlA'), A, '#38d6ff', 'Olympian (background)', 'A');
+    buildPanel($('pnlB'), B, '#ff6a4d', 'Upstate diver (foreground)', 'B');
+    rebindPanelFilePickers();
+
+    // reset file inputs so same file can be picked again
+    $('fileA').value = ''; $('fileB').value = '';
+    $('scrub').value = 0; $('timeLabel').textContent = '0.000 / 0.000';
+    syncSliders();
+    updateButtons();
+  };
+
   /* ---------- the two sync windows ---------- */
+  let pA, pB;
+
   function buildPanel(el, v, color, title, which){
     el.innerHTML =
-      `<div class="ptitle"><span class="dot" style="background:${color}"></span>${title}<span class="ptime">0.000 / 0.000</span></div>
+      `<div class="ptitle">
+         <button class="ptitle-btn" data-which="${which}" title="Click to load a video">
+           <span class="dot" style="background:${color}"></span>
+           <span class="ptitle-text">${title}</span>
+           <span class="clip-hint">▸ click to load</span>
+         </button>
+         <span class="ptime">0.000 / 0.000</span>
+       </div>
        <div class="vwrap">Load a video</div>
        <div class="pstatus hint"></div>
        <input type="range" class="pscrub" min="0" max="1" step="0.001" value="0" disabled>
@@ -242,13 +332,26 @@
       }
     };
   }
-  const pA = buildPanel($('pnlA'), A, '#38d6ff', 'Olympian (background)', 'A');
-  const pB = buildPanel($('pnlB'), B, '#ff6a4d', 'Upstate diver (foreground)', 'B');
+
+  pA = buildPanel($('pnlA'), A, '#38d6ff', 'Olympian (background)', 'A');
+  pB = buildPanel($('pnlB'), B, '#ff6a4d', 'Upstate diver (foreground)', 'B');
+
+  function rebindPanelFilePickers(){
+    // Wire the clickable ptitle-btn in each panel to the hidden file inputs
+    document.querySelectorAll('.ptitle-btn').forEach(btn => {
+      btn.onclick = () => {
+        const which = btn.dataset.which;
+        $(which === 'A' ? 'fileA' : 'fileB').click();
+      };
+    });
+  }
+  rebindPanelFilePickers();
 
   function load(file, v, panel, which){
     if (!file) return;
     const codecMsg = 'The browser can read this file\'s length but cannot decode its picture (often HEVC/H.265 from a phone or camera). Convert it to H.264 MP4 and load it again. Example: ffmpeg -i input.mov -c:v libx264 -pix_fmt yuv420p -crf 18 -an output.mp4';
     panel.status('Loading ' + file.name + '…');
+    // update the clip hint in the panel title once loaded
     v.onerror = () => panel.status('The browser could not open ' + file.name + '. ' + codecMsg, true);
     v.src = URL.createObjectURL(file);
     v.onloadedmetadata = () => {
@@ -256,6 +359,12 @@
       else hasB = true;
       v.currentTime = 0;
       panel.attach();
+      // update clip hint to show filename
+      const btn = panel.el.querySelector('.ptitle-btn');
+      if (btn) {
+        const hint = btn.querySelector('.clip-hint');
+        if (hint) hint.textContent = '▸ ' + file.name;
+      }
       updateButtons();
       if (!v.videoWidth) panel.status(codecMsg, true);
       else panel.status(file.name + ' · ' + v.videoWidth + '×' + v.videoHeight);
@@ -305,7 +414,15 @@
   function render(){
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-    const mode = locked ? $('mode').value : 'overlay';
+
+    // In locked mode use the blendMode select; otherwise derive from compareMode
+    let mode;
+    if (locked) {
+      mode = compareMode === 'side' ? 'side' : $('blendMode').value;
+    } else {
+      mode = compareMode === 'side' ? 'side' : 'overlay';
+    }
+
     const flip = $('flipB').checked;
     const alpha = +$('opacity').value / 100;
 
@@ -313,7 +430,7 @@
       const half = W / 2;
       if (hasA) drawVideo(ctx, A, containRect(A, 0, 0, half, H), false);
       if (bVisible()) drawVideo(ctx, B, containRect(B, half, 0, half, H), flip);
-      ctx.strokeStyle = '#333'; ctx.beginPath(); ctx.moveTo(half, 0); ctx.lineTo(half, H); ctx.stroke();
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(half, 0); ctx.lineTo(half, H); ctx.stroke();
     } else {
       if (hasA){
         const rA = containRect(A, 0, 0, W, H);
@@ -406,15 +523,23 @@
     $('play').textContent = 'Play';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  $('unlock').onclick = () => {
+
+  function doUnlock(){
     setPlaying(false);
     locked = false;
     document.body.classList.remove('locked');
     $('st1').className = 'step on'; $('st2').className = 'step';
-    // leave each window where the sync was made so it can be refined
     A.currentTime = syncTimeA;
     B.currentTime = Math.max(0, syncTimeA + syncOffset);
-  };
+  }
+
+  $('unlock').onclick = doUnlock;
+
+  // Step 1 pill is clickable when on step 2 (done state)
+  $('st1').addEventListener('click', () => {
+    if ($('st1').classList.contains('done')) doUnlock();
+  });
+
   $('toSync').onclick = () => { setPlaying(false); seek(syncTimeA); };
   $('nudgeBFwd').onclick = () => { syncOffset += frame(); };
   $('nudgeBBack').onclick = () => { syncOffset -= frame(); };
@@ -442,9 +567,9 @@
 
   let drag = null;
   const toCanvas = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
-  const sideMode = () => locked && $('mode').value === 'side';
+  const isSide = () => compareMode === 'side';
   cv.addEventListener('pointerdown', e => {
-    if (sideMode()) return;
+    if (isSide()) return;
     drag = { p: toCanvas(e), ox: view.offX, oy: view.offY };
     cv.setPointerCapture(e.pointerId); cv.classList.add('dragging');
   });
@@ -456,7 +581,7 @@
   });
   cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('dragging'); });
   cv.addEventListener('wheel', e => {
-    if (sideMode()) return;
+    if (isSide()) return;
     e.preventDefault();
     view.scale = Math.min(2.5, Math.max(0.3, view.scale * (e.deltaY < 0 ? 1.03 : 0.97)));
     syncSliders();
