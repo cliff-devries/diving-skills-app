@@ -73,8 +73,12 @@
   input[type=text], input[type=number] { background:#0f1419; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; width:100%; }
   aside .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
   aside h2 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
-  label.field { display:block; margin-top:8px; color:var(--muted); font-size:12px; }
-  label.field .val { float:right; color:var(--text); }
+  label.field, .field { display:block; margin-top:8px; color:var(--muted); font-size:12px; }
+  label.field .val, .field .val { float:right; color:var(--text); }
+  .slider-row { display:flex; align-items:center; gap:4px; margin-top:4px; }
+  .slider-row input[type=range] { flex:1; }
+  .step-btn { background:#243041; border:1px solid var(--line); color:var(--text); border-radius:5px; padding:0; width:26px; height:26px; font-size:16px; line-height:1; flex-shrink:0; cursor:pointer; transition:background .1s; }
+  .step-btn:hover { background:#2d3b50; }
   .dotA, .dotB { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
   .dotA { background:var(--a); } .dotB { background:var(--b); }
   .time { font-variant-numeric:tabular-nums; color:var(--muted); min-width:110px; text-align:right; }
@@ -177,14 +181,14 @@
           <option value="difference">Difference (highlights gaps)</option>
         </select>
       </label>
-      <label class="field overlayOnly">Foreground opacity <span class="val" id="opVal">50%</span>
-        <input id="opacity" type="range" min="0" max="100" value="50"></label>
-      <label class="field overlayOnly">Foreground size <span class="val" id="scVal">100%</span>
-        <input id="scale" type="range" min="30" max="250" value="100"></label>
-      <label class="field overlayOnly">Foreground X <span class="val" id="xVal">0</span>
-        <input id="offX" type="range" min="-640" max="640" value="0"></label>
-      <label class="field overlayOnly">Foreground Y <span class="val" id="yVal">0</span>
-        <input id="offY" type="range" min="-360" max="360" value="0"></label>
+      <div class="field overlayOnly">Foreground opacity <span class="val" id="opVal">50%</span>
+        <div class="slider-row"><button class="step-btn" data-target="opacity" data-dir="-1">−</button><input id="opacity" type="range" min="0" max="100" value="50"><button class="step-btn" data-target="opacity" data-dir="1">+</button></div></div>
+      <div class="field overlayOnly">Foreground size <span class="val" id="scVal">100%</span>
+        <div class="slider-row"><button class="step-btn" data-target="scale" data-dir="-1">−</button><input id="scale" type="range" min="30" max="250" value="100"><button class="step-btn" data-target="scale" data-dir="1">+</button></div></div>
+      <div class="field overlayOnly">Foreground X <span class="val" id="xVal">0</span>
+        <div class="slider-row"><button class="step-btn" data-target="offX" data-dir="-1">−</button><input id="offX" type="range" min="-640" max="640" value="0"><button class="step-btn" data-target="offX" data-dir="1">+</button></div></div>
+      <div class="field overlayOnly">Foreground Y <span class="val" id="yVal">0</span>
+        <div class="slider-row"><button class="step-btn" data-target="offY" data-dir="-1">−</button><input id="offY" type="range" min="-360" max="360" value="0"><button class="step-btn" data-target="offY" data-dir="1">+</button></div></div>
       <div class="check overlayOnly"><input id="tint" type="checkbox" checked><label for="tint">Tint foreground red</label></div>
       <div class="check overlayOnly"><input id="tintA" type="checkbox"><label for="tintA">Tint background cyan</label></div>
       <div class="check overlayOnly"><input id="flipB" type="checkbox"><label for="flipB">Flip foreground horizontally</label></div>
@@ -558,6 +562,13 @@
   bindRange('scale', 'scVal', v => view.scale = v / 100, '%');
   bindRange('offX', 'xVal', v => view.offX = v, '');
   bindRange('offY', 'yVal', v => view.offY = v, '');
+  document.querySelectorAll('.step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const el = $(btn.dataset.target);
+      el.value = Math.min(+el.max, Math.max(+el.min, +el.value + +btn.dataset.dir));
+      el.dispatchEvent(new Event('input'));
+    });
+  });
   function syncSliders(){
     $('scale').value = Math.round(view.scale * 100); $('scVal').textContent = Math.round(view.scale * 100) + '%';
     $('offX').value = Math.round(view.offX); $('xVal').textContent = Math.round(view.offX);
