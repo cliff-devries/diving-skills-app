@@ -41,8 +41,8 @@
   .ptitle .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .ptitle .ptime { margin-left:auto; color:var(--muted); font-weight:400; font-variant-numeric:tabular-nums; font-size:12px; }
   /* clickable panel title */
-  .ptitle-btn { background:none; border:none; font:inherit; font-weight:600; font-size:inherit; color:var(--text); padding:0; cursor:pointer; display:flex; align-items:center; gap:8px; flex:1; text-align:left; }
-  .ptitle-btn:hover .ptitle-text { text-decoration:underline; text-underline-offset:3px; }
+  .ptitle-btn { background:none; border:1px solid transparent; border-radius:6px; font:inherit; font-weight:600; font-size:inherit; color:var(--text); padding:3px 7px; margin:-3px -7px; cursor:pointer; display:flex; align-items:center; gap:8px; flex:1; text-align:left; transition:background .12s,border-color .12s; }
+  .ptitle-btn:hover { background:#243041; border-color:var(--line); }
   .ptitle-btn .clip-hint { font-size:11px; font-weight:400; color:var(--muted); margin-left:4px; }
   .vwrap { background:#000; border-radius:6px; overflow:hidden; min-height:120px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
   .vwrap video { width:100%; max-height:36vh; display:block; background:#000; }
@@ -132,13 +132,13 @@
     <div class="card">
       <h2>Videos</h2>
       <div class="row">
-        <label class="filebtn"><span class="dotA"></span>Olympian (background)<input id="fileA" type="file" accept="video/*"></label>
+        <label class="filebtn"><span class="dotA"></span>Diver one (background)<input id="fileA" type="file" accept="video/*"></label>
       </div>
-      <label class="field">Label<input id="labelA" type="text" value="Olympian"></label>
+      <label class="field">Label<input id="labelA" type="text" value="Diver One"></label>
       <div class="row" style="margin-top:10px">
-        <label class="filebtn"><span class="dotB"></span>Upstate diver (foreground)<input id="fileB" type="file" accept="video/*"></label>
+        <label class="filebtn"><span class="dotB"></span>Diver two (foreground)<input id="fileB" type="file" accept="video/*"></label>
       </div>
-      <label class="field">Label<input id="labelB" type="text" value="Upstate Diver"></label>
+      <label class="field">Label<input id="labelB" type="text" value="Diver Two"></label>
       <div class="row" style="margin-top:10px">
         <label style="color:var(--muted);font-size:12px">Frame rate (fps)
           <input id="fps" type="number" value="30" min="1" max="240" style="width:70px;display:inline-block">
@@ -275,8 +275,8 @@
     view.offX = view.offY = 0; view.scale = 1;
 
     // rebuild panels
-    buildPanel($('pnlA'), A, '#38d6ff', 'Olympian (background)', 'A');
-    buildPanel($('pnlB'), B, '#ff6a4d', 'Upstate diver (foreground)', 'B');
+    buildPanel($('pnlA'), A, '#38d6ff', 'Diver one (background)', 'A');
+    buildPanel($('pnlB'), B, '#ff6a4d', 'Diver two (foreground)', 'B');
     rebindPanelFilePickers();
 
     // reset file inputs so same file can be picked again
@@ -333,8 +333,8 @@
     };
   }
 
-  pA = buildPanel($('pnlA'), A, '#38d6ff', 'Olympian (background)', 'A');
-  pB = buildPanel($('pnlB'), B, '#ff6a4d', 'Upstate diver (foreground)', 'B');
+  pA = buildPanel($('pnlA'), A, '#38d6ff', 'Diver one (background)', 'A');
+  pB = buildPanel($('pnlB'), B, '#ff6a4d', 'Diver two (foreground)', 'B');
 
   function rebindPanelFilePickers(){
     // Wire the clickable ptitle-btn in each panel to the hidden file inputs
