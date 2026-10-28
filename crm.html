@@ -691,6 +691,8 @@
         </div>
       </div>
       <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Use <code>[Label](URL)</code> for a clickable link. Tags in double braces are filled in for each family.</div></div>
+    <div class="form-group"><label class="form-label">Footer <span class="text-secondary" style="font-weight:400">(optional — replaces the default unsubscribe line)</span></label>
+      <textarea id="em-footer" class="form-input" rows="2" style="resize:vertical" oninput="updateEmailPreview()" placeholder="Leave blank to use the default: You are receiving this email because…"></textarea></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">When is it sent?</label>
         <select id="em-trigger" class="form-select" onchange="syncEmailForm()">
@@ -2547,6 +2549,7 @@ function openEmailTemplate(id) {
   document.getElementById('em-name').value = t?.name || '';
   document.getElementById('em-subject').value = t?.subject || '';
   document.getElementById('em-body').value = t?.body || '';
+  document.getElementById('em-footer').value = t?.footer || '';
   document.getElementById('em-chips').innerHTML = EMAIL_TAGS.map(([k, label]) =>
     `<button type="button" class="em-chip" onclick="insertEmailTag('${k}')" title="{{${k}}}">+ ${esc(label)}</button>`).join('');
   document.getElementById('em-trigger').value = t?.trigger_type || 'manual';
@@ -2570,7 +2573,10 @@ function openEmailTemplate(id) {
 
 function updateEmailPreview() {
   const body = document.getElementById('em-body').value;
-  document.getElementById('em-preview-body').innerHTML = crmBodyToHtml(body);
+  const footer = document.getElementById('em-footer').value.trim();
+  const defaultFooter = 'You are receiving this email because a diver was signed up with Upstate Diving. If you would rather not receive these messages, just reply and let us know.';
+  const footerHtml = `<p style="margin:24px 0 0;font-size:12px;color:#707070">${footer || defaultFooter}</p>`;
+  document.getElementById('em-preview-body').innerHTML = crmBodyToHtml(body) + footerHtml;
 }
 
 async function saveEmailTemplate() {
@@ -2587,8 +2593,10 @@ async function saveEmailTemplate() {
     App.showAlert('em-alert', 'This email still has [[ ]] parts to fill in. Replace them (or turn off “Send automatically”) before saving.');
     return;
   }
+  const footer = document.getElementById('em-footer').value.trim() || null;
   const fields = {
     name, subject, body,
+    footer,
     trigger_type: trig,
     trigger_stage: trig === 'stage_entered' ? document.getElementById('em-stage').value : null,
     delay_minutes: auto ? delay : 0,

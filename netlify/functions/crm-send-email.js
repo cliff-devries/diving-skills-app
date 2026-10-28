@@ -102,7 +102,7 @@ exports.handler = async (event) => {
     if (!v.to_email) return json(400, { success: false, error: 'This contact has no parent email address.' });
     if (v.do_not_contact) return json(400, { success: false, error: 'This contact is marked do not contact.' });
 
-    const r = await sendEmail({ to: v.to_email, subject, text, diver: v.diver_first_name });
+    const r = await sendEmail({ to: v.to_email, subject, text, diver: v.diver_first_name, footer: t.footer });
     const row = { template_id: t.id, lead_id: leadId };
     if (!r.ok) {
       await record(row, v.to_email, subject, 'failed', r.error, false, p.coach_id).catch(() => {});

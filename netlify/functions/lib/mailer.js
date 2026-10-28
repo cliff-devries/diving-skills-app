@@ -43,7 +43,7 @@ const FOOTER = (diver) => `You are receiving this email because ${diver || 'a di
 
 // Plain text in, simple HTML out: blank line = new paragraph, [Label](URL) and bare URLs become clickable.
 // Splits each line into link tokens and plain-text segments so each part is escaped correctly.
-function toHtml(text, diver) {
+function toHtml(text, diver, footer) {
   const linkify = (s) => {
     const LINK = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/[^\s<]+)/g;
     let out = '';
@@ -64,11 +64,12 @@ function toHtml(text, diver) {
   };
   const paras = String(text).replace(/\r\n/g, '\n').split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 14px">${linkify(p).replace(/\n/g, '<br>')}</p>`).join('');
+  const footerText = (footer != null && String(footer).trim()) ? String(footer).trim() : FOOTER(diver);
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#020202">${paras}` +
-    `<p style="margin:24px 0 0;font-size:12px;color:#707070">${esc(FOOTER(diver))}</p></div>`;
+    `<p style="margin:24px 0 0;font-size:12px;color:#707070">${esc(footerText)}</p></div>`;
 }
 
-async function sendEmail({ to, subject, text, diver }) {
+async function sendEmail({ to, subject, text, diver, footer }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) return { ok: false, error: 'BREVO_API_KEY is not set' };
   try {
@@ -83,8 +84,8 @@ async function sendEmail({ to, subject, text, diver }) {
         to: [{ email: to }],
         replyTo: { email: REPLY_TO() },
         subject: String(subject).replace(/[\r\n]+/g, ' '),
-        htmlContent: toHtml(text, diver),
-        textContent: `${text}\n\n${FOOTER(diver)}`,
+        htmlContent: toHtml(text, diver, footer),
+        textContent: `${text}\n\n${(footer != null && String(footer).trim()) ? String(footer).trim() : FOOTER(diver)}`,
       }),
       signal: AbortSignal.timeout(8000),
     });
@@ -139,7 +140,7 @@ async function processDue({ leadId } = {}) {
           console.error('mailer: not sending, still has [[ ]] to fill in:', row.template_name, row.lead_id);
           continue;
         }
-        const sent = await sendEmail({ to: row.to_email, subject, text, diver: row.diver_first_name });
+        const sent = await sendEmail({ to: row.to_email, subject, text, diver: row.diver_first_name, footer: row.footer });
         if (sent.ok) {
           await record(row, row.to_email, subject, 'sent', null, true);
           out.sent++;
