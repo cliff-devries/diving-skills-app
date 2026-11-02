@@ -20,7 +20,6 @@
       --purple:    #9C27B0;   /* 1-year plan */
       --orange:    #F76900;   /* rocks */
       --radius:    10px;
-      --hdr:       58px;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,42 +36,33 @@
     }
 
     /* ── Header ─────────────────────────────────────────── */
+    :root { --dmgr-max: 1480px; }
+
     .dmgr-header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
       position: sticky; top: 0; z-index: 100;
-      height: var(--hdr);
+      background: rgba(13,17,23,0.94);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
     }
     .dmgr-header-inner {
-      max-width: 1280px; margin: 0 auto;
-      height: var(--hdr);
-      display: flex; align-items: center; gap: 24px;
-      padding: 0 24px;
+      max-width: var(--dmgr-max); margin: 0 auto;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 0 20px;
     }
     .dmgr-wordmark {
-      font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em;
+      font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em;
       text-decoration: none; flex-shrink: 0;
     }
-    .dmgr-wordmark .dive  { color: var(--text); }
-    .dmgr-wordmark .mgr   { color: var(--accent); }
+    .dmgr-wordmark .dive { color: var(--text); }
+    .dmgr-wordmark .mgr  { color: var(--accent); }
+    .dmgr-wordmark:hover .dive { color: color-mix(in srgb, var(--text) 70%, white); }
+    .dmgr-wordmark:hover .mgr  { color: color-mix(in srgb, var(--accent) 70%, white); }
 
-    .dmgr-tabs {
-      display: flex; gap: 2px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 3px; flex-shrink: 0;
-    }
-    .dmgr-tab {
-      padding: 5px 16px; border-radius: 6px; border: none;
-      background: transparent; color: var(--muted);
-      font-size: 0.88rem; font-weight: 600; cursor: pointer;
-      transition: background .12s, color .12s;
-    }
-    .dmgr-tab.active { background: var(--raised); color: var(--text); }
-    .dmgr-tab:hover:not(.active) { color: var(--text); }
-
+    .dmgr-header-right { display: flex; align-items: center; gap: 12px; }
     .dmgr-save-status {
-      margin-left: auto; font-size: 0.78rem; color: var(--muted);
-      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+      font-size: 0.78rem; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
     }
     .dmgr-save-status .dot {
       width: 6px; height: 6px; border-radius: 50%;
@@ -82,17 +72,36 @@
     .dmgr-save-status.saving .dot { background: var(--gold); }
     .dmgr-save-status.error .dot  { background: #e53935; }
 
+    .dmgr-coach { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
     .hub-link {
-      color: var(--muted); text-decoration: none; font-size: 0.82rem;
-      padding: 5px 10px; border-radius: 6px; transition: color .12s, background .12s;
-      flex-shrink: 0;
+      color: var(--muted); text-decoration: none; font-size: 0.82rem; font-weight: 600;
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      transition: color .12s, border-color .12s;
     }
-    .hub-link:hover { color: var(--text); background: var(--raised); }
+    .hub-link:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Nav tabs (second row, like DiveCRM) ────────────────── */
+    .dmgr-tabs {
+      max-width: var(--dmgr-max); margin: 0 auto;
+      padding: 0 20px;
+      display: flex; gap: 2px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .dmgr-tabs::-webkit-scrollbar { display: none; }
+    .dmgr-tabs a {
+      padding: 10px 14px 12px;
+      color: var(--muted); text-decoration: none;
+      font-weight: 600; font-size: 0.9rem; white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .dmgr-tabs a:hover { color: var(--text); }
+    .dmgr-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
 
     /* ── Main layout ─────────────────────────────────────── */
     .dmgr-main {
-      flex: 1; max-width: 1280px; width: 100%;
-      margin: 0 auto; padding: 28px 24px 48px;
+      flex: 1; max-width: var(--dmgr-max); width: 100%;
+      margin: 0 auto; padding: 24px 20px 48px;
     }
 
     .tab-panel { display: none; }
@@ -290,16 +299,15 @@
     }
     .metric-value:focus { color: var(--green); }
 
-    /* ── Traction tab ────────────────────────────────────── */
-    .traction-coming {
+    /* ── Coming-soon panels ──────────────────────────────── */
+    .coming-soon {
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 16px;
-      min-height: 320px; color: var(--muted);
-      text-align: center;
+      justify-content: center; gap: 14px;
+      min-height: 340px; color: var(--muted); text-align: center;
     }
-    .traction-coming .icon { font-size: 3rem; opacity: .4; }
-    .traction-coming h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); }
-    .traction-coming p  { font-size: 0.88rem; max-width: 360px; }
+    .coming-soon .cs-icon { font-size: 2.8rem; opacity: .4; }
+    .coming-soon h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .coming-soon p  { font-size: 0.88rem; max-width: 380px; line-height: 1.6; }
 
     /* ── Loading / error states ──────────────────────────── */
     .dmgr-loading {
@@ -327,7 +335,8 @@
       .vto-grid { grid-template-columns: 1fr; }
       .vto-values, .vto-focus, .vto-10yr, .vto-mkt, .vto-3yr { grid-column: 1; }
       .dmgr-main { padding: 16px 14px 40px; }
-      .dmgr-header-inner { padding: 0 14px; gap: 12px; }
+      .dmgr-header-inner { padding: 0 14px; }
+      .dmgr-coach { display: none; }
       .threeyear-metrics { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -339,19 +348,28 @@
 
 <header class="dmgr-header">
   <div class="dmgr-header-inner">
-    <a href="hub.html" class="hub-link" title="Back to DiveCentral">← Hub</a>
     <a href="manager.html" class="dmgr-wordmark">
       <span class="dive">Dive</span><span class="mgr">Manager</span>
     </a>
-    <div class="dmgr-tabs">
-      <button class="dmgr-tab active" data-tab="vision">Vision</button>
-      <button class="dmgr-tab" data-tab="traction">Traction</button>
-    </div>
-    <div class="dmgr-save-status" id="save-status">
-      <span class="dot"></span>
-      <span class="label">Loading…</span>
+    <div class="dmgr-header-right">
+      <div class="dmgr-save-status" id="save-status">
+        <span class="dot"></span>
+        <span class="label">Loading…</span>
+      </div>
+      <span class="dmgr-coach" id="dmgr-coach"></span>
+      <a href="hub.html" class="hub-link">← Hub</a>
     </div>
   </div>
+  <nav class="dmgr-tabs" aria-label="DiveManager navigation">
+    <a href="#vision"       class="active">Vision</a>
+    <a href="#traction">Traction Organizer</a>
+    <a href="#org-chart">Org Chart</a>
+    <a href="#processes">Processes</a>
+    <a href="#insights">Insights</a>
+    <a href="#assessments">Assessments</a>
+    <a href="#coaches">Coaches</a>
+    <a href="#groups">Groups</a>
+  </nav>
 </header>
 
 <main class="dmgr-main">
@@ -421,12 +439,66 @@
     </div><!-- /vto-grid -->
   </div><!-- /tab-vision -->
 
-  <!-- TRACTION TAB -->
+  <!-- TRACTION ORGANIZER -->
   <div class="tab-panel" id="tab-traction">
-    <div class="traction-coming">
-      <div class="icon">🎯</div>
-      <h3>Traction tools coming soon</h3>
-      <p>Rocks, scorecard, meeting pulse, and to-dos will live here — built on your Vision above.</p>
+    <div class="coming-soon">
+      <div class="cs-icon">📋</div>
+      <h3>Traction Organizer</h3>
+      <p>Rocks, scorecard, meeting pulse, issues list, and to-dos — all built on your Vision above.</p>
+    </div>
+  </div>
+
+  <!-- ORG CHART -->
+  <div class="tab-panel" id="tab-org-chart">
+    <div class="coming-soon">
+      <div class="cs-icon">🏗️</div>
+      <h3>Accountability Chart</h3>
+      <p>Define your club's seats, roles, and who owns each function — the EOS accountability chart for Upstate Diving.</p>
+    </div>
+  </div>
+
+  <!-- PROCESSES -->
+  <div class="tab-panel" id="tab-processes">
+    <div class="coming-soon">
+      <div class="cs-icon">📖</div>
+      <h3>Processes &amp; SOPs</h3>
+      <p>Standard operating procedures for practices, competitions, onboarding, and club operations.</p>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="tab-panel" id="tab-insights">
+    <div class="coming-soon">
+      <div class="cs-icon">📊</div>
+      <h3>Insights</h3>
+      <p>Club-level analytics — diver progress trends, retention, skill completion rates, and season benchmarks.</p>
+    </div>
+  </div>
+
+  <!-- ASSESSMENTS -->
+  <div class="tab-panel" id="tab-assessments">
+    <div class="coming-soon">
+      <div class="cs-icon">✅</div>
+      <h3>Assessments</h3>
+      <p>Coach and program assessments — structured evaluations to identify strengths and improvement areas.</p>
+    </div>
+  </div>
+
+  <!-- COACHES -->
+  <div class="tab-panel" id="tab-coaches">
+    <div class="coming-soon">
+      <div class="cs-icon">🧑‍🏫</div>
+      <h3>Coaches</h3>
+      <p>Coaching staff directory, roles, certifications, and development goals.</p>
+    </div>
+  </div>
+
+  <!-- GROUPS -->
+  <div class="tab-panel" id="tab-groups">
+    <div class="coming-soon">
+      <div class="cs-icon">👥</div>
+      <h3>Groups</h3>
+      <p>Training groups, practice assignments, and diver groupings across all locations.</p>
     </div>
   </div>
 
@@ -443,6 +515,7 @@
   const user = await Auth.init(true);
   if (!user) return;
   if (user.role !== 'coach') { window.location.href = '/login.html'; return; }
+  document.getElementById('dmgr-coach').textContent = user.full_name || '';
   initManager();
 })();
 
@@ -752,15 +825,22 @@ function renderAll() {
   renderThreeYear();
 }
 
-/* ── Tab switching ──────────────────────────────────────── */
-document.querySelectorAll('.dmgr-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.dmgr-tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+/* ── Hash-based tab routing ─────────────────────────────── */
+const TABS = ['vision','traction','org-chart','processes','insights','assessments','coaches','groups'];
+
+function showTab(hash) {
+  const id = (hash || '').replace(/^#/, '') || 'vision';
+  const active = TABS.includes(id) ? id : 'vision';
+  document.querySelectorAll('.dmgr-tabs a').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + active);
   });
-});
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('tab-' + active);
+  if (panel) panel.classList.add('active');
+}
+
+window.addEventListener('hashchange', () => showTab(location.hash));
+showTab(location.hash);
 
 /* ── Escape helper ──────────────────────────────────────── */
 function esc(s) {
