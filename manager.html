@@ -439,13 +439,10 @@
 <script>
 /* ── Auth guard ─────────────────────────────────────────── */
 (async () => {
-  await Auth.init();
-  if (!Auth.user()) { Auth.redirectToLogin(); return; }
-  if (!Auth.isCoach()) {
-    document.querySelector('.dmgr-main').innerHTML =
-      '<div class="dmgr-loading">DiveManager is for coaches only.</div>';
-    return;
-  }
+  initSupabase();
+  const user = await Auth.init(true);
+  if (!user) return;
+  if (user.role !== 'coach') { window.location.href = '/login.html'; return; }
   initManager();
 })();
 
