@@ -7,9 +7,22 @@
 //
 // Netlify env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BREVO_API_KEY,
 // BREVO_SENDER_EMAIL (verified in Brevo), optional BREVO_SENDER_NAME,
-// NOTIFY_EMAIL (reply-to address, default admin@upstatediving.com).
+// NOTIFY_EMAIL (reply-to address, default admin@upstatediving.com),
+// ADMIN_BCC (blind-copied on every outgoing CRM email, default admin@upstatediving.com;
+//            set to empty string "" to disable).
 
 const REPLY_TO = () => process.env.NOTIFY_EMAIL || 'admin@upstatediving.com';
+// Returns [{email}] for Brevo's bcc field, or undefined to omit it.
+const adminBcc = () => {
+  const addr = 'ADMIN_BCC' in process.env ? process.env.ADMIN_BCC : 'admin@upstatediving.com';
+  return addr && addr.trim() ? [{ email: addr.trim() }] : undefined;
+};
+// Parses a comma-separated cc_addresses string into [{email}] for Brevo, skipping blanks.
+const parseCc = (s) => {
+  if (!s) return undefined;
+  const list = String(s).split(',').map((e) => e.trim()).filter(Boolean).map((e) => ({ email: e }));
+  return list.length ? list : undefined;
+};
 const siteUrl = () => (process.env.URL || 'https://divedrills.com').replace(/\/+$/, '');
 
 const esc = (s) => String(s == null ? '' : s)
@@ -69,24 +82,29 @@ function toHtml(text, diver, footer) {
     `<p style="margin:24px 0 0;font-size:12px;color:#707070">${esc(footerText)}</p></div>`;
 }
 
-async function sendEmail({ to, subject, text, diver, footer }) {
+async function sendEmail({ to, subject, text, diver, footer, cc }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) return { ok: false, error: 'BREVO_API_KEY is not set' };
   try {
+    const payload = {
+      sender: {
+        name: process.env.BREVO_SENDER_NAME || 'Upstate Diving',
+        email: process.env.BREVO_SENDER_EMAIL || 'noreply@divedrills.com',
+      },
+      to: [{ email: to }],
+      replyTo: { email: REPLY_TO() },
+      subject: String(subject).replace(/[\r\n]+/g, ' '),
+      htmlContent: toHtml(text, diver, footer),
+      textContent: `${text}\n\n${(footer != null && String(footer).trim()) ? String(footer).trim() : FOOTER(diver)}`,
+    };
+    const ccList = parseCc(cc);
+    if (ccList) payload.cc = ccList;
+    const bcc = adminBcc();
+    if (bcc) payload.bcc = bcc;
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        sender: {
-          name: process.env.BREVO_SENDER_NAME || 'Upstate Diving',
-          email: process.env.BREVO_SENDER_EMAIL || 'noreply@divedrills.com',
-        },
-        to: [{ email: to }],
-        replyTo: { email: REPLY_TO() },
-        subject: String(subject).replace(/[\r\n]+/g, ' '),
-        htmlContent: toHtml(text, diver, footer),
-        textContent: `${text}\n\n${(footer != null && String(footer).trim()) ? String(footer).trim() : FOOTER(diver)}`,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
@@ -140,7 +158,7 @@ async function processDue({ leadId } = {}) {
           console.error('mailer: not sending, still has [[ ]] to fill in:', row.template_name, row.lead_id);
           continue;
         }
-        const sent = await sendEmail({ to: row.to_email, subject, text, diver: row.diver_first_name, footer: row.footer });
+        const sent = await sendEmail({ to: row.to_email, subject, text, diver: row.diver_first_name, footer: row.footer, cc: row.cc_addresses });
         if (sent.ok) {
           await record(row, row.to_email, subject, 'sent', null, true);
           out.sent++;

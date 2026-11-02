@@ -691,6 +691,8 @@
         </div>
       </div>
       <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Use <code>[Label](URL)</code> for a clickable link. Tags in double braces are filled in for each family.</div></div>
+    <div class="form-group"><label class="form-label">CC <span class="text-secondary" style="font-weight:400">(optional — comma-separated addresses copied on every send)</span></label>
+      <input id="em-cc" class="form-input" autocomplete="off" placeholder="e.g. coach@upstatediving.com, parent-helper@example.com"></div>
     <div class="form-group"><label class="form-label">Footer <span class="text-secondary" style="font-weight:400">(optional — replaces the default unsubscribe line)</span></label>
       <textarea id="em-footer" class="form-input" rows="2" style="resize:vertical" oninput="updateEmailPreview()" placeholder="Leave blank to use the default: You are receiving this email because…"></textarea></div>
     <div class="form-row">
@@ -2549,6 +2551,7 @@ function openEmailTemplate(id) {
   document.getElementById('em-name').value = t?.name || '';
   document.getElementById('em-subject').value = t?.subject || '';
   document.getElementById('em-body').value = t?.body || '';
+  document.getElementById('em-cc').value = t?.cc_addresses || '';
   document.getElementById('em-footer').value = t?.footer || '';
   document.getElementById('em-chips').innerHTML = EMAIL_TAGS.map(([k, label]) =>
     `<button type="button" class="em-chip" onclick="insertEmailTag('${k}')" title="{{${k}}}">+ ${esc(label)}</button>`).join('');
@@ -2573,10 +2576,12 @@ function openEmailTemplate(id) {
 
 function updateEmailPreview() {
   const body = document.getElementById('em-body').value;
+  const cc = document.getElementById('em-cc').value.trim();
   const footer = document.getElementById('em-footer').value.trim();
   const defaultFooter = 'You are receiving this email because a diver was signed up with Upstate Diving. If you would rather not receive these messages, just reply and let us know.';
+  const ccHtml = cc ? `<p style="margin:0 0 10px;font-size:12px;color:#707070"><strong>CC:</strong> ${esc(cc)} <em style="color:#999">(+ admin@upstatediving.com BCC)</em></p>` : `<p style="margin:0 0 10px;font-size:12px;color:#999"><em>BCC: admin@upstatediving.com</em></p>`;
   const footerHtml = `<p style="margin:24px 0 0;font-size:12px;color:#707070">${footer || defaultFooter}</p>`;
-  document.getElementById('em-preview-body').innerHTML = crmBodyToHtml(body) + footerHtml;
+  document.getElementById('em-preview-body').innerHTML = ccHtml + crmBodyToHtml(body) + footerHtml;
 }
 
 async function saveEmailTemplate() {
@@ -2593,9 +2598,12 @@ async function saveEmailTemplate() {
     App.showAlert('em-alert', 'This email still has [[ ]] parts to fill in. Replace them (or turn off “Send automatically”) before saving.');
     return;
   }
+  const ccRaw = document.getElementById('em-cc').value.trim();
+  const cc_addresses = ccRaw || null;
   const footer = document.getElementById('em-footer').value.trim() || null;
   const fields = {
     name, subject, body,
+    cc_addresses,
     footer,
     trigger_type: trig,
     trigger_stage: trig === 'stage_entered' ? document.getElementById('em-stage').value : null,
