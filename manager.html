@@ -495,7 +495,7 @@ function setStatus(state, msg) {
 async function initManager() {
   let dbOk = false;
   try {
-    const { data, error } = await SupabaseDB.client
+    const { data, error } = await SupabaseDB.db
       .from('vto_data').select('content').maybeSingle();
     if (error) {
       console.error('VTO load error:', error.message, error.code);
@@ -541,7 +541,7 @@ function scheduleSave() {
 
 async function saveNow() {
   try {
-    const { error } = await SupabaseDB.client.rpc('vto_upsert', { p_patch: vtoData });
+    const { error } = await SupabaseDB.db.rpc('vto_upsert', { p_patch: vtoData });
     if (error) {
       console.error('VTO save error:', error.message, error.code);
       const msg = error.code === 'PGRST202' || error.code === '42883'
