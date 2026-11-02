@@ -493,13 +493,22 @@ function setStatus(state, msg) {
 
 /* ── Load from DB ───────────────────────────────────────── */
 async function initManager() {
+  let dbOk = false;
   try {
     const { data, error } = await SupabaseDB.client
       .from('vto_data').select('content').maybeSingle();
-    if (error) throw error;
-    vtoData = data?.content
-      ? Object.assign({}, DEFAULTS, data.content)
-      : { ...DEFAULTS };
+    if (error) {
+      console.error('VTO load error:', error.message, error.code);
+      vtoData = { ...DEFAULTS };
+      setStatus('error', error.code === '42P01'
+        ? 'Run migration v79 in Supabase first'
+        : 'Could not load — run supabase-migration-v79.sql');
+    } else {
+      vtoData = data?.content
+        ? mergeDeep({ ...DEFAULTS }, data.content)
+        : { ...DEFAULTS };
+      dbOk = true;
+    }
   } catch (e) {
     console.error('VTO load failed', e);
     vtoData = { ...DEFAULTS };
@@ -508,7 +517,19 @@ async function initManager() {
   renderAll();
   document.getElementById('vto-loading').style.display = 'none';
   document.getElementById('vto-grid').style.display = '';
-  setStatus('saved', 'All changes saved');
+  if (dbOk) setStatus('saved', 'All changes saved');
+}
+
+/* Deep-merge b into a (objects only; arrays replaced wholesale) */
+function mergeDeep(a, b) {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return b ?? a;
+  const out = Object.assign({}, a);
+  for (const k of Object.keys(b)) {
+    out[k] = (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k])
+      ? mergeDeep(a[k], b[k])
+      : b[k];
+  }
+  return out;
 }
 
 /* ── Auto-save ──────────────────────────────────────────── */
@@ -521,7 +542,17 @@ function scheduleSave() {
 async function saveNow() {
   try {
     const { error } = await SupabaseDB.client.rpc('vto_upsert', { p_patch: vtoData });
-    if (error) throw error;
+    if (error) {
+      console.error('VTO save error:', error.message, error.code);
+      const msg = error.code === 'PGRST202' || error.code === '42883'
+        ? 'Run migration v79 in Supabase to enable saving'
+        : 'Save failed — will retry';
+      setStatus('error', msg);
+      if (error.code !== 'PGRST202' && error.code !== '42883') {
+        saveTimer = setTimeout(saveNow, 5000);
+      }
+      return;
+    }
     setStatus('saved', 'All changes saved');
   } catch (e) {
     console.error('VTO save failed', e);
