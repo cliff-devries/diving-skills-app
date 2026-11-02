@@ -428,24 +428,18 @@
     .ac-page-title { font-size: 1.4rem; font-weight: 800; }
     .ac-page-sub { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
 
-    .ac-levels { display: flex; flex-direction: column; gap: 0; }
+    .ac-levels { display: flex; flex-direction: column; gap: 0; padding-left: 12px; }
 
-    .ac-level {
-      border-left: 3px solid var(--border);
-      margin-left: 16px;
-      padding-left: 0;
-      position: relative;
-    }
-    .ac-level:first-child { border-left: none; margin-left: 0; }
+    .ac-level { position: relative; }
 
     .ac-level-header {
       display: flex; align-items: center; gap: 12px;
       padding: 20px 0 10px;
       position: relative;
     }
-    .ac-level:not(:first-child) .ac-level-header::before {
+    .ac-level-header::before {
       content: '';
-      position: absolute; left: -20px; top: 50%; width: 20px; height: 1px;
+      display: none;
       background: var(--border);
     }
 
