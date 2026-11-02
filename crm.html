@@ -2691,6 +2691,8 @@ function openSendEmail(leadId) {
     <div id="se-preview" class="text-secondary text-sm">Loading preview…</div>
     <div id="se-edit" hidden>
       <div class="form-group"><label class="form-label">Subject</label><input id="se-subject" class="form-input" autocomplete="off" oninput="checkSendMarkers()"></div>
+      <div class="form-group"><label class="form-label">CC <span class="text-secondary" style="font-weight:400">(optional — comma-separated; editable for this send)</span></label>
+        <input id="se-cc" class="form-input" autocomplete="off" oninput="updateSendPreview()" placeholder="e.g. coach@upstatediving.com, helper@example.com"></div>
       <div class="form-group"><label class="form-label">Message (you can edit it before sending)</label>
         <div class="em-editor-wrap">
           <textarea id="se-body" class="form-input em-body" rows="14" oninput="checkSendMarkers();updateSendPreview()"></textarea>
@@ -2735,9 +2737,11 @@ async function previewSendEmail() {
     const r = await callEmailFn({ action: 'preview', template_id: tid, lead_id: sendEmailLeadId });
     if (document.getElementById('se-template').value !== tid) return;
     sendEmailTo = r.to && !r.do_not_contact ? r.to : null;
-    box.innerHTML = `<div class="text-sm" style="margin-bottom:8px"><strong>To:</strong> ${esc(r.to || '—')}</div>` +
+    box.innerHTML = `<div class="text-sm" style="margin-bottom:4px"><strong>To:</strong> ${esc(r.to || '—')}</div>` +
+      `<div class="text-sm text-secondary" style="margin-bottom:8px">BCC: admin@upstatediving.com</div>` +
       (r.do_not_contact ? '<div class="alert alert-error" style="display:block;margin-bottom:8px">This contact is marked do not contact.</div>' : '');
     document.getElementById('se-subject').value = r.subject;
+    document.getElementById('se-cc').value = r.cc_addresses || '';
     document.getElementById('se-body').value = r.body;
     edit.hidden = false;
     btn.textContent = r.to ? 'Send to ' + r.to : 'Send';
@@ -2750,7 +2754,10 @@ async function previewSendEmail() {
 
 function updateSendPreview() {
   const el = document.getElementById('se-preview-body');
-  if (el) el.innerHTML = crmBodyToHtml(document.getElementById('se-body').value);
+  if (!el) return;
+  const cc = (document.getElementById('se-cc') || {}).value || '';
+  const ccHtml = cc.trim() ? `<p style="margin:0 0 10px;font-size:12px;color:#707070"><strong>CC:</strong> ${esc(cc.trim())}</p>` : '';
+  el.innerHTML = ccHtml + crmBodyToHtml(document.getElementById('se-body').value);
 }
 
 async function doSendEmail() {
@@ -2761,7 +2768,9 @@ async function doSendEmail() {
   try {
     const r = await callEmailFn({
       action: 'send', template_id: tid, lead_id: id,
-      subject: document.getElementById('se-subject').value, body: document.getElementById('se-body').value,
+      subject: document.getElementById('se-subject').value,
+      body: document.getElementById('se-body').value,
+      cc: document.getElementById('se-cc').value.trim() || '',
     });
     App.closeModal('send-email-modal');
     App.showToast('Email sent to ' + r.sent_to);

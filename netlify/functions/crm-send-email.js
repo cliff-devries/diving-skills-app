@@ -86,7 +86,7 @@ exports.handler = async (event) => {
     let text = render(t.body, vars);
 
     if (action === 'preview') {
-      return json(200, { success: true, to: v.to_email || null, do_not_contact: !!v.do_not_contact, subject, body: text });
+      return json(200, { success: true, to: v.to_email || null, do_not_contact: !!v.do_not_contact, subject, body: text, cc_addresses: t.cc_addresses || null });
     }
 
     if (d.subject != null || d.body != null) {
@@ -102,7 +102,8 @@ exports.handler = async (event) => {
     if (!v.to_email) return json(400, { success: false, error: 'This contact has no parent email address.' });
     if (v.do_not_contact) return json(400, { success: false, error: 'This contact is marked do not contact.' });
 
-    const r = await sendEmail({ to: v.to_email, subject, text, diver: v.diver_first_name, footer: t.footer, cc: t.cc_addresses });
+    const ccOverride = d.cc != null ? String(d.cc) : null;
+    const r = await sendEmail({ to: v.to_email, subject, text, diver: v.diver_first_name, footer: t.footer, cc: ccOverride !== null ? ccOverride : t.cc_addresses });
     const row = { template_id: t.id, lead_id: leadId };
     if (!r.ok) {
       await record(row, v.to_email, subject, 'failed', r.error, false, p.coach_id).catch(() => {});
