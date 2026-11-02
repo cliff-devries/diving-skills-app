@@ -111,13 +111,8 @@
     .vto-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      grid-template-rows: auto auto;
       gap: 16px;
     }
-
-    /* Bottom two cards span differently */
-    .vto-mkt    { grid-column: 1 / 3; }
-    .vto-3yr    { grid-column: 3 / 4; }
 
     /* ── VTO Card ────────────────────────────────────────── */
     .vto-card {
@@ -142,11 +137,12 @@
     .vto-card-body { padding: 16px 18px; flex: 1; }
 
     /* Accent colors by section */
+    .vto-vision  .vto-accent-bar { background: var(--accent); }
     .vto-values  .vto-accent-bar { background: var(--accent); }
     .vto-focus   .vto-accent-bar { background: var(--accent); }
     .vto-10yr    .vto-accent-bar { background: var(--gold); }
-    .vto-mkt     .vto-accent-bar { background: var(--purple); }
     .vto-3yr     .vto-accent-bar { background: var(--green); }
+    .vto-1yr     .vto-accent-bar { background: var(--gold); }
 
     /* ── Inline editable fields ──────────────────────────── */
     .vto-item {
@@ -302,11 +298,9 @@
     /* ── Traction Organizer ──────────────────────────────── */
     .traction-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto auto;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 16px;
     }
-    .traction-issues { grid-column: 1 / 3; }
 
     .traction-card {
       background: var(--surface); border: 1px solid var(--border);
@@ -322,7 +316,7 @@
       text-transform: uppercase; color: var(--muted);
     }
     .traction-accent { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
-    .traction-1yr  .traction-accent { background: var(--gold); }
+    .traction-mkt   .traction-accent { background: var(--purple); }
     .traction-rocks .traction-accent { background: var(--orange); }
     .traction-issues .traction-accent { background: #e53935; }
     .traction-card-body { padding: 16px 18px; }
@@ -524,17 +518,11 @@
 
     /* ── Responsive ──────────────────────────────────────── */
     @media (max-width: 900px) {
-      .vto-grid { grid-template-columns: 1fr 1fr; }
-      .vto-values { grid-column: 1 / 2; }
-      .vto-focus  { grid-column: 2 / 3; }
-      .vto-10yr   { grid-column: 1 / 3; }
-      .vto-mkt    { grid-column: 1 / 3; }
-      .vto-3yr    { grid-column: 1 / 3; }
-      .mkt-grid   { grid-template-columns: 1fr; }
+      .vto-grid, .traction-grid { grid-template-columns: 1fr 1fr; }
+      .mkt-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 580px) {
-      .vto-grid { grid-template-columns: 1fr; }
-      .vto-values, .vto-focus, .vto-10yr, .vto-mkt, .vto-3yr { grid-column: 1; }
+      .vto-grid, .traction-grid { grid-template-columns: 1fr; }
       .dmgr-main { padding: 16px 14px 40px; }
       .dmgr-header-inner { padding: 0 14px; }
       .dmgr-coach { display: none; }
@@ -582,6 +570,19 @@
     </div>
     <div class="vto-grid" id="vto-grid" style="display:none">
 
+      <!-- ROW 1: Vision · Core Values · Core Focus -->
+
+      <!-- VISION -->
+      <div class="vto-card vto-vision">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">Vision</span>
+        </div>
+        <div class="vto-card-body" id="vision-body">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
       <!-- CORE VALUES -->
       <div class="vto-card vto-values">
         <div class="vto-card-head">
@@ -604,6 +605,8 @@
         </div>
       </div>
 
+      <!-- ROW 2: 10-Year Target · 3-Year Picture · 1-Year Plan -->
+
       <!-- 10-YEAR TARGET -->
       <div class="vto-card vto-10yr">
         <div class="vto-card-head">
@@ -611,17 +614,6 @@
           <span class="vto-section-label">10-Year Target</span>
         </div>
         <div class="vto-card-body" id="target-body">
-          <!-- rendered by JS -->
-        </div>
-      </div>
-
-      <!-- MARKETING STRATEGY -->
-      <div class="vto-card vto-mkt">
-        <div class="vto-card-head">
-          <div class="vto-accent-bar"></div>
-          <span class="vto-section-label">Marketing Strategy</span>
-        </div>
-        <div class="vto-card-body" id="mkt-body">
           <!-- rendered by JS -->
         </div>
       </div>
@@ -637,6 +629,22 @@
         </div>
       </div>
 
+      <!-- 1-YEAR PLAN -->
+      <div class="vto-card vto-1yr">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">1-Year Plan</span>
+        </div>
+        <div class="vto-card-body">
+          <div id="goals-list"></div>
+          <button class="vto-add-btn" id="goals-add">+ Add goal</button>
+          <div class="traction-meta-row">
+            <span class="traction-meta-label">Year</span>
+            <input type="number" class="traction-year-input" id="plan-year" min="2020" max="2040" placeholder="2025">
+          </div>
+        </div>
+      </div>
+
     </div><!-- /vto-grid -->
   </div><!-- /tab-vision -->
 
@@ -648,21 +656,16 @@
     <div id="traction-content" style="display:none">
       <div class="traction-grid">
 
-        <!-- 1-YEAR PLAN -->
-        <div class="traction-card traction-1yr">
+        <!-- MARKETING STRATEGY -->
+        <div class="traction-card traction-mkt">
           <div class="traction-card-head">
             <div class="traction-card-head-left">
               <div class="traction-accent"></div>
-              <span class="traction-label">1-Year Plan</span>
+              <span class="traction-label">Marketing Strategy</span>
             </div>
           </div>
-          <div class="traction-card-body">
-            <div id="goals-list"></div>
-            <button class="vto-add-btn" id="goals-add">+ Add goal</button>
-            <div class="traction-meta-row">
-              <span class="traction-meta-label">Year</span>
-              <input type="number" class="traction-year-input" id="plan-year" min="2020" max="2040" placeholder="2025">
-            </div>
+          <div class="traction-card-body" id="mkt-body">
+            <!-- rendered by JS -->
           </div>
         </div>
 
@@ -883,6 +886,7 @@
 
 /* ── Default VTO content ────────────────────────────────── */
 const DEFAULTS = {
+  vision: 'Upstate Diving will be the premier competitive diving program in New York State, developing athletes of character who excel in sport and life.',
   core_values: [
     { title: 'Hard Work',              desc: 'We work hard to instruct every diver in our program, with a huge number of skills performed.' },
     { title: 'Exceptional Instruction',desc: 'We train with the best mechanics using great communication skills.' },
@@ -1001,6 +1005,16 @@ function autoResize(el) {
 function bindResize(el) {
   autoResize(el);
   el.addEventListener('input', () => autoResize(el));
+}
+
+/* ── Vision ─────────────────────────────────────────────── */
+function renderVision() {
+  const body = document.getElementById('vision-body');
+  const v = vtoData.vision || '';
+  body.innerHTML = `<textarea class="target-body" rows="6" id="vision-desc" placeholder="Describe your long-term vision…">${esc(v)}</textarea>`;
+  const ta = document.getElementById('vision-desc');
+  bindResize(ta);
+  ta.addEventListener('input', e => { vtoData.vision = e.target.value; scheduleSave(); });
 }
 
 /* ── Core Values ────────────────────────────────────────── */
@@ -1178,13 +1192,29 @@ function renderThreeYear() {
   });
 }
 
-/* ── Render all ─────────────────────────────────────────── */
+/* ── Render all (vision tab) ────────────────────────────── */
 function renderAll() {
+  renderVision();
   renderValues();
   renderFocus();
   renderTarget();
-  renderMarketing();
   renderThreeYear();
+  renderOneYear();
+}
+
+function renderOneYear() {
+  const t = vtoData.traction || {};
+  vtoData.traction = t;
+  if (!t.goals) t.goals = [];
+  document.getElementById('plan-year').value = t.plan_year || '';
+  renderGoals();
+  document.getElementById('plan-year').addEventListener('change', e => {
+    vtoData.traction.plan_year = e.target.value; scheduleSave();
+  }, { once: true });
+  document.getElementById('goals-add').addEventListener('click', () => {
+    vtoData.traction.goals.push(''); renderGoals(); scheduleSave();
+    document.querySelectorAll('#goals-list .traction-goal-text').at(-1)?.focus();
+  }, { once: true });
 }
 
 /* ── Traction Organizer ─────────────────────────────────── */
@@ -1195,20 +1225,11 @@ function initTraction() {
   tractionLoaded = true;
   const t = vtoData.traction || {};
   vtoData.traction = t;
-  if (!t.goals)  t.goals  = [];
   if (!t.rocks)  t.rocks  = [];
   if (!t.issues) t.issues = [];
-  document.getElementById('plan-year').value = t.plan_year || '';
-  renderGoals(); renderRocks(); renderIssues();
+  renderMarketing(); renderRocks(); renderIssues();
   document.getElementById('traction-loading').style.display = 'none';
   document.getElementById('traction-content').style.display = '';
-  document.getElementById('plan-year').addEventListener('change', e => {
-    vtoData.traction.plan_year = e.target.value; scheduleSave();
-  });
-  document.getElementById('goals-add').addEventListener('click', () => {
-    vtoData.traction.goals.push(''); renderGoals(); scheduleSave();
-    document.querySelectorAll('#goals-list .traction-goal-text').at(-1)?.focus();
-  });
   document.getElementById('rocks-add').addEventListener('click', () => {
     vtoData.traction.rocks.push({ text: '', owner: '', status: '' }); renderRocks(); scheduleSave();
     document.querySelectorAll('#rocks-list .rock-text').at(-1)?.focus();
