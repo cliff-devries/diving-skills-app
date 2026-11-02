@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>DiveManager — Upstate Diving</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --raised:    #1c2230;
+      --border:    #2a3344;
+      --text:      #e6edf3;
+      --muted:     #7d8fa8;
+      --accent:    #03A9F4;   /* DiveManager sky blue */
+      --gold:      #F9A825;   /* 10-year target */
+      --green:     #2ecc71;   /* 3-year picture */
+      --purple:    #9C27B0;   /* 1-year plan */
+      --orange:    #F76900;   /* rocks */
+      --radius:    10px;
+      --hdr:       58px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .dmgr-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      height: var(--hdr);
+    }
+    .dmgr-header-inner {
+      max-width: 1280px; margin: 0 auto;
+      height: var(--hdr);
+      display: flex; align-items: center; gap: 24px;
+      padding: 0 24px;
+    }
+    .dmgr-wordmark {
+      font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em;
+      text-decoration: none; flex-shrink: 0;
+    }
+    .dmgr-wordmark .dive  { color: var(--text); }
+    .dmgr-wordmark .mgr   { color: var(--accent); }
+
+    .dmgr-tabs {
+      display: flex; gap: 2px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 3px; flex-shrink: 0;
+    }
+    .dmgr-tab {
+      padding: 5px 16px; border-radius: 6px; border: none;
+      background: transparent; color: var(--muted);
+      font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .dmgr-tab.active { background: var(--raised); color: var(--text); }
+    .dmgr-tab:hover:not(.active) { color: var(--text); }
+
+    .dmgr-save-status {
+      margin-left: auto; font-size: 0.78rem; color: var(--muted);
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+    }
+    .dmgr-save-status .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--muted); transition: background .3s;
+    }
+    .dmgr-save-status.saved .dot  { background: var(--green); }
+    .dmgr-save-status.saving .dot { background: var(--gold); }
+    .dmgr-save-status.error .dot  { background: #e53935; }
+
+    .hub-link {
+      color: var(--muted); text-decoration: none; font-size: 0.82rem;
+      padding: 5px 10px; border-radius: 6px; transition: color .12s, background .12s;
+      flex-shrink: 0;
+    }
+    .hub-link:hover { color: var(--text); background: var(--raised); }
+
+    /* ── Main layout ─────────────────────────────────────── */
+    .dmgr-main {
+      flex: 1; max-width: 1280px; width: 100%;
+      margin: 0 auto; padding: 28px 24px 48px;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── VTO Grid ────────────────────────────────────────── */
+    .vto-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 16px;
+    }
+
+    /* Bottom two cards span differently */
+    .vto-mkt    { grid-column: 1 / 3; }
+    .vto-3yr    { grid-column: 3 / 4; }
+
+    /* ── VTO Card ────────────────────────────────────────── */
+    .vto-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .vto-card-head {
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .vto-section-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .vto-accent-bar {
+      width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0;
+    }
+    .vto-card-body { padding: 16px 18px; flex: 1; }
+
+    /* Accent colors by section */
+    .vto-values  .vto-accent-bar { background: var(--accent); }
+    .vto-focus   .vto-accent-bar { background: var(--accent); }
+    .vto-10yr    .vto-accent-bar { background: var(--gold); }
+    .vto-mkt     .vto-accent-bar { background: var(--purple); }
+    .vto-3yr     .vto-accent-bar { background: var(--green); }
+
+    /* ── Inline editable fields ──────────────────────────── */
+    .vto-item {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 0;
+    }
+    .vto-item:last-child { border-bottom: none; }
+
+    .vto-item-title {
+      font-size: 0.95rem; font-weight: 700; color: var(--text);
+      width: 100%; background: none; border: none;
+      padding: 2px 6px; margin: -2px -6px;
+      border-radius: 4px; outline: none;
+      transition: background .1s;
+      resize: none; font-family: inherit; line-height: 1.4;
+      overflow: hidden;
+    }
+    .vto-item-title:focus {
+      background: var(--raised);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .vto-item-desc {
+      font-size: 0.85rem; color: var(--muted);
+      width: 100%; background: none; border: none;
+      padding: 2px 6px; margin: 3px -6px 0;
+      border-radius: 4px; outline: none;
+      transition: background .1s;
+      resize: none; font-family: inherit; line-height: 1.4;
+      overflow: hidden;
+    }
+    .vto-item-desc:focus {
+      background: var(--raised);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+      color: var(--text);
+    }
+    .vto-item-desc::placeholder { color: color-mix(in srgb, var(--muted) 50%, transparent); }
+    .vto-item-title::placeholder { color: color-mix(in srgb, var(--muted) 60%, transparent); }
+
+    .vto-add-btn {
+      margin-top: 10px; padding: 5px 10px;
+      background: none; border: 1px dashed var(--border);
+      color: var(--muted); border-radius: 6px; cursor: pointer;
+      font-size: 0.82rem; width: 100%; text-align: left;
+      transition: border-color .12s, color .12s, background .12s;
+    }
+    .vto-add-btn:hover {
+      border-color: var(--accent); color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 5%, transparent);
+    }
+
+    .vto-item-remove {
+      float: right; background: none; border: none;
+      color: var(--muted); cursor: pointer; font-size: 0.9rem;
+      padding: 2px 4px; border-radius: 3px; line-height: 1;
+      opacity: 0; transition: opacity .1s, color .1s;
+    }
+    .vto-item:hover .vto-item-remove { opacity: 1; }
+    .vto-item-remove:hover { color: #e53935; }
+
+    /* ── Core Focus bullets ──────────────────────────────── */
+    .focus-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .focus-item:last-child { border-bottom: none; }
+    .focus-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0; margin-top: 6px;
+    }
+    .focus-content { flex: 1; }
+    .focus-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2px;
+    }
+
+    /* ── 10-year target ──────────────────────────────────── */
+    .target-body {
+      font-size: 0.92rem; color: var(--text); line-height: 1.55;
+      width: 100%; background: none; border: none;
+      padding: 2px 6px; margin: -2px -6px;
+      border-radius: 4px; outline: none;
+      resize: none; font-family: inherit;
+      overflow: hidden;
+    }
+    .target-body:focus {
+      background: var(--raised);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent);
+    }
+    .target-date-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .target-date-label { font-size: 0.78rem; color: var(--muted); }
+    .target-date-input {
+      background: var(--raised); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 4px 10px;
+      font-size: 0.82rem; outline: none;
+      transition: border-color .12s;
+    }
+    .target-date-input:focus { border-color: var(--gold); }
+
+    /* ── Marketing strategy ──────────────────────────────── */
+    .mkt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .mkt-section-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--purple);
+      text-transform: uppercase; letter-spacing: .08em;
+      margin-bottom: 10px;
+    }
+    .mkt-list { list-style: none; }
+    .mkt-list-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0; border-bottom: 1px solid var(--border);
+    }
+    .mkt-list-item:last-child { border-bottom: none; }
+    .mkt-num {
+      font-size: 0.72rem; color: var(--muted);
+      width: 18px; flex-shrink: 0; text-align: right;
+    }
+    .mkt-item-input {
+      flex: 1; background: none; border: none; color: var(--text);
+      font-size: 0.88rem; font-family: inherit; outline: none;
+      padding: 2px 6px; border-radius: 4px;
+      transition: background .1s;
+    }
+    .mkt-item-input:focus { background: var(--raised); }
+    .mkt-item-input::placeholder { color: color-mix(in srgb, var(--muted) 50%, transparent); }
+    .mkt-item-remove {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 0.85rem; padding: 2px 4px;
+      border-radius: 3px; opacity: 0; transition: opacity .1s, color .1s;
+    }
+    .mkt-list-item:hover .mkt-item-remove { opacity: 1; }
+    .mkt-item-remove:hover { color: #e53935; }
+
+    /* ── 3-year picture ──────────────────────────────────── */
+    .threeyear-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .metric-box {
+      background: var(--raised); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px;
+    }
+    .metric-label {
+      font-size: 0.7rem; font-weight: 700; color: var(--green);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px;
+    }
+    .metric-value {
+      font-size: 1.3rem; font-weight: 800; color: var(--text);
+      background: none; border: none; width: 100%;
+      font-family: inherit; outline: none; padding: 0;
+    }
+    .metric-value:focus { color: var(--green); }
+
+    /* ── Traction tab ────────────────────────────────────── */
+    .traction-coming {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 16px;
+      min-height: 320px; color: var(--muted);
+      text-align: center;
+    }
+    .traction-coming .icon { font-size: 3rem; opacity: .4; }
+    .traction-coming h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+    .traction-coming p  { font-size: 0.88rem; max-width: 360px; }
+
+    /* ── Loading / error states ──────────────────────────── */
+    .dmgr-loading {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 300px; color: var(--muted); gap: 10px;
+    }
+    .spin {
+      width: 20px; height: 20px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .vto-grid { grid-template-columns: 1fr 1fr; }
+      .vto-values { grid-column: 1 / 2; }
+      .vto-focus  { grid-column: 2 / 3; }
+      .vto-10yr   { grid-column: 1 / 3; }
+      .vto-mkt    { grid-column: 1 / 3; }
+      .vto-3yr    { grid-column: 1 / 3; }
+      .mkt-grid   { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 580px) {
+      .vto-grid { grid-template-columns: 1fr; }
+      .vto-values, .vto-focus, .vto-10yr, .vto-mkt, .vto-3yr { grid-column: 1; }
+      .dmgr-main { padding: 16px 14px 40px; }
+      .dmgr-header-inner { padding: 0 14px; gap: 12px; }
+      .threeyear-metrics { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spin { animation: none; opacity: .5; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="dmgr-header">
+  <div class="dmgr-header-inner">
+    <a href="hub.html" class="hub-link" title="Back to DiveCentral">← Hub</a>
+    <a href="manager.html" class="dmgr-wordmark">
+      <span class="dive">Dive</span><span class="mgr">Manager</span>
+    </a>
+    <div class="dmgr-tabs">
+      <button class="dmgr-tab active" data-tab="vision">Vision</button>
+      <button class="dmgr-tab" data-tab="traction">Traction</button>
+    </div>
+    <div class="dmgr-save-status" id="save-status">
+      <span class="dot"></span>
+      <span class="label">Loading…</span>
+    </div>
+  </div>
+</header>
+
+<main class="dmgr-main">
+
+  <!-- VISION TAB -->
+  <div class="tab-panel active" id="tab-vision">
+    <div id="vto-loading" class="dmgr-loading">
+      <div class="spin"></div> Loading VTO…
+    </div>
+    <div class="vto-grid" id="vto-grid" style="display:none">
+
+      <!-- CORE VALUES -->
+      <div class="vto-card vto-values">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">Core Values</span>
+        </div>
+        <div class="vto-card-body" id="values-body">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- CORE FOCUS -->
+      <div class="vto-card vto-focus">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">Core Focus</span>
+        </div>
+        <div class="vto-card-body" id="focus-body">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- 10-YEAR TARGET -->
+      <div class="vto-card vto-10yr">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">10-Year Target</span>
+        </div>
+        <div class="vto-card-body" id="target-body">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- MARKETING STRATEGY -->
+      <div class="vto-card vto-mkt">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">Marketing Strategy</span>
+        </div>
+        <div class="vto-card-body" id="mkt-body">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- 3-YEAR PICTURE -->
+      <div class="vto-card vto-3yr">
+        <div class="vto-card-head">
+          <div class="vto-accent-bar"></div>
+          <span class="vto-section-label">3-Year Picture</span>
+        </div>
+        <div class="vto-card-body" id="threeyear-body">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+    </div><!-- /vto-grid -->
+  </div><!-- /tab-vision -->
+
+  <!-- TRACTION TAB -->
+  <div class="tab-panel" id="tab-traction">
+    <div class="traction-coming">
+      <div class="icon">🎯</div>
+      <h3>Traction tools coming soon</h3>
+      <p>Rocks, scorecard, meeting pulse, and to-dos will live here — built on your Vision above.</p>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=44"></script>
+<script src="js/auth.js?v=6"></script>
+<script>
+/* ── Auth guard ─────────────────────────────────────────── */
+(async () => {
+  await Auth.init();
+  if (!Auth.user()) { Auth.redirectToLogin(); return; }
+  if (!Auth.isCoach()) {
+    document.querySelector('.dmgr-main').innerHTML =
+      '<div class="dmgr-loading">DiveManager is for coaches only.</div>';
+    return;
+  }
+  initManager();
+})();
+
+/* ── Default VTO content ────────────────────────────────── */
+const DEFAULTS = {
+  core_values: [
+    { title: 'Hard Work',              desc: 'We work hard to instruct every diver in our program, with a huge number of skills performed.' },
+    { title: 'Exceptional Instruction',desc: 'We train with the best mechanics using great communication skills.' },
+    { title: 'Fun',                    desc: 'We keep our practices fun with interesting practices, fun games, and lots of interaction.' },
+    { title: 'Progress',               desc: 'We do everything we can to help our divers progress and reach their greatest potential.' },
+  ],
+  core_focus: {
+    purpose: 'Upstate Diving exists to train 200 divers and be a top 10 team at USA Diving nationals',
+    niche:   'We train youth athlete divers from 5 to 18 years old',
+  },
+  ten_year_target: {
+    description: 'Upstate Diving will have five different pools and a dryland center that is consistently full with a set of 200 divers. A consistent rank of top 10 team in the country and sending graduates to division one universities.',
+    target_date: '2036-08-15',
+  },
+  marketing: {
+    uniques:    ['Great Coaches', 'Great Facilities', 'Many Practice Times', 'History of excellence'],
+    proven_process: 'DiveDrills skills-based curriculum with structured level progression',
+    guarantee:  'Every diver learns the fundamentals of springboard diving in their first session',
+  },
+  three_year: {
+    metrics: [
+      { label: 'Divers',        value: '120' },
+      { label: 'Locations',     value: '3'   },
+      { label: 'Coaches',       value: '6'   },
+      { label: 'National Rank', value: 'Top 20' },
+    ],
+    looks_like: 'Fully staffed at three locations with a waiting list. DiveDrills used by every coach. Revenue covers all operating costs.',
+  },
+};
+
+/* ── State ──────────────────────────────────────────────── */
+let vtoData = null;
+let saveTimer = null;
+
+function setStatus(state, msg) {
+  const el = document.getElementById('save-status');
+  el.className = 'dmgr-save-status ' + state;
+  el.querySelector('.label').textContent = msg;
+}
+
+/* ── Load from DB ───────────────────────────────────────── */
+async function initManager() {
+  try {
+    const { data, error } = await SupabaseDB.client
+      .from('vto_data').select('content').maybeSingle();
+    if (error) throw error;
+    vtoData = data?.content
+      ? Object.assign({}, DEFAULTS, data.content)
+      : { ...DEFAULTS };
+  } catch (e) {
+    console.error('VTO load failed', e);
+    vtoData = { ...DEFAULTS };
+    setStatus('error', 'Could not load — editing locally');
+  }
+  renderAll();
+  document.getElementById('vto-loading').style.display = 'none';
+  document.getElementById('vto-grid').style.display = '';
+  setStatus('saved', 'All changes saved');
+}
+
+/* ── Auto-save ──────────────────────────────────────────── */
+function scheduleSave() {
+  setStatus('saving', 'Saving…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 1200);
+}
+
+async function saveNow() {
+  try {
+    const { error } = await SupabaseDB.client.rpc('vto_upsert', { p_patch: vtoData });
+    if (error) throw error;
+    setStatus('saved', 'All changes saved');
+  } catch (e) {
+    console.error('VTO save failed', e);
+    setStatus('error', 'Save failed — will retry');
+    saveTimer = setTimeout(saveNow, 5000);
+  }
+}
+
+/* ── Auto-resize textareas ──────────────────────────────── */
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function bindResize(el) {
+  autoResize(el);
+  el.addEventListener('input', () => autoResize(el));
+}
+
+/* ── Core Values ────────────────────────────────────────── */
+function renderValues() {
+  const body = document.getElementById('values-body');
+  const vals = vtoData.core_values || [];
+  body.innerHTML = vals.map((v, i) => `
+    <div class="vto-item" data-vi="${i}">
+      <button class="vto-item-remove" data-vi="${i}" title="Remove">✕</button>
+      <textarea class="vto-item-title" rows="1" placeholder="Value name" data-vi="${i}" data-field="title">${esc(v.title || '')}</textarea>
+      <textarea class="vto-item-desc"  rows="2" placeholder="What this means in practice…" data-vi="${i}" data-field="desc">${esc(v.desc || '')}</textarea>
+    </div>`).join('') +
+    `<button class="vto-add-btn" id="values-add">+ Add value</button>`;
+
+  body.querySelectorAll('textarea').forEach(ta => {
+    bindResize(ta);
+    ta.addEventListener('input', e => {
+      const i = +e.target.dataset.vi, f = e.target.dataset.field;
+      vtoData.core_values[i][f] = e.target.value;
+      scheduleSave();
+    });
+  });
+  body.querySelectorAll('.vto-item-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const i = +e.target.dataset.vi;
+      vtoData.core_values.splice(i, 1);
+      renderValues(); scheduleSave();
+    });
+  });
+  document.getElementById('values-add').addEventListener('click', () => {
+    vtoData.core_values.push({ title: '', desc: '' });
+    renderValues(); scheduleSave();
+    body.querySelectorAll('.vto-item-title').at(-1)?.focus();
+  });
+}
+
+/* ── Core Focus ─────────────────────────────────────────── */
+function renderFocus() {
+  const body = document.getElementById('focus-body');
+  const f = vtoData.core_focus || {};
+  body.innerHTML = `
+    <div class="focus-item">
+      <div class="focus-dot"></div>
+      <div class="focus-content">
+        <div class="focus-label">Purpose</div>
+        <textarea class="vto-item-title" rows="2" id="focus-purpose" placeholder="Why we exist…">${esc(f.purpose || '')}</textarea>
+      </div>
+    </div>
+    <div class="focus-item">
+      <div class="focus-dot"></div>
+      <div class="focus-content">
+        <div class="focus-label">Niche</div>
+        <textarea class="vto-item-title" rows="2" id="focus-niche" placeholder="Who we serve…">${esc(f.niche || '')}</textarea>
+      </div>
+    </div>`;
+
+  ['purpose', 'niche'].forEach(field => {
+    const ta = document.getElementById('focus-' + field);
+    bindResize(ta);
+    ta.addEventListener('input', e => {
+      vtoData.core_focus[field] = e.target.value;
+      scheduleSave();
+    });
+  });
+}
+
+/* ── 10-Year Target ─────────────────────────────────────── */
+function renderTarget() {
+  const body = document.getElementById('target-body');
+  const t = vtoData.ten_year_target || {};
+  body.innerHTML = `
+    <textarea class="target-body" rows="5" id="target-desc" placeholder="Describe your 10-year target…">${esc(t.description || '')}</textarea>
+    <div class="target-date-row">
+      <span class="target-date-label">Target date</span>
+      <input type="date" class="target-date-input" id="target-date" value="${esc(t.target_date || '')}">
+    </div>`;
+
+  const ta = document.getElementById('target-desc');
+  bindResize(ta);
+  ta.addEventListener('input', e => {
+    vtoData.ten_year_target.description = e.target.value;
+    scheduleSave();
+  });
+  document.getElementById('target-date').addEventListener('change', e => {
+    vtoData.ten_year_target.target_date = e.target.value;
+    scheduleSave();
+  });
+}
+
+/* ── Marketing Strategy ─────────────────────────────────── */
+function renderMarketing() {
+  const body = document.getElementById('mkt-body');
+  const m = vtoData.marketing || {};
+  const uniques = m.uniques || [];
+
+  body.innerHTML = `<div class="mkt-grid">
+    <div>
+      <div class="mkt-section-title">3 Uniques</div>
+      <ul class="mkt-list" id="uniques-list">
+        ${uniques.map((u, i) => `
+          <li class="mkt-list-item" data-ui="${i}">
+            <span class="mkt-num">${i + 1}.</span>
+            <input class="mkt-item-input" value="${esc(u)}" data-ui="${i}" placeholder="Unique differentiator…">
+            <button class="mkt-item-remove" data-ui="${i}" title="Remove">✕</button>
+          </li>`).join('')}
+      </ul>
+      <button class="vto-add-btn" id="uniques-add" style="margin-top:8px">+ Add unique</button>
+    </div>
+    <div>
+      <div class="mkt-section-title">Proven Process</div>
+      <textarea class="vto-item-title" rows="3" id="mkt-process" style="margin-bottom:14px" placeholder="Your signature delivery method…">${esc(m.proven_process || '')}</textarea>
+      <div class="mkt-section-title">Guarantee</div>
+      <textarea class="vto-item-title" rows="3" id="mkt-guarantee" placeholder="What you promise every family…">${esc(m.guarantee || '')}</textarea>
+    </div>
+  </div>`;
+
+  body.querySelectorAll('.mkt-item-input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      vtoData.marketing.uniques[+e.target.dataset.ui] = e.target.value;
+      scheduleSave();
+    });
+  });
+  body.querySelectorAll('.mkt-item-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      vtoData.marketing.uniques.splice(+e.target.dataset.ui, 1);
+      renderMarketing(); scheduleSave();
+    });
+  });
+  document.getElementById('uniques-add').addEventListener('click', () => {
+    vtoData.marketing.uniques.push('');
+    renderMarketing(); scheduleSave();
+    body.querySelectorAll('.mkt-item-input').at(-1)?.focus();
+  });
+
+  ['process', 'guarantee'].forEach(f => {
+    const ta = document.getElementById('mkt-' + f);
+    bindResize(ta);
+    ta.addEventListener('input', e => {
+      vtoData.marketing[f === 'process' ? 'proven_process' : 'guarantee'] = e.target.value;
+      scheduleSave();
+    });
+  });
+}
+
+/* ── 3-Year Picture ─────────────────────────────────────── */
+function renderThreeYear() {
+  const body = document.getElementById('threeyear-body');
+  const ty = vtoData.three_year || {};
+  const metrics = ty.metrics || [];
+
+  body.innerHTML = `
+    <div class="threeyear-metrics" id="metrics-grid">
+      ${metrics.map((m, i) => `
+        <div class="metric-box">
+          <input class="mkt-item-input metric-label" value="${esc(m.label || '')}" data-mi="${i}" data-mf="label" placeholder="Label" style="color:var(--green);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">
+          <input class="metric-value" value="${esc(m.value || '')}" data-mi="${i}" data-mf="value" placeholder="—">
+        </div>`).join('')}
+    </div>
+    <div style="margin-bottom:8px;font-size:0.72rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em">Looks like</div>
+    <textarea class="vto-item-title" rows="3" id="threeyear-looks" placeholder="What does success look like in 3 years?">${esc(ty.looks_like || '')}</textarea>`;
+
+  body.querySelectorAll('[data-mi]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const i = +e.target.dataset.mi, f = e.target.dataset.mf;
+      if (!vtoData.three_year.metrics[i]) vtoData.three_year.metrics[i] = {};
+      vtoData.three_year.metrics[i][f] = e.target.value;
+      scheduleSave();
+    });
+  });
+  const ta = document.getElementById('threeyear-looks');
+  bindResize(ta);
+  ta.addEventListener('input', e => {
+    vtoData.three_year.looks_like = e.target.value;
+    scheduleSave();
+  });
+}
+
+/* ── Render all ─────────────────────────────────────────── */
+function renderAll() {
+  renderValues();
+  renderFocus();
+  renderTarget();
+  renderMarketing();
+  renderThreeYear();
+}
+
+/* ── Tab switching ──────────────────────────────────────── */
+document.querySelectorAll('.dmgr-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.dmgr-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ── Escape helper ──────────────────────────────────────── */
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
