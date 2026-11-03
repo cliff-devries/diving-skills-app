@@ -498,6 +498,201 @@
     .coming-soon h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); }
     .coming-soon p  { font-size: 0.88rem; max-width: 380px; line-height: 1.6; }
 
+    /* ── Processes & SOPs ───────────────────────────────── */
+    .proc-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      min-height: 600px;
+    }
+
+    /* Area sidebar */
+    .proc-sidebar {
+      grid-row: 1 / 3;
+      border-right: 1px solid var(--border);
+      padding: 4px 0 24px;
+    }
+    .proc-sidebar-title {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 14px 16px 8px;
+    }
+    .proc-area-btn {
+      display: flex; align-items: center; gap: 11px;
+      width: 100%; padding: 10px 16px;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.9rem; font-family: inherit;
+      text-align: left; border-radius: 0;
+      transition: background .12s, color .12s;
+      position: relative;
+    }
+    .proc-area-btn:hover { background: var(--raised); color: var(--text); }
+    .proc-area-btn.active {
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .proc-area-btn.active::before {
+      content: '';
+      position: absolute; left: 0; top: 4px; bottom: 4px;
+      width: 3px; border-radius: 0 3px 3px 0;
+      background: var(--accent);
+    }
+    .proc-area-icon { font-size: 1.1rem; width: 22px; text-align: center; flex-shrink: 0; }
+    .proc-area-label { flex: 1; }
+    .proc-area-count {
+      font-size: 0.72rem; font-weight: 700;
+      background: var(--raised); color: var(--muted);
+      padding: 2px 7px; border-radius: 10px;
+      min-width: 22px; text-align: center;
+    }
+    .proc-area-btn.active .proc-area-count {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+    }
+
+    /* List panel */
+    .proc-list-panel {
+      padding: 20px 24px;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+    }
+    .proc-list-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; gap: 12px;
+    }
+    .proc-list-title { font-size: 1.1rem; font-weight: 700; }
+    .proc-add-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+      font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: background .12s;
+    }
+    .proc-add-btn:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+
+    .proc-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px; border-radius: 10px; cursor: pointer;
+      border: 1px solid transparent;
+      transition: background .12s, border-color .12s;
+      margin-bottom: 4px;
+    }
+    .proc-item:hover { background: var(--raised); border-color: var(--border); }
+    .proc-item.active {
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .proc-item-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem; flex-shrink: 0;
+      background: var(--raised); border: 1px solid var(--border);
+    }
+    .proc-item.active .proc-item-icon {
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .proc-item-body { flex: 1; min-width: 0; }
+    .proc-item-title { font-size: 0.9rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .proc-item-desc { font-size: 0.78rem; color: var(--muted); margin-top: 2px; line-height: 1.4;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .proc-item-meta {
+      display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+    }
+    .proc-tag {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; padding: 2px 8px; border-radius: 4px;
+    }
+    .proc-tag.active  { background: color-mix(in srgb, var(--green)  14%, transparent); color: var(--green); }
+    .proc-tag.draft   { background: color-mix(in srgb, var(--gold)    14%, transparent); color: var(--gold); }
+    .proc-tag.archived{ background: var(--raised); color: var(--muted); }
+    .proc-children-toggle {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 0.75rem; padding: 0; display: flex; align-items: center; gap: 4px;
+      transition: color .12s;
+    }
+    .proc-children-toggle:hover { color: var(--accent); }
+    .proc-chevron { transition: transform .2s; }
+    .proc-chevron.open { transform: rotate(90deg); }
+
+    .proc-sub-list { padding-left: 44px; }
+    .proc-sub-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      border: 1px solid transparent;
+      transition: background .12s, border-color .12s;
+      margin-bottom: 2px;
+    }
+    .proc-sub-item:hover { background: var(--raised); border-color: var(--border); }
+    .proc-sub-item.active {
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .proc-sub-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--border); flex-shrink: 0; margin-top: 6px;
+    }
+    .proc-sub-item.active .proc-sub-dot { background: var(--accent); }
+    .proc-sub-title { font-size: 0.84rem; color: var(--muted); line-height: 1.3; }
+    .proc-sub-item.active .proc-sub-title { color: var(--text); font-weight: 600; }
+
+    /* Detail panel */
+    .proc-detail-panel {
+      padding: 24px 28px;
+      overflow-y: auto;
+    }
+    .proc-detail-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 400px; color: var(--muted); gap: 10px; text-align: center;
+    }
+    .proc-detail-empty-icon { font-size: 2.5rem; opacity: .4; }
+    .proc-detail-empty p { font-size: 0.88rem; max-width: 280px; line-height: 1.6; }
+
+    .proc-detail-header { margin-bottom: 20px; }
+    .proc-detail-breadcrumb {
+      font-size: 0.75rem; color: var(--muted); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .proc-detail-breadcrumb span { color: var(--muted); }
+    .proc-detail-title { font-size: 1.4rem; font-weight: 800; line-height: 1.2; }
+    .proc-detail-meta {
+      display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;
+    }
+    .proc-detail-version { font-size: 0.75rem; color: var(--muted); }
+    .proc-divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    .proc-detail-body { color: var(--text); font-size: 0.92rem; line-height: 1.7; }
+    .proc-detail-body h4 {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); margin: 20px 0 8px;
+    }
+    .proc-detail-body ol, .proc-detail-body ul {
+      padding-left: 20px; margin: 8px 0;
+    }
+    .proc-detail-body li { margin-bottom: 6px; }
+    .proc-detail-body .proc-note {
+      background: color-mix(in srgb, var(--gold) 10%, transparent);
+      border-left: 3px solid var(--gold);
+      padding: 10px 14px; border-radius: 0 6px 6px 0;
+      font-size: 0.85rem; color: var(--text); margin: 12px 0;
+    }
+
+    @media (max-width: 860px) {
+      .proc-layout { grid-template-columns: 1fr; }
+      .proc-sidebar { grid-row: auto; border-right: none; border-bottom: 1px solid var(--border);
+        display: flex; gap: 4px; overflow-x: auto; padding: 8px; }
+      .proc-sidebar-title { display: none; }
+      .proc-area-btn { border-radius: 8px; padding: 8px 12px; white-space: nowrap;
+        flex-direction: column; gap: 4px; min-width: 80px; align-items: center; text-align: center; }
+      .proc-area-btn.active::before { display: none; }
+      .proc-area-count { display: none; }
+      .proc-list-panel { border-right: none; }
+      .proc-detail-panel { padding: 16px; }
+    }
+
     /* ── Loading / error states ──────────────────────────── */
     .dmgr-loading {
       display: flex; align-items: center; justify-content: center;
@@ -818,10 +1013,72 @@
 
   <!-- PROCESSES -->
   <div class="tab-panel" id="tab-processes">
-    <div class="coming-soon">
-      <div class="cs-icon">📖</div>
-      <h3>Processes &amp; SOPs</h3>
-      <p>Standard operating procedures for practices, competitions, onboarding, and club operations.</p>
+    <div class="proc-layout">
+
+      <!-- AREA SIDEBAR -->
+      <nav class="proc-sidebar" aria-label="Process areas">
+        <div class="proc-sidebar-title">Areas</div>
+        <button class="proc-area-btn active" data-area="administration">
+          <span class="proc-area-icon">🏛️</span>
+          <span class="proc-area-label">Administration</span>
+          <span class="proc-area-count" id="cnt-administration">8</span>
+        </button>
+        <button class="proc-area-btn" data-area="training">
+          <span class="proc-area-icon">🏊</span>
+          <span class="proc-area-label">Diver Training</span>
+          <span class="proc-area-count" id="cnt-training">10</span>
+        </button>
+        <button class="proc-area-btn" data-area="competition">
+          <span class="proc-area-icon">🏆</span>
+          <span class="proc-area-label">Competition</span>
+          <span class="proc-area-count" id="cnt-competition">7</span>
+        </button>
+        <button class="proc-area-btn" data-area="marketing">
+          <span class="proc-area-icon">📣</span>
+          <span class="proc-area-label">Marketing &amp; Sales</span>
+          <span class="proc-area-count" id="cnt-marketing">6</span>
+        </button>
+        <button class="proc-area-btn" data-area="finance">
+          <span class="proc-area-icon">💰</span>
+          <span class="proc-area-label">Finance</span>
+          <span class="proc-area-count" id="cnt-finance">5</span>
+        </button>
+      </nav>
+
+      <!-- PROCEDURE LIST -->
+      <div class="proc-list-panel" id="proc-list-panel">
+        <div class="proc-list-header">
+          <span class="proc-list-title" id="proc-area-title">Administration</span>
+          <button class="proc-add-btn" id="proc-add-btn">+ New procedure</button>
+        </div>
+        <div id="proc-list"></div>
+      </div>
+
+      <!-- PROCEDURE DETAIL -->
+      <div class="proc-detail-panel" id="proc-detail-panel">
+        <div class="proc-detail-empty" id="proc-detail-empty">
+          <div class="proc-detail-empty-icon">📄</div>
+          <p>Select a procedure from the list to view it here.</p>
+        </div>
+        <div id="proc-detail-content" style="display:none">
+          <div class="proc-detail-header">
+            <div class="proc-detail-breadcrumb">
+              <span id="proc-detail-area"></span>
+              <span>›</span>
+              <span id="proc-detail-parent" style="display:none"></span>
+              <span id="proc-detail-parent-sep" style="display:none">›</span>
+            </div>
+            <div class="proc-detail-title" id="proc-detail-title"></div>
+            <div class="proc-detail-meta">
+              <span class="proc-tag" id="proc-detail-status"></span>
+              <span class="proc-detail-version" id="proc-detail-version"></span>
+            </div>
+          </div>
+          <div class="proc-divider"></div>
+          <div class="proc-detail-body" id="proc-detail-body"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1316,6 +1573,7 @@ function showTab(hash) {
   const panel = document.getElementById('tab-' + active);
   if (panel) panel.classList.add('active');
   if (active === 'traction' && vtoData) initTraction();
+  if (active === 'processes') initProcesses();
 }
 
 window.addEventListener('hashchange', () => showTab(location.hash));
@@ -1325,6 +1583,432 @@ showTab(location.hash);
 function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+/* ══════════════════════════════════════════════════════════
+   PROCESSES & SOPs
+   ══════════════════════════════════════════════════════════ */
+
+const PROC_DATA = {
+  administration: {
+    label: 'Administration',
+    icon: '🏛️',
+    procedures: [
+      {
+        id: 'adm-1', icon: '👤', title: 'Onboard a New Diver',
+        desc: 'Steps from first inquiry to first practice',
+        status: 'active', version: 'v1.2', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>This procedure covers everything from a family's first contact through their first practice day.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Receive inquiry via sign-up form or phone call</li>
+  <li>Send welcome email with trial session details</li>
+  <li>Collect AAU membership number and signed release waiver</li>
+  <li>Create diver profile in DiveDrills (roster entry)</li>
+  <li>Assign to appropriate training group in DiveManager</li>
+  <li>Brief the assigned coach before first practice</li>
+  <li>Follow up with family after first week</li>
+</ol>
+<div class="proc-note">⚠️ Do not allow a diver on deck without a signed release waiver on file.</div>`,
+        children: [
+          { id: 'adm-1a', title: 'Handle a Trial No-Show', status: 'active' },
+          { id: 'adm-1b', title: 'Process an AAU Membership', status: 'draft' },
+        ]
+      },
+      {
+        id: 'adm-2', icon: '📋', title: 'Onboard a New Coach',
+        desc: 'Hiring paperwork, certifications, and system access',
+        status: 'active', version: 'v1.0', updated: 'Sep 2026',
+        body: `<h4>Overview</h4><p>Covers all steps to get a new coaching staff member fully set up and pool-ready.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Collect W-9 or employment paperwork</li>
+  <li>Verify USA Diving coach certification (or begin enrollment)</li>
+  <li>Complete background check through USA Diving SafeSport</li>
+  <li>Create DiveDrills account with coach role</li>
+  <li>Add to DiveManager Accountability Chart</li>
+  <li>Brief on club values, policies, and communication standards</li>
+  <li>Shadow a lead coach for two practices before independent assignment</li>
+</ol>`,
+        children: [
+          { id: 'adm-2a', title: 'Renew Coach Certifications Annually', status: 'draft' },
+        ]
+      },
+      {
+        id: 'adm-3', icon: '📅', title: 'Set the Practice Schedule',
+        desc: 'Seasonal schedule planning and pool booking',
+        status: 'active', version: 'v1.1', updated: 'Aug 2026',
+        body: `<h4>Overview</h4><p>How to build and publish the practice schedule each season.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Confirm pool availability with facility coordinator (Nick/Randy at RIT)</li>
+  <li>Map coaches to time slots based on groups</li>
+  <li>Build schedule in DiveManager Groups tab</li>
+  <li>Send schedule to all families via email</li>
+  <li>Post to upstatediving.com</li>
+</ol>`,
+        children: []
+      },
+      {
+        id: 'adm-4', icon: '📝', title: 'Run a Parent Meeting',
+        desc: 'Agenda, materials, and follow-up process',
+        status: 'draft', version: 'v0.1', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>Standard procedure for running seasonal parent information meetings.</p>
+<div class="proc-note">📝 This procedure is still being drafted. Add your standard agenda items here.</div>`,
+        children: []
+      },
+      {
+        id: 'adm-5', icon: '🔒', title: 'Handle a Pool Emergency',
+        desc: 'Injury, illness, and facility emergency protocols',
+        status: 'active', version: 'v2.0', updated: 'Jul 2026',
+        body: `<h4>Overview</h4><p>Emergency response procedures for on-deck incidents.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Assess the situation — call 911 immediately if life-threatening</li>
+  <li>Clear deck of all other divers</li>
+  <li>Retrieve first aid kit from pool office</li>
+  <li>Contact facility manager (Nick/Randy)</li>
+  <li>Notify parents of affected diver immediately</li>
+  <li>Complete incident report within 24 hours</li>
+  <li>Notify Cliff as club director</li>
+</ol>
+<div class="proc-note">⚠️ All coaches must hold current CPR/AED certification.</div>`,
+        children: [
+          { id: 'adm-5a', title: 'File an Incident Report', status: 'active' },
+          { id: 'adm-5b', title: 'Respond to a Lightning Warning', status: 'active' },
+        ]
+      },
+      {
+        id: 'adm-6', icon: '📊', title: 'Conduct an End-of-Season Review',
+        desc: 'Annual program evaluation and goal-setting',
+        status: 'draft', version: 'v0.2', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>Year-end review process for evaluating the club's performance against its goals.</p>
+<div class="proc-note">📝 Draft in progress — aligns with VTO 1-Year Plan review cycle.</div>`,
+        children: []
+      },
+    ]
+  },
+  training: {
+    label: 'Diver Training',
+    icon: '🏊',
+    procedures: [
+      {
+        id: 'trn-1', icon: '🗓️', title: 'Run a Standard Practice',
+        desc: 'Deck setup, warm-up, skill work, and close-out',
+        status: 'active', version: 'v1.3', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>The standard structure for every practice session at Upstate Diving.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Arrive 10 min early — set up springboards, check equipment</li>
+  <li>Take attendance in DiveDrills</li>
+  <li>Lead 10-min dryland warm-up</li>
+  <li>Skill block 1: fundamentals or new skill introduction (20 min)</li>
+  <li>Skill block 2: repetition and refinement (25 min)</li>
+  <li>Free dive / game time (10 min)</li>
+  <li>Close-out — review key coaching points, preview next practice</li>
+  <li>Log notable skill completions in DiveDrills before leaving</li>
+</ol>`,
+        children: [
+          { id: 'trn-1a', title: 'Run a Dryland-Only Practice', status: 'active' },
+          { id: 'trn-1b', title: 'Manage a Large Group (10+ divers)', status: 'draft' },
+          { id: 'trn-1c', title: 'Handle a Fear or Refusal on the Board', status: 'active' },
+        ]
+      },
+      {
+        id: 'trn-2', icon: '🎯', title: 'Conduct a Skills Test',
+        desc: 'Level testing protocol using DiveDrills',
+        status: 'active', version: 'v1.1', updated: 'Sep 2026',
+        body: `<h4>Overview</h4><p>How to run a formal skills test session and record results in DiveDrills.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Notify divers and parents at least one week in advance</li>
+  <li>Open DiveDrills → Testing tab for the relevant level</li>
+  <li>Test each skill in order; mark pass/fail in real time</li>
+  <li>After session, generate PDF report and email to parents</li>
+  <li>Brief divers individually on results before they leave</li>
+</ol>`,
+        children: [
+          { id: 'trn-2a', title: 'Advance a Diver to the Next Level', status: 'active' },
+        ]
+      },
+      {
+        id: 'trn-3', icon: '📈', title: 'Set Individual Diver Goals',
+        desc: 'Seasonal goal-setting with diver and parent',
+        status: 'draft', version: 'v0.1', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>Process for setting and tracking individual diver development goals each season.</p>
+<div class="proc-note">📝 Draft in progress.</div>`,
+        children: []
+      },
+      {
+        id: 'trn-4', icon: '🔧', title: 'Introduce a New Skill',
+        desc: 'Progression steps for teaching a new dive or technique',
+        status: 'active', version: 'v1.0', updated: 'Aug 2026',
+        body: `<h4>Overview</h4><p>Standard DiveDrills progression model for introducing any new skill.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Identify the skill in DiveDrills curriculum sequence</li>
+  <li>Demonstrate or show video reference</li>
+  <li>Break into sub-skills: dryland, approach, entry</li>
+  <li>Progress through DiveDrills prerequisite skills first</li>
+  <li>First attempt on board with spot as needed</li>
+  <li>Mark skill as introduced in DiveDrills</li>
+</ol>`,
+        children: []
+      },
+    ]
+  },
+  competition: {
+    label: 'Competition',
+    icon: '🏆',
+    procedures: [
+      {
+        id: 'cmp-1', icon: '🚌', title: 'Prepare for an Away Meet',
+        desc: 'Travel logistics, entries, and day-of checklist',
+        status: 'active', version: 'v1.2', updated: 'Sep 2026',
+        body: `<h4>Overview</h4><p>Complete checklist for preparing a team for travel competition.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Confirm entries 2 weeks before meet deadline</li>
+  <li>Collect dive sheets from each competing diver</li>
+  <li>Book transportation and hotel if overnight</li>
+  <li>Send parent logistics email (departure time, venue address, what to bring)</li>
+  <li>Print meet packet: entry confirmations, dive sheets, emergency contacts</li>
+  <li>Pack equipment bag: scoresheet holder, markers, first aid kit</li>
+  <li>Day-of: arrive 30 min before warm-up, register at meet table</li>
+</ol>`,
+        children: [
+          { id: 'cmp-1a', title: 'Submit Dive Entries Online', status: 'active' },
+          { id: 'cmp-1b', title: 'Handle a Last-Minute Scratch', status: 'draft' },
+        ]
+      },
+      {
+        id: 'cmp-2', icon: '🏠', title: 'Host a Home Meet',
+        desc: 'Facility setup, officials, and volunteer coordination',
+        status: 'active', version: 'v1.0', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>How to run a home meet at our facility.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Reserve pool with Nick/Randy (minimum 6 weeks out)</li>
+  <li>Register meet with USA Diving / regional governing body</li>
+  <li>Recruit and confirm officials (judge, referee, announcer)</li>
+  <li>Coordinate parent volunteers for table, warm-up timing, hospitality</li>
+  <li>Set up deck: judging table, scorer's table, warm-up rotation board</li>
+  <li>Brief all officials and volunteers 30 min before start</li>
+</ol>`,
+        children: [
+          { id: 'cmp-2a', title: 'Set Up the Judging Table', status: 'draft' },
+          { id: 'cmp-2b', title: 'Run Warm-Up Rotations', status: 'draft' },
+          { id: 'cmp-2c', title: 'Handle a Scoring Dispute', status: 'draft' },
+        ]
+      },
+      {
+        id: 'cmp-3', icon: '📋', title: 'Submit Season-End Reports',
+        desc: 'Athlete results, rankings, and USA Diving filings',
+        status: 'draft', version: 'v0.1', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>End-of-season reporting requirements for USA Diving and internal records.</p>
+<div class="proc-note">📝 Draft in progress.</div>`,
+        children: []
+      },
+    ]
+  },
+  marketing: {
+    label: 'Marketing & Sales',
+    icon: '📣',
+    procedures: [
+      {
+        id: 'mkt-1', icon: '📱', title: 'Post on Social Media',
+        desc: 'Content cadence, approval, and posting guidelines',
+        status: 'active', version: 'v1.0', updated: 'Sep 2026',
+        body: `<h4>Overview</h4><p>Guidelines for posting on Upstate Diving social accounts.</p>
+<h4>Content types</h4>
+<ul>
+  <li><strong>Meet results</strong> — post within 24 hours, tag divers only with parent permission</li>
+  <li><strong>Skill highlights</strong> — short video clips, always positive framing</li>
+  <li><strong>Recruitment posts</strong> — link to signup.upstatediving.com</li>
+  <li><strong>Club news</strong> — schedule changes, events, achievements</li>
+</ul>
+<div class="proc-note">⚠️ Never post photos or videos of minors without written photo release on file (check DiveCRM).</div>`,
+        children: [
+          { id: 'mkt-1a', title: 'Request Photo Release from Families', status: 'active' },
+        ]
+      },
+      {
+        id: 'mkt-2', icon: '📧', title: 'Send a Recruitment Email',
+        desc: 'Using DiveCRM email templates for outreach',
+        status: 'active', version: 'v1.1', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>How to send recruitment emails to prospective divers using DiveCRM.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Open DiveCRM → Leads tab</li>
+  <li>Filter by stage (Lead or Registered)</li>
+  <li>Select the appropriate email template</li>
+  <li>Review and personalize if needed (fill any [[markers]])</li>
+  <li>Send — system logs the send and marks the contact's timeline</li>
+</ol>`,
+        children: []
+      },
+      {
+        id: 'mkt-3', icon: '🎪', title: 'Run a Try Diving Event',
+        desc: 'Setup, promotion, and follow-up for intro clinics',
+        status: 'draft', version: 'v0.2', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>Process for running a public "Try Diving" recruitment event.</p>
+<div class="proc-note">📝 Draft in progress.</div>`,
+        children: []
+      },
+    ]
+  },
+  finance: {
+    label: 'Finance',
+    icon: '💰',
+    procedures: [
+      {
+        id: 'fin-1', icon: '💳', title: 'Collect Monthly Dues',
+        desc: 'Billing cycle, invoicing, and follow-up on late payments',
+        status: 'active', version: 'v1.0', updated: 'Sep 2026',
+        body: `<h4>Overview</h4><p>How monthly club dues are collected and tracked.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Invoices sent automatically on the 1st of each month</li>
+  <li>Payment due by the 15th</li>
+  <li>Send reminder email on the 10th to unpaid accounts</li>
+  <li>Follow up by phone on the 16th if still unpaid</li>
+  <li>Escalate to Cliff by the 20th for outstanding balances</li>
+</ol>`,
+        children: [
+          { id: 'fin-1a', title: 'Process a Payment Plan Request', status: 'draft' },
+          { id: 'fin-1b', title: 'Handle a Bounced Payment', status: 'draft' },
+        ]
+      },
+      {
+        id: 'fin-2', icon: '📊', title: 'Monthly Financial Reconciliation',
+        desc: 'Income, expenses, and reporting to club director',
+        status: 'active', version: 'v1.0', updated: 'Sep 2026',
+        body: `<h4>Overview</h4><p>End-of-month reconciliation and reporting process.</p>
+<h4>Steps</h4>
+<ol>
+  <li>Export bank statement as CSV</li>
+  <li>Categorize all transactions (income / operating expense / equipment)</li>
+  <li>Reconcile against invoice records</li>
+  <li>Prepare one-page summary for Cliff</li>
+  <li>File in cloud storage (PARA/Finance folder)</li>
+</ol>`,
+        children: []
+      },
+      {
+        id: 'fin-3', icon: '🧾', title: 'Reimburse a Coach Expense',
+        desc: 'Receipt submission and reimbursement approval process',
+        status: 'draft', version: 'v0.1', updated: 'Oct 2026',
+        body: `<h4>Overview</h4><p>How coaches submit and receive reimbursement for approved club expenses.</p>
+<div class="proc-note">📝 Draft in progress — needs expense threshold amounts and approval tiers.</div>`,
+        children: []
+      },
+    ]
+  }
+};
+
+let procActiveArea = 'administration';
+let procActiveId   = null;
+
+function initProcesses() {
+  document.querySelectorAll('.proc-area-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      procActiveArea = btn.dataset.area;
+      procActiveId   = null;
+      document.querySelectorAll('.proc-area-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('proc-area-title').textContent = PROC_DATA[procActiveArea].label;
+      renderProcList();
+      showProcDetail(null);
+    });
+  });
+  document.getElementById('proc-add-btn').addEventListener('click', () => {
+    alert('Procedure creation coming soon — database required.');
+  });
+  renderProcList();
+}
+
+function renderProcList() {
+  const area = PROC_DATA[procActiveArea];
+  const list = document.getElementById('proc-list');
+  list.innerHTML = area.procedures.map(p => renderProcItem(p)).join('');
+  list.querySelectorAll('[data-proc-id]').forEach(el => {
+    el.addEventListener('click', () => { procActiveId = el.dataset.procId; renderProcList(); showProcDetail(procActiveId); });
+  });
+  list.querySelectorAll('.proc-children-toggle').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const subList = document.getElementById('sub-' + btn.dataset.pid);
+      const chevron = btn.querySelector('.proc-chevron');
+      const open = subList.style.display !== 'none';
+      subList.style.display = open ? 'none' : '';
+      chevron.classList.toggle('open', !open);
+    });
+  });
+  list.querySelectorAll('[data-proc-sub-id]').forEach(el => {
+    el.addEventListener('click', e => { e.stopPropagation(); procActiveId = el.dataset.procSubId; renderProcList(); showProcDetail(procActiveId); });
+  });
+}
+
+function renderProcItem(p) {
+  const isActive = procActiveId === p.id;
+  const hasSubs  = p.children && p.children.length > 0;
+  return `
+    <div class="proc-item${isActive ? ' active' : ''}" data-proc-id="${p.id}">
+      <div class="proc-item-icon">${p.icon}</div>
+      <div class="proc-item-body">
+        <div class="proc-item-title">${esc(p.title)}</div>
+        <div class="proc-item-desc">${esc(p.desc)}</div>
+        <div class="proc-item-meta">
+          <span class="proc-tag ${p.status}">${p.status}</span>
+          ${hasSubs ? `<button class="proc-children-toggle" data-pid="${p.id}">
+            <span class="proc-chevron">▶</span> ${p.children.length} sub-procedure${p.children.length > 1 ? 's' : ''}
+          </button>` : ''}
+        </div>
+      </div>
+    </div>
+    ${hasSubs ? `<div class="proc-sub-list" id="sub-${p.id}" style="display:none">
+      ${p.children.map(c => `
+        <div class="proc-sub-item${procActiveId === c.id ? ' active' : ''}" data-proc-sub-id="${c.id}" data-parent-id="${p.id}">
+          <div class="proc-sub-dot"></div>
+          <div>
+            <div class="proc-sub-title">${esc(c.title)}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : ''}`;
+}
+
+function showProcDetail(id) {
+  const empty   = document.getElementById('proc-detail-empty');
+  const content = document.getElementById('proc-detail-content');
+  if (!id) { empty.style.display = ''; content.style.display = 'none'; return; }
+
+  const area = PROC_DATA[procActiveArea];
+  let proc = null, parent = null;
+  for (const p of area.procedures) {
+    if (p.id === id) { proc = p; break; }
+    if (p.children) {
+      const child = p.children.find(c => c.id === id);
+      if (child) { proc = child; parent = p; break; }
+    }
+  }
+  if (!proc) return;
+
+  document.getElementById('proc-detail-area').textContent = area.label;
+  const parentEl  = document.getElementById('proc-detail-parent');
+  const parentSep = document.getElementById('proc-detail-parent-sep');
+  if (parent) { parentEl.textContent = parent.title; parentEl.style.display = ''; parentSep.style.display = ''; }
+  else        { parentEl.style.display = 'none'; parentSep.style.display = 'none'; }
+
+  document.getElementById('proc-detail-title').textContent = proc.title;
+  const statusEl = document.getElementById('proc-detail-status');
+  statusEl.textContent = proc.status; statusEl.className = 'proc-tag ' + proc.status;
+  document.getElementById('proc-detail-version').textContent =
+    proc.version ? `${proc.version} · Updated ${proc.updated}` : '';
+  document.getElementById('proc-detail-body').innerHTML =
+    proc.body || `<p style="color:var(--muted);font-style:italic">No content yet. Click edit to add steps and notes.</p>`;
+
+  empty.style.display = 'none'; content.style.display = '';
+}
+
 </script>
 </body>
 </html>
