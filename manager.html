@@ -1704,6 +1704,7 @@ function selectGroup(key) {
     ? grpDivers.filter(d => !d.diver_group || !d.diver_group.trim())
     : grpDivers.filter(d => (d.diver_group || '').trim() === key);
 
+  console.log('[Groups] selectGroup', key, '→', divers.length, 'divers. Total loaded:', grpDivers.length, 'Sample diver_group values:', grpDivers.slice(0,5).map(d=>d.diver_group));
   document.getElementById('grp-roster-title').textContent = label;
   document.getElementById('grp-roster-count').textContent = `${divers.length} diver${divers.length !== 1 ? 's' : ''}`;
 
@@ -1720,10 +1721,11 @@ function selectGroup(key) {
   };
   const ac = avatarColors[key] || avatarColors[''];
 
-  document.getElementById('grp-roster-list').innerHTML = divers.length
-    ? divers.sort((a,b) => (a.last_name||'').localeCompare(b.last_name||'')).map(d => {
+  const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
+  document.getElementById('grp-roster-list').innerHTML = sorted.length
+    ? sorted.map(d => {
         const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
-        const name = esc((d.first_name||'') + ' ' + (d.last_name||'')).trim();
+        const name = esc(((d.first_name||'') + ' ' + (d.last_name||'')).trim());
         const level = d.current_level ? `Level ${d.current_level}` : '';
         const coach = d.assigned_coach_name || '';
         return `<div class="grp-diver-card">
@@ -1737,7 +1739,10 @@ function selectGroup(key) {
           </div>
         </div>`;
       }).join('')
-    : `<div class="grp-empty">No divers in this group yet</div>`;
+    : `<div class="grp-empty" style="grid-column:1/-1;padding:32px;text-align:center;color:var(--muted)">
+        No divers assigned to this group yet.<br>
+        <small>Have you run <strong>supabase-migration-v82.sql</strong> in Supabase?</small>
+       </div>`;
 
   document.getElementById('grp-overview').style.display = 'none';
   document.getElementById('grp-roster-view').style.display = '';
