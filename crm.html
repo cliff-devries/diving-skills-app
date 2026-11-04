@@ -692,7 +692,11 @@
       </div>
       <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Use <code>[Label](URL)</code> for a clickable link. Tags in double braces are filled in for each family.</div></div>
     <div class="form-group"><label class="form-label">CC <span class="text-secondary" style="font-weight:400">(optional — comma-separated addresses copied on every send)</span></label>
-      <input id="em-cc" class="form-input" autocomplete="off" placeholder="e.g. coach@upstatediving.com, parent-helper@example.com"></div>
+      <input id="em-cc" class="form-input" autocomplete="off" placeholder="e.g. coach@upstatediving.com, helper@example.com" oninput="updateEmailPreview()">
+      <div class="cc-quick-add" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddOnboarding('em-cc')">+ Onboarding coordinators</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddCoaches('em-cc')">+ All coaches</button>
+      </div></div>
     <div class="form-group"><label class="form-label">Footer <span class="text-secondary" style="font-weight:400">(optional — replaces the default unsubscribe line)</span></label>
       <textarea id="em-footer" class="form-input" rows="2" style="resize:vertical" oninput="updateEmailPreview()" placeholder="Leave blank to use the default: You are receiving this email because…"></textarea></div>
     <div class="form-row">
@@ -2574,6 +2578,24 @@ function openEmailTemplate(id) {
   document.getElementById('em-name').focus();
 }
 
+const ONBOARDING_CC = ['lindsay0898@gmail.com', 'kathryndevinney@gmail.com'];
+
+function ccMerge(inputId, emails) {
+  const el = document.getElementById(inputId);
+  const existing = el.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+  const toAdd = emails.filter(e => !existing.includes(e.toLowerCase()));
+  if (!toAdd.length) return;
+  el.value = [...existing.filter(Boolean), ...toAdd].join(', ');
+}
+
+function ccAddOnboarding(inputId) { ccMerge(inputId, ONBOARDING_CC); }
+
+function ccAddCoaches(inputId) {
+  const emails = (coaches || []).map(c => c.email).filter(Boolean);
+  if (!emails.length) { App.showToast('No coach emails loaded yet — open the Leads tab first.'); return; }
+  ccMerge(inputId, emails);
+}
+
 function updateEmailPreview() {
   const body = document.getElementById('em-body').value;
   const cc = document.getElementById('em-cc').value.trim();
@@ -2692,7 +2714,11 @@ function openSendEmail(leadId) {
     <div id="se-edit" hidden>
       <div class="form-group"><label class="form-label">Subject</label><input id="se-subject" class="form-input" autocomplete="off" oninput="checkSendMarkers()"></div>
       <div class="form-group"><label class="form-label">CC <span class="text-secondary" style="font-weight:400">(optional — comma-separated; editable for this send)</span></label>
-        <input id="se-cc" class="form-input" autocomplete="off" oninput="updateSendPreview()" placeholder="e.g. coach@upstatediving.com, helper@example.com"></div>
+        <input id="se-cc" class="form-input" autocomplete="off" oninput="updateSendPreview()" placeholder="e.g. coach@upstatediving.com, helper@example.com">
+        <div class="cc-quick-add" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddOnboarding('se-cc');updateSendPreview()">+ Onboarding coordinators</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddCoaches('se-cc');updateSendPreview()">+ All coaches</button>
+        </div></div>
       <div class="form-group"><label class="form-label">Message (you can edit it before sending)</label>
         <div class="em-editor-wrap">
           <textarea id="se-body" class="form-input em-body" rows="14" oninput="checkSendMarkers();updateSendPreview()"></textarea>
