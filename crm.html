@@ -193,6 +193,11 @@
     .em-trigger { font-size: 0.82rem; color: var(--text-secondary); margin-top: 8px; }
     .em-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
     .em-chip { font-size: 0.78rem; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-surface); color: var(--text-primary); cursor: pointer; }
+    .cc-chips-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 7px; min-height: 28px; }
+    .cc-chip-group-label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
+    .cc-chip { font-size: 0.78rem; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .cc-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+    .cc-chip.active { background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); color: var(--accent); }
     .em-body { font-family: inherit; line-height: 1.5; resize: vertical; }
     .em-editor-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
     @media (max-width: 680px) { .em-editor-wrap { grid-template-columns: 1fr; } }
@@ -692,11 +697,8 @@
       </div>
       <div class="text-secondary text-sm" style="margin-top:4px">Blank line = new paragraph. Use <code>[Label](URL)</code> for a clickable link. Tags in double braces are filled in for each family.</div></div>
     <div class="form-group"><label class="form-label">CC <span class="text-secondary" style="font-weight:400">(optional — comma-separated addresses copied on every send)</span></label>
-      <input id="em-cc" class="form-input" autocomplete="off" placeholder="e.g. coach@upstatediving.com, helper@example.com" oninput="updateEmailPreview()">
-      <div class="cc-quick-add" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddOnboarding('em-cc')">+ Onboarding coordinators</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddCoaches('em-cc')">+ All coaches</button>
-      </div></div>
+      <input id="em-cc" class="form-input" autocomplete="off" placeholder="comma-separated addresses" oninput="updateEmailPreview();renderCcChips('em-cc','em-cc-chips')">
+      <div id="em-cc-chips" class="cc-chips-row"></div></div>
     <div class="form-group"><label class="form-label">Footer <span class="text-secondary" style="font-weight:400">(optional — replaces the default unsubscribe line)</span></label>
       <textarea id="em-footer" class="form-input" rows="2" style="resize:vertical" oninput="updateEmailPreview()" placeholder="Leave blank to use the default: You are receiving this email because…"></textarea></div>
     <div class="form-row">
@@ -2557,6 +2559,7 @@ function openEmailTemplate(id) {
   document.getElementById('em-body').value = t?.body || '';
   document.getElementById('em-cc').value = t?.cc_addresses || '';
   document.getElementById('em-footer').value = t?.footer || '';
+  renderCcChips('em-cc', 'em-cc-chips');
   document.getElementById('em-chips').innerHTML = EMAIL_TAGS.map(([k, label]) =>
     `<button type="button" class="em-chip" onclick="insertEmailTag('${k}')" title="{{${k}}}">+ ${esc(label)}</button>`).join('');
   document.getElementById('em-trigger').value = t?.trigger_type || 'manual';
@@ -2578,22 +2581,47 @@ function openEmailTemplate(id) {
   document.getElementById('em-name').focus();
 }
 
-const ONBOARDING_CC = ['lindsay0898@gmail.com', 'kathryndevinney@gmail.com'];
+const ONBOARDING_CONTACTS = [
+  { label: 'Lindsay',  email: 'lindsay0898@gmail.com' },
+  { label: 'Kathryn', email: 'kathryndevinney@gmail.com' },
+];
 
-function ccMerge(inputId, emails) {
+function ccToggle(inputId, email, btn) {
   const el = document.getElementById(inputId);
-  const existing = el.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-  const toAdd = emails.filter(e => !existing.includes(e.toLowerCase()));
-  if (!toAdd.length) return;
-  el.value = [...existing.filter(Boolean), ...toAdd].join(', ');
+  const parts = el.value.split(',').map(e => e.trim()).filter(Boolean);
+  const idx = parts.findIndex(e => e.toLowerCase() === email.toLowerCase());
+  if (idx === -1) {
+    parts.push(email);
+    if (btn) btn.classList.add('active');
+  } else {
+    parts.splice(idx, 1);
+    if (btn) btn.classList.remove('active');
+  }
+  el.value = parts.join(', ');
 }
 
-function ccAddOnboarding(inputId) { ccMerge(inputId, ONBOARDING_CC); }
+function ccIsActive(inputId, email) {
+  const el = document.getElementById(inputId);
+  if (!el) return false;
+  return el.value.split(',').map(e => e.trim().toLowerCase()).includes(email.toLowerCase());
+}
 
-function ccAddCoaches(inputId) {
-  const emails = (coaches || []).map(c => c.email).filter(Boolean);
-  if (!emails.length) { App.showToast('No coach emails loaded yet — open the Leads tab first.'); return; }
-  ccMerge(inputId, emails);
+function renderCcChips(inputId, afterInputId) {
+  const wrap = document.getElementById(afterInputId);
+  if (!wrap) return;
+  const coachList = (coaches || []).filter(c => c.email);
+  const all = [
+    { group: 'Onboarding', items: ONBOARDING_CONTACTS },
+    { group: 'Coaches', items: coachList.map(c => ({ label: c.first_name || c.full_name || c.email, email: c.email })) },
+  ];
+  wrap.innerHTML = all.map(({ group, items }) => items.length ? `
+    <span class="cc-chip-group-label">${esc(group)}</span>
+    ${items.map(({ label, email }) => {
+      const active = ccIsActive(inputId, email) ? ' active' : '';
+      return `<button type="button" class="cc-chip${active}" title="${esc(email)}"
+        onclick="ccToggle('${inputId}','${esc(email)}',this);${inputId==='se-cc'?'updateSendPreview();':'updateEmailPreview();'}"
+      >${esc(label)}</button>`;
+    }).join('')}` : '').join('');
 }
 
 function updateEmailPreview() {
@@ -2714,11 +2742,8 @@ function openSendEmail(leadId) {
     <div id="se-edit" hidden>
       <div class="form-group"><label class="form-label">Subject</label><input id="se-subject" class="form-input" autocomplete="off" oninput="checkSendMarkers()"></div>
       <div class="form-group"><label class="form-label">CC <span class="text-secondary" style="font-weight:400">(optional — comma-separated; editable for this send)</span></label>
-        <input id="se-cc" class="form-input" autocomplete="off" oninput="updateSendPreview()" placeholder="e.g. coach@upstatediving.com, helper@example.com">
-        <div class="cc-quick-add" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddOnboarding('se-cc');updateSendPreview()">+ Onboarding coordinators</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="ccAddCoaches('se-cc');updateSendPreview()">+ All coaches</button>
-        </div></div>
+        <input id="se-cc" class="form-input" autocomplete="off" oninput="updateSendPreview();renderCcChips('se-cc','se-cc-chips')" placeholder="comma-separated addresses">
+        <div id="se-cc-chips" class="cc-chips-row"></div></div>
       <div class="form-group"><label class="form-label">Message (you can edit it before sending)</label>
         <div class="em-editor-wrap">
           <textarea id="se-body" class="form-input em-body" rows="14" oninput="checkSendMarkers();updateSendPreview()"></textarea>
@@ -2768,6 +2793,7 @@ async function previewSendEmail() {
       (r.do_not_contact ? '<div class="alert alert-error" style="display:block;margin-bottom:8px">This contact is marked do not contact.</div>' : '');
     document.getElementById('se-subject').value = r.subject;
     document.getElementById('se-cc').value = r.cc_addresses || '';
+    renderCcChips('se-cc', 'se-cc-chips');
     document.getElementById('se-body').value = r.body;
     edit.hidden = false;
     btn.textContent = r.to ? 'Send to ' + r.to : 'Send';
