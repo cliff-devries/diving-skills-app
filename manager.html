@@ -693,6 +693,32 @@
       .proc-detail-panel { padding: 16px; }
     }
 
+    /* ── Groups tab ─────────────────────────────────────── */
+    .grp-page { max-width: var(--dmgr-max); margin: 0 auto; padding: 28px 20px; }
+    .grp-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
+    .grp-title { font-size: 1.3rem; font-weight: 800; margin: 0; }
+    .grp-total-badge { font-size: 0.8rem; color: var(--muted); background: var(--raised); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; }
+    .grp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+    .grp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
+    .grp-card:hover { border-color: var(--accent); }
+    .grp-card.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+    .grp-card-icon { font-size: 1.6rem; margin-bottom: 10px; }
+    .grp-card-name { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .grp-card-loc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .grp-card-count { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-top: 10px; }
+    .grp-card-count-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .grp-unassigned .grp-card-count { color: var(--muted); }
+    .grp-roster-panel { margin-top: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .grp-roster-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .grp-roster-title { font-size: 1.05rem; font-weight: 700; margin: 0; }
+    .grp-roster-count { font-size: 0.82rem; color: var(--muted); margin-top: 2px; display: block; }
+    .grp-roster-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1px; background: var(--border); }
+    .grp-diver-row { background: var(--surface); padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+    .grp-diver-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--raised); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+    .grp-diver-name { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+    .grp-diver-meta { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+    .grp-empty { padding: 32px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; grid-column: 1/-1; background: var(--surface); }
+
     /* ── Loading / error states ──────────────────────────── */
     .dmgr-loading {
       display: flex; align-items: center; justify-content: center;
@@ -1111,10 +1137,25 @@
 
   <!-- GROUPS -->
   <div class="tab-panel" id="tab-groups">
-    <div class="coming-soon">
-      <div class="cs-icon">👥</div>
-      <h3>Groups</h3>
-      <p>Training groups, practice assignments, and diver groupings across all locations.</p>
+    <div class="grp-page">
+      <div id="grp-loading" class="dmgr-loading"><div class="spin"></div> Loading groups…</div>
+      <div id="grp-content" style="display:none">
+        <div class="grp-header">
+          <h2 class="grp-title">Training Groups</h2>
+          <span id="grp-total" class="grp-total-badge"></span>
+        </div>
+        <div class="grp-cards" id="grp-cards"></div>
+        <div class="grp-roster-panel" id="grp-roster-panel" style="display:none">
+          <div class="grp-roster-header">
+            <div>
+              <h3 id="grp-roster-title" class="grp-roster-title"></h3>
+              <span id="grp-roster-count" class="grp-roster-count"></span>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="closeGroupRoster()">✕ Close</button>
+          </div>
+          <div id="grp-roster-list" class="grp-roster-list"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1574,10 +1615,107 @@ function showTab(hash) {
   if (panel) panel.classList.add('active');
   if (active === 'traction' && vtoData) initTraction();
   if (active === 'processes') initProcesses();
+  if (active === 'groups') initGroups();
 }
 
 window.addEventListener('hashchange', () => showTab(location.hash));
 showTab(location.hash);
+
+/* ══════════════════════════════════════════════════════════
+   GROUPS TAB
+   ══════════════════════════════════════════════════════════ */
+
+const GROUPS_DEF = [
+  { key: 'Learn to Dive',  icon: '🌊', location: 'RIT' },
+  { key: 'Novice',         icon: '⭐', location: 'RIT' },
+  { key: 'Lessons',        icon: '📚', location: 'RIT' },
+  { key: 'Sparks',         icon: '✨', location: 'RIT' },
+  { key: 'Fire',           icon: '🔥', location: 'RIT' },
+  { key: 'Blaze',          icon: '🚀', location: 'RIT' },
+];
+
+let grpLoaded = false;
+let grpDivers = [];
+let grpActive = null;
+
+async function initGroups() {
+  if (grpLoaded) return;
+  grpLoaded = true;
+  await initSupabase();
+  grpDivers = await SupabaseDB.getAllDivers();
+  document.getElementById('grp-loading').style.display = 'none';
+  document.getElementById('grp-content').style.display = '';
+  renderGroupCards();
+}
+
+function renderGroupCards() {
+  const counts = {};
+  let assigned = 0;
+  grpDivers.forEach(d => {
+    const g = (d.diver_group || '').trim();
+    counts[g] = (counts[g] || 0) + 1;
+    if (g) assigned++;
+  });
+
+  const totalBadge = document.getElementById('grp-total');
+  totalBadge.textContent = `${grpDivers.length} diver${grpDivers.length !== 1 ? 's' : ''} total`;
+
+  const unassigned = grpDivers.length - assigned;
+  const cards = [...GROUPS_DEF, { key: '', icon: '❓', label: 'Unassigned', location: '', _unassigned: true }];
+
+  document.getElementById('grp-cards').innerHTML = cards.map(g => {
+    const key = g.key;
+    const label = g.label || g.key;
+    const count = counts[key] || 0;
+    const isActive = grpActive === key;
+    return `<div class="grp-card${isActive ? ' active' : ''}${g._unassigned ? ' grp-unassigned' : ''}" onclick="selectGroup(${JSON.stringify(key)})">
+      <div class="grp-card-icon">${g.icon}</div>
+      <div class="grp-card-name">${esc(label)}</div>
+      ${g.location ? `<div class="grp-card-loc">${esc(g.location)}</div>` : ''}
+      <div class="grp-card-count">${g._unassigned ? unassigned : count}</div>
+      <div class="grp-card-count-label">diver${(g._unassigned ? unassigned : count) !== 1 ? 's' : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectGroup(key) {
+  grpActive = key;
+  renderGroupCards();
+
+  const def = GROUPS_DEF.find(g => g.key === key);
+  const label = def ? def.key : 'Unassigned';
+  const divers = key === ''
+    ? grpDivers.filter(d => !d.diver_group || !d.diver_group.trim())
+    : grpDivers.filter(d => (d.diver_group || '').trim() === key);
+
+  document.getElementById('grp-roster-title').textContent = label;
+  document.getElementById('grp-roster-count').textContent = `${divers.length} diver${divers.length !== 1 ? 's' : ''}`;
+
+  document.getElementById('grp-roster-list').innerHTML = divers.length
+    ? divers.map(d => {
+        const initials = ((d.first_name || '').charAt(0) + (d.last_name || '').charAt(0)).toUpperCase();
+        const level = d.current_level ? `Level ${d.current_level}` : '';
+        const coach = d.assigned_coach_name || '';
+        const meta = [level, coach].filter(Boolean).join(' · ');
+        return `<div class="grp-diver-row">
+          <div class="grp-diver-avatar">${esc(initials)}</div>
+          <div>
+            <div class="grp-diver-name">${esc(d.full_name || `${d.first_name || ''} ${d.last_name || ''}`.trim())}</div>
+            ${meta ? `<div class="grp-diver-meta">${esc(meta)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="grp-empty">No divers in this group</div>`;
+
+  document.getElementById('grp-roster-panel').style.display = '';
+  document.getElementById('grp-roster-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeGroupRoster() {
+  grpActive = null;
+  renderGroupCards();
+  document.getElementById('grp-roster-panel').style.display = 'none';
+}
 
 /* ── Escape helper ──────────────────────────────────────── */
 function esc(s) {
