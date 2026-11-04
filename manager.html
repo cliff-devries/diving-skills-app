@@ -1157,7 +1157,7 @@
       <!-- Roster drill-down (shown when a group is selected) -->
       <div id="grp-roster-view" style="display:none">
         <div class="grp-roster-nav">
-          <button class="grp-back-btn" onclick="closeGroupRoster()">← All Groups</button>
+          <button class="grp-back-btn" id="grp-back-btn">← All Groups</button>
           <div class="grp-roster-nav-info">
             <h2 id="grp-roster-title" class="grp-roster-title"></h2>
             <span id="grp-roster-count" class="grp-roster-count"></span>
@@ -1659,6 +1659,12 @@ async function initGroups() {
     document.getElementById('grp-loading').style.display = 'none';
     document.getElementById('grp-overview').style.display = '';
     renderGroupCards();
+
+    document.getElementById('grp-cards').addEventListener('click', e => {
+      const card = e.target.closest('[data-grp-key]');
+      if (card) selectGroup(card.dataset.grpKey);
+    });
+    document.getElementById('grp-back-btn').addEventListener('click', closeGroupRoster);
   } catch(e) {
     console.error('[Groups] initGroups failed:', e);
     document.getElementById('grp-loading').innerHTML = '<div style="color:var(--orange)">⚠️ Failed to load groups. Please refresh.</div>';
@@ -1685,7 +1691,7 @@ function renderGroupCards() {
     const label = g.label || g.key;
     const count = counts[key] || 0;
     const isActive = grpActive === key;
-    return `<div class="grp-card${isActive ? ' active' : ''}${g._unassigned ? ' grp-unassigned' : ''}" onclick="selectGroup(${JSON.stringify(key)})">
+    return `<div class="grp-card${isActive ? ' active' : ''}${g._unassigned ? ' grp-unassigned' : ''}" data-grp-key="${key.replace(/"/g,'&quot;')}" style="cursor:pointer">
       <div class="grp-card-icon">${g.icon}</div>
       <div class="grp-card-name">${esc(label)}</div>
       ${g.location ? `<div class="grp-card-loc">${esc(g.location)}</div>` : ''}
