@@ -708,11 +708,12 @@
     .grp-card-count { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-top: 10px; }
     .grp-card-count-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
     .grp-unassigned .grp-card-count { color: var(--muted); }
-    .grp-roster-panel { margin-top: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .grp-roster-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-    .grp-roster-title { font-size: 1.05rem; font-weight: 700; margin: 0; }
-    .grp-roster-count { font-size: 0.82rem; color: var(--muted); margin-top: 2px; display: block; }
-    .grp-roster-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 20px; background: transparent; }
+    .grp-roster-nav { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .grp-back-btn { background: var(--raised); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); padding: 7px 14px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: border-color .15s; }
+    .grp-back-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .grp-roster-title { font-size: 1.3rem; font-weight: 800; margin: 0; }
+    .grp-roster-count { font-size: 0.8rem; color: var(--muted); margin-top: 2px; display: block; }
+    .grp-roster-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
     .grp-diver-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: border-color .15s; }
     .grp-diver-card:hover { border-color: var(--accent); }
     .grp-diver-card-top { display: flex; align-items: center; gap: 12px; }
@@ -1143,23 +1144,28 @@
   <div class="tab-panel" id="tab-groups">
     <div class="grp-page">
       <div id="grp-loading" class="dmgr-loading"><div class="spin"></div> Loading groups…</div>
-      <div id="grp-content" style="display:none">
+
+      <!-- Group cards overview -->
+      <div id="grp-overview" style="display:none">
         <div class="grp-header">
           <h2 class="grp-title">Training Groups</h2>
           <span id="grp-total" class="grp-total-badge"></span>
         </div>
         <div class="grp-cards" id="grp-cards"></div>
-        <div class="grp-roster-panel" id="grp-roster-panel" style="display:none">
-          <div class="grp-roster-header">
-            <div>
-              <h3 id="grp-roster-title" class="grp-roster-title"></h3>
-              <span id="grp-roster-count" class="grp-roster-count"></span>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="closeGroupRoster()">✕ Close</button>
-          </div>
-          <div id="grp-roster-list" class="grp-roster-list"></div>
-        </div>
       </div>
+
+      <!-- Roster drill-down (shown when a group is selected) -->
+      <div id="grp-roster-view" style="display:none">
+        <div class="grp-roster-nav">
+          <button class="grp-back-btn" onclick="closeGroupRoster()">← All Groups</button>
+          <div class="grp-roster-nav-info">
+            <h2 id="grp-roster-title" class="grp-roster-title"></h2>
+            <span id="grp-roster-count" class="grp-roster-count"></span>
+          </div>
+        </div>
+        <div id="grp-roster-list" class="grp-roster-list"></div>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -1650,7 +1656,7 @@ async function initGroups() {
   await initSupabase();
   grpDivers = await SupabaseDB.getAllDivers();
   document.getElementById('grp-loading').style.display = 'none';
-  document.getElementById('grp-content').style.display = '';
+  document.getElementById('grp-overview').style.display = '';
   renderGroupCards();
 }
 
@@ -1686,7 +1692,6 @@ function renderGroupCards() {
 
 function selectGroup(key) {
   grpActive = key;
-  renderGroupCards();
 
   const def = GROUPS_DEF.find(g => g.key === key);
   const label = def ? def.key : 'Unassigned';
@@ -1729,14 +1734,16 @@ function selectGroup(key) {
       }).join('')
     : `<div class="grp-empty">No divers in this group yet</div>`;
 
-  document.getElementById('grp-roster-panel').style.display = '';
-  document.getElementById('grp-roster-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('grp-overview').style.display = 'none';
+  document.getElementById('grp-roster-view').style.display = '';
+  document.getElementById('tab-groups').scrollTop = 0;
 }
 
 function closeGroupRoster() {
   grpActive = null;
+  document.getElementById('grp-roster-view').style.display = 'none';
+  document.getElementById('grp-overview').style.display = '';
   renderGroupCards();
-  document.getElementById('grp-roster-panel').style.display = 'none';
 }
 
 /* ── Escape helper ──────────────────────────────────────── */
