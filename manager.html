@@ -1256,6 +1256,7 @@ async function initManager() {
   document.getElementById('vto-loading').style.display = 'none';
   document.getElementById('vto-grid').style.display = '';
   if (dbOk) setStatus('saved', 'All changes saved');
+  showTab(location.hash);
 }
 
 /* Deep-merge b into a (objects only; arrays replaced wholesale) */
@@ -1629,7 +1630,6 @@ function showTab(hash) {
 }
 
 window.addEventListener('hashchange', () => showTab(location.hash));
-showTab(location.hash);
 
 /* ══════════════════════════════════════════════════════════
    GROUPS TAB
@@ -1652,12 +1652,17 @@ let grpActive = null;
 
 async function initGroups() {
   if (grpLoaded) return;
-  grpLoaded = true;
-  await initSupabase();
-  grpDivers = await SupabaseDB.getAllDivers();
-  document.getElementById('grp-loading').style.display = 'none';
-  document.getElementById('grp-overview').style.display = '';
-  renderGroupCards();
+  try {
+    await initSupabase();
+    grpDivers = await SupabaseDB.getAllDivers();
+    grpLoaded = true;
+    document.getElementById('grp-loading').style.display = 'none';
+    document.getElementById('grp-overview').style.display = '';
+    renderGroupCards();
+  } catch(e) {
+    console.error('[Groups] initGroups failed:', e);
+    document.getElementById('grp-loading').innerHTML = '<div style="color:var(--orange)">⚠️ Failed to load groups. Please refresh.</div>';
+  }
 }
 
 function renderGroupCards() {
