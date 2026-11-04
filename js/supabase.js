@@ -8,6 +8,17 @@ const SupabaseDB = {
 
   get db() { return window.supabaseClient; },
 
+  // Short-lived in-memory cache for getAllDivers() — avoids redundant fetches
+  // when multiple stat methods are called in the same page load (dashboard fires 4).
+  _diversCache: null,
+  _diversCacheTs: 0,
+  _DIVERS_CACHE_TTL: 30000, // 30 seconds
+
+  _clearDiversCache() {
+    this._diversCache = null;
+    this._diversCacheTs = 0;
+  },
+
   // =============================================
   // PROFILES
   // =============================================
@@ -58,6 +69,7 @@ const SupabaseDB = {
       .select()
       .single();
     if (error) throw new Error(error.message);
+    this._clearDiversCache();
     return data;
   },
 
@@ -80,6 +92,7 @@ const SupabaseDB = {
       p_gender:          gender         || null,
     });
     if (error) throw new Error(error.message);
+    this._clearDiversCache();
     return data; // returns new profile UUID
   },
 
@@ -1003,6 +1016,10 @@ const SupabaseDB = {
 
   // All diver profiles in the club (excludes rejected), sorted last then first name.
   async getAllDivers() {
+    const now = Date.now();
+    if (this._diversCache && (now - this._diversCacheTs) < this._DIVERS_CACHE_TTL) {
+      return this._diversCache;
+    }
     const { data, error } = await this.db
       .from('profiles')
       .select(`
@@ -1016,7 +1033,9 @@ const SupabaseDB = {
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
     if (error) { console.error('[SupabaseDB] getAllDivers:', error.message); return []; }
-    return data ?? [];
+    this._diversCache = data ?? [];
+    this._diversCacheTs = now;
+    return this._diversCache;
   },
 
   // Level completion records for a diver, keyed by level number.
