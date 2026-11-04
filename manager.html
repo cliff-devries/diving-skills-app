@@ -712,12 +712,16 @@
     .grp-roster-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
     .grp-roster-title { font-size: 1.05rem; font-weight: 700; margin: 0; }
     .grp-roster-count { font-size: 0.82rem; color: var(--muted); margin-top: 2px; display: block; }
-    .grp-roster-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1px; background: var(--border); }
-    .grp-diver-row { background: var(--surface); padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
-    .grp-diver-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--raised); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: var(--muted); flex-shrink: 0; }
-    .grp-diver-name { font-size: 0.9rem; font-weight: 600; color: var(--text); }
-    .grp-diver-meta { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
-    .grp-empty { padding: 32px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; grid-column: 1/-1; background: var(--surface); }
+    .grp-roster-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 20px; background: transparent; }
+    .grp-diver-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: border-color .15s; }
+    .grp-diver-card:hover { border-color: var(--accent); }
+    .grp-diver-card-top { display: flex; align-items: center; gap: 12px; }
+    .grp-diver-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 800; flex-shrink: 0; }
+    .grp-diver-name { font-size: 0.92rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .grp-diver-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+    .grp-diver-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); white-space: nowrap; }
+    .grp-diver-badge.level { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .grp-empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; grid-column: 1/-1; }
 
     /* ── Loading / error states ──────────────────────────── */
     .dmgr-loading {
@@ -1693,21 +1697,37 @@ function selectGroup(key) {
   document.getElementById('grp-roster-title').textContent = label;
   document.getElementById('grp-roster-count').textContent = `${divers.length} diver${divers.length !== 1 ? 's' : ''}`;
 
+  const avatarColors = {
+    'Learn to Dive':       { bg:'#0d2a3a', fg:'#03A9F4' },
+    'Novice':              { bg:'#2a2a0d', fg:'#F9A825' },
+    'Lessons':             { bg:'#0d2a1a', fg:'#2ecc71' },
+    'Sparks':              { bg:'#2a1a2a', fg:'#9C27B0' },
+    'Fire':                { bg:'#2a1a0d', fg:'#F76900' },
+    'Blaze':               { bg:'#1a0d2a', fg:'#e040fb' },
+    'Canandaigua LTD':     { bg:'#0d2a3a', fg:'#03A9F4' },
+    'Canandaigua Lessons': { bg:'#0d2a1a', fg:'#2ecc71' },
+    '':                    { bg:'#1c2230', fg:'#7d8fa8' },
+  };
+  const ac = avatarColors[key] || avatarColors[''];
+
   document.getElementById('grp-roster-list').innerHTML = divers.length
-    ? divers.map(d => {
-        const initials = ((d.first_name || '').charAt(0) + (d.last_name || '').charAt(0)).toUpperCase();
+    ? divers.sort((a,b) => (a.last_name||'').localeCompare(b.last_name||'')).map(d => {
+        const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
+        const name = esc((d.first_name||'') + ' ' + (d.last_name||'')).trim();
         const level = d.current_level ? `Level ${d.current_level}` : '';
         const coach = d.assigned_coach_name || '';
-        const meta = [level, coach].filter(Boolean).join(' · ');
-        return `<div class="grp-diver-row">
-          <div class="grp-diver-avatar">${esc(initials)}</div>
-          <div>
-            <div class="grp-diver-name">${esc(d.full_name || `${d.first_name || ''} ${d.last_name || ''}`.trim())}</div>
-            ${meta ? `<div class="grp-diver-meta">${esc(meta)}</div>` : ''}
+        return `<div class="grp-diver-card">
+          <div class="grp-diver-card-top">
+            <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
+            <div class="grp-diver-name">${name}</div>
+          </div>
+          <div class="grp-diver-badges">
+            ${level ? `<span class="grp-diver-badge level">${esc(level)}</span>` : ''}
+            ${coach ? `<span class="grp-diver-badge">${esc(coach)}</span>` : ''}
           </div>
         </div>`;
       }).join('')
-    : `<div class="grp-empty">No divers in this group</div>`;
+    : `<div class="grp-empty">No divers in this group yet</div>`;
 
   document.getElementById('grp-roster-panel').style.display = '';
   document.getElementById('grp-roster-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
