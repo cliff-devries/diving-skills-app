@@ -694,35 +694,42 @@
     }
 
     /* ── Groups tab ─────────────────────────────────────── */
-    .grp-page { max-width: var(--dmgr-max); margin: 0 auto; padding: 28px 20px; }
-    .grp-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
-    .grp-title { font-size: 1.3rem; font-weight: 800; margin: 0; }
-    .grp-total-badge { font-size: 0.8rem; color: var(--muted); background: var(--raised); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; }
-    .grp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
-    .grp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
-    .grp-card:hover { border-color: var(--accent); }
-    .grp-card.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
-    .grp-card-icon { font-size: 1.6rem; margin-bottom: 10px; }
-    .grp-card-name { font-size: 1rem; font-weight: 700; color: var(--text); }
-    .grp-card-loc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
-    .grp-card-count { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-top: 10px; }
-    .grp-card-count-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-    .grp-unassigned .grp-card-count { color: var(--muted); }
-    .grp-roster-nav { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-    .grp-back-btn { background: var(--raised); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); padding: 7px 14px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: border-color .15s; }
-    .grp-back-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .grp-roster-title { font-size: 1.3rem; font-weight: 800; margin: 0; }
-    .grp-roster-count { font-size: 0.8rem; color: var(--muted); margin-top: 2px; display: block; }
-    .grp-roster-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-    .grp-diver-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: border-color .15s; }
-    .grp-diver-card:hover { border-color: var(--accent); }
-    .grp-diver-card-top { display: flex; align-items: center; gap: 12px; }
-    .grp-diver-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 800; flex-shrink: 0; }
-    .grp-diver-name { font-size: 0.92rem; font-weight: 700; color: var(--text); line-height: 1.2; }
-    .grp-diver-badges { display: flex; flex-wrap: wrap; gap: 5px; }
-    .grp-diver-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); white-space: nowrap; }
+    .grp-layout { display: flex; gap: 0; max-width: var(--dmgr-max); margin: 0 auto; height: calc(100vh - 120px); min-height: 400px; }
+    .grp-nav { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 20px 0; }
+    .grp-nav-heading { font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: .08em; padding: 0 16px 8px; }
+    .grp-nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; border-left: 3px solid transparent; transition: background .12s, border-color .12s; }
+    .grp-nav-item:hover { background: var(--raised); }
+    .grp-nav-item.active { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+    .grp-nav-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+    .grp-nav-label { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .grp-nav-count { font-size: 0.75rem; font-weight: 700; color: var(--muted); background: var(--raised); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; flex-shrink: 0; }
+    .grp-nav-item.active .grp-nav-count { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .grp-nav-sep { height: 1px; background: var(--border); margin: 8px 16px; }
+    .grp-panel { flex: 1; overflow-y: auto; padding: 24px 24px; }
+    .grp-panel-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .grp-panel-title { font-size: 1.2rem; font-weight: 800; margin: 0; }
+    .grp-panel-count { font-size: 0.8rem; color: var(--muted); }
+    .grp-diver-row { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color .12s; }
+    .grp-diver-row + .grp-diver-row { margin-top: 6px; }
+    .grp-diver-row:hover { border-color: var(--accent); }
+    .grp-diver-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.88rem; font-weight: 800; flex-shrink: 0; }
+    .grp-diver-info { flex: 1; min-width: 0; }
+    .grp-diver-name { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .grp-diver-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .grp-diver-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-left: auto; flex-shrink: 0; }
+    .grp-diver-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--raised); white-space: nowrap; }
     .grp-diver-badge.level { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
-    .grp-empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; grid-column: 1/-1; }
+    .grp-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+    .grp-panel-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 600px) {
+      .grp-layout { flex-direction: column; height: auto; }
+      .grp-nav { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 10px 0; overflow-x: auto; display: flex; gap: 0; }
+      .grp-nav-heading { display: none; }
+      .grp-nav-sep { display: none; }
+      .grp-nav-item { border-left: none; border-bottom: 3px solid transparent; padding: 8px 14px; flex-shrink: 0; }
+      .grp-nav-item.active { border-bottom-color: var(--accent); border-left-color: transparent; }
+      .grp-panel { padding: 16px; }
+    }
 
     /* ── Loading / error states ──────────────────────────── */
     .dmgr-loading {
@@ -1142,30 +1149,12 @@
 
   <!-- GROUPS -->
   <div class="tab-panel" id="tab-groups">
-    <div class="grp-page">
-      <div id="grp-loading" class="dmgr-loading"><div class="spin"></div> Loading groups…</div>
-
-      <!-- Group cards overview -->
-      <div id="grp-overview" style="display:none">
-        <div class="grp-header">
-          <h2 class="grp-title">Training Groups</h2>
-          <span id="grp-total" class="grp-total-badge"></span>
-        </div>
-        <div class="grp-cards" id="grp-cards"></div>
+    <div id="grp-loading" class="dmgr-loading"><div class="spin"></div> Loading groups…</div>
+    <div id="grp-layout" class="grp-layout" style="display:none">
+      <nav class="grp-nav" id="grp-nav"></nav>
+      <div class="grp-panel" id="grp-panel">
+        <div class="grp-panel-placeholder">Select a group to view its roster.</div>
       </div>
-
-      <!-- Roster drill-down (shown when a group is selected) -->
-      <div id="grp-roster-view" style="display:none">
-        <div class="grp-roster-nav">
-          <button class="grp-back-btn" id="grp-back-btn">← All Groups</button>
-          <div class="grp-roster-nav-info">
-            <h2 id="grp-roster-title" class="grp-roster-title"></h2>
-            <span id="grp-roster-count" class="grp-roster-count"></span>
-          </div>
-        </div>
-        <div id="grp-roster-list" class="grp-roster-list"></div>
-      </div>
-    </div>
     </div>
   </div>
 
@@ -1657,21 +1646,20 @@ async function initGroups() {
     grpDivers = await SupabaseDB.getAllDivers();
     grpLoaded = true;
     document.getElementById('grp-loading').style.display = 'none';
-    document.getElementById('grp-overview').style.display = '';
-    renderGroupCards();
+    document.getElementById('grp-layout').style.display = '';
+    renderGroupNav();
 
-    document.getElementById('grp-cards').addEventListener('click', e => {
-      const card = e.target.closest('[data-grp-key]');
-      if (card) selectGroup(card.dataset.grpKey);
+    document.getElementById('grp-nav').addEventListener('click', e => {
+      const item = e.target.closest('[data-grp-key]');
+      if (item) selectGroup(item.dataset.grpKey);
     });
-    document.getElementById('grp-back-btn').addEventListener('click', closeGroupRoster);
   } catch(e) {
     console.error('[Groups] initGroups failed:', e);
     document.getElementById('grp-loading').innerHTML = '<div style="color:var(--orange)">⚠️ Failed to load groups. Please refresh.</div>';
   }
 }
 
-function renderGroupCards() {
+function renderGroupNav() {
   const counts = {};
   let assigned = 0;
   grpDivers.forEach(d => {
@@ -1679,30 +1667,48 @@ function renderGroupCards() {
     counts[g] = (counts[g] || 0) + 1;
     if (g) assigned++;
   });
-
-  const totalBadge = document.getElementById('grp-total');
-  totalBadge.textContent = `${grpDivers.length} diver${grpDivers.length !== 1 ? 's' : ''} total`;
-
   const unassigned = grpDivers.length - assigned;
-  const cards = [...GROUPS_DEF, { key: '', icon: '❓', label: 'Unassigned', location: '', _unassigned: true }];
 
-  document.getElementById('grp-cards').innerHTML = cards.map(g => {
+  const ritGroups = GROUPS_DEF.filter(g => g.location === 'RIT');
+  const canGroups = GROUPS_DEF.filter(g => g.location === 'Canandaigua');
+
+  function navItem(g) {
     const key = g.key;
     const label = g.label || g.key;
-    const count = counts[key] || 0;
+    const count = g._unassigned ? unassigned : (counts[key] || 0);
     const isActive = grpActive === key;
-    return `<div class="grp-card${isActive ? ' active' : ''}${g._unassigned ? ' grp-unassigned' : ''}" data-grp-key="${key.replace(/"/g,'&quot;')}" style="cursor:pointer">
-      <div class="grp-card-icon">${g.icon}</div>
-      <div class="grp-card-name">${esc(label)}</div>
-      ${g.location ? `<div class="grp-card-loc">${esc(g.location)}</div>` : ''}
-      <div class="grp-card-count">${g._unassigned ? unassigned : count}</div>
-      <div class="grp-card-count-label">diver${(g._unassigned ? unassigned : count) !== 1 ? 's' : ''}</div>
+    return `<div class="grp-nav-item${isActive ? ' active' : ''}" data-grp-key="${key.replace(/"/g,'&quot;')}">
+      <span class="grp-nav-icon">${g.icon}</span>
+      <span class="grp-nav-label">${esc(label)}</span>
+      <span class="grp-nav-count">${count}</span>
     </div>`;
-  }).join('');
+  }
+
+  document.getElementById('grp-nav').innerHTML =
+    `<div class="grp-nav-heading">RIT</div>` +
+    ritGroups.map(navItem).join('') +
+    `<div class="grp-nav-sep"></div>` +
+    `<div class="grp-nav-heading">Canandaigua</div>` +
+    canGroups.map(navItem).join('') +
+    `<div class="grp-nav-sep"></div>` +
+    navItem({ key: '', icon: '❓', label: 'Unassigned', location: '', _unassigned: true });
 }
+
+const GRP_AVATAR_COLORS = {
+  'Learn to Dive':       { bg:'#0d2a3a', fg:'#03A9F4' },
+  'Novice':              { bg:'#2a2a0d', fg:'#F9A825' },
+  'Lessons':             { bg:'#0d2a1a', fg:'#2ecc71' },
+  'Sparks':              { bg:'#2a1a2a', fg:'#9C27B0' },
+  'Fire':                { bg:'#2a1a0d', fg:'#F76900' },
+  'Blaze':               { bg:'#1a0d2a', fg:'#e040fb' },
+  'Canandaigua LTD':     { bg:'#0d2a3a', fg:'#03A9F4' },
+  'Canandaigua Lessons': { bg:'#0d2a1a', fg:'#2ecc71' },
+  '':                    { bg:'#1c2230', fg:'#7d8fa8' },
+};
 
 function selectGroup(key) {
   grpActive = key;
+  renderGroupNav();
 
   const def = GROUPS_DEF.find(g => g.key === key);
   const label = def ? def.key : 'Unassigned';
@@ -1710,56 +1716,33 @@ function selectGroup(key) {
     ? grpDivers.filter(d => !d.diver_group || !d.diver_group.trim())
     : grpDivers.filter(d => (d.diver_group || '').trim() === key);
 
-  console.log('[Groups] selectGroup', key, '→', divers.length, 'divers. Total loaded:', grpDivers.length, 'Sample diver_group values:', grpDivers.slice(0,5).map(d=>d.diver_group));
-  document.getElementById('grp-roster-title').textContent = label;
-  document.getElementById('grp-roster-count').textContent = `${divers.length} diver${divers.length !== 1 ? 's' : ''}`;
-
-  const avatarColors = {
-    'Learn to Dive':       { bg:'#0d2a3a', fg:'#03A9F4' },
-    'Novice':              { bg:'#2a2a0d', fg:'#F9A825' },
-    'Lessons':             { bg:'#0d2a1a', fg:'#2ecc71' },
-    'Sparks':              { bg:'#2a1a2a', fg:'#9C27B0' },
-    'Fire':                { bg:'#2a1a0d', fg:'#F76900' },
-    'Blaze':               { bg:'#1a0d2a', fg:'#e040fb' },
-    'Canandaigua LTD':     { bg:'#0d2a3a', fg:'#03A9F4' },
-    'Canandaigua Lessons': { bg:'#0d2a1a', fg:'#2ecc71' },
-    '':                    { bg:'#1c2230', fg:'#7d8fa8' },
-  };
-  const ac = avatarColors[key] || avatarColors[''];
-
+  const ac = GRP_AVATAR_COLORS[key] || GRP_AVATAR_COLORS[''];
   const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
-  document.getElementById('grp-roster-list').innerHTML = sorted.length
+
+  const rows = sorted.length
     ? sorted.map(d => {
         const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
         const name = esc(((d.first_name||'') + ' ' + (d.last_name||'')).trim());
         const level = d.current_level ? `Level ${d.current_level}` : '';
         const coach = d.assigned_coach_name || '';
-        return `<div class="grp-diver-card">
-          <div class="grp-diver-card-top">
-            <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
+        return `<div class="grp-diver-row">
+          <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
+          <div class="grp-diver-info">
             <div class="grp-diver-name">${name}</div>
+            ${coach ? `<div class="grp-diver-meta">${esc(coach)}</div>` : ''}
           </div>
           <div class="grp-diver-badges">
             ${level ? `<span class="grp-diver-badge level">${esc(level)}</span>` : ''}
-            ${coach ? `<span class="grp-diver-badge">${esc(coach)}</span>` : ''}
           </div>
         </div>`;
       }).join('')
-    : `<div class="grp-empty" style="grid-column:1/-1;padding:32px;text-align:center;color:var(--muted)">
-        No divers assigned to this group yet.<br>
-        <small>Have you run <strong>supabase-migration-v82.sql</strong> in Supabase?</small>
-       </div>`;
+    : `<div class="grp-empty">No divers assigned to this group yet.</div>`;
 
-  document.getElementById('grp-overview').style.display = 'none';
-  document.getElementById('grp-roster-view').style.display = '';
-  document.getElementById('tab-groups').scrollTop = 0;
-}
-
-function closeGroupRoster() {
-  grpActive = null;
-  document.getElementById('grp-roster-view').style.display = 'none';
-  document.getElementById('grp-overview').style.display = '';
-  renderGroupCards();
+  document.getElementById('grp-panel').innerHTML =
+    `<div class="grp-panel-header">
+      <h2 class="grp-panel-title">${esc(label)}</h2>
+      <span class="grp-panel-count">${divers.length} diver${divers.length !== 1 ? 's' : ''}</span>
+    </div>` + rows;
 }
 
 /* ── Escape helper ──────────────────────────────────────── */
