@@ -1944,7 +1944,7 @@ function renderDetailTab() {
   if (!detailData.loaded) { el.innerHTML = '<div class="text-secondary text-sm">Loading…</div>'; return; }
   const empty = msg => `<div class="text-secondary text-sm">${esc(msg)}</div>`;
   const canDel = a => currentUser.is_super_user || a.created_by === currentUser.id;
-  const byNewest = (a, b) => (b.occurred_at || '').localeCompare(a.occurred_at || '');
+  const byNewest = (a, b) => new Date(b.occurred_at || 0) - new Date(a.occurred_at || 0);
   const notes = detailData.acts.filter(a => a.kind === 'note').sort(byNewest);
   const others = detailData.acts.filter(a => a.kind !== 'note').sort(byNewest);
   if (detailTab === 'timeline') {
@@ -1952,7 +1952,7 @@ function renderDetailTab() {
       ...detailData.acts.map(a => ({ t: a.occurred_at, html: activityItemHtml(a, canDel(a)) })),
       ...detailData.hist.map(h => ({ t: h.changed_at, html: stageItemHtml(h) })),
       ...(l && l.signed_up_at && fmtStamp(l.signed_up_at) ? [{ t: new Date(l.signed_up_at).toISOString(), html: signupItemHtml(l) }] : []),
-    ].sort((a, b) => (b.t || '').localeCompare(a.t || ''));
+    ].sort((a, b) => new Date(b.t || 0) - new Date(a.t || 0));
     el.innerHTML = items.length ? items.map(i => i.html).join('') : empty('Nothing yet.');
   } else if (detailTab === 'notes') {
     el.innerHTML = logFormHtml(['note'], 'Add a note…') +
@@ -2949,7 +2949,7 @@ async function loadActivities() {
         type: 'stage', at: h.changed_at, lead_id: h.lead_id, coach: h.changed_by,
         body: `${STAGE_BY_KEY[h.from_stage]?.label || h.from_stage} → ${STAGE_BY_KEY[h.to_stage]?.label || h.to_stage}`,
       })),
-    ].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+    ].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
     acVisible = 200;
     renderActivities();
   } catch (err) {
