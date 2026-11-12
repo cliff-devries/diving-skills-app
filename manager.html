@@ -1803,12 +1803,12 @@ function selectGroup(key) {
   if (key === '') {
     const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
     panelHtml += sorted.length
-      ? sorted.map(d => diverRowHtml(d, ac)).join('')
+      ? sorted.map(d => diverRowHtml(d, ac, false)).join('')
       : `<div class="grp-empty">No unassigned divers.</div>`;
   } else if (!groupClasses.length) {
     const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
     panelHtml += `<div class="grp-empty" style="margin-bottom:16px;">No classes set up for this group yet. Use <strong>Manage Classes</strong> to add them.</div>`;
-    if (sorted.length) panelHtml += sorted.map(d => diverRowHtml(d, ac)).join('');
+    if (sorted.length) panelHtml += sorted.map(d => diverRowHtml(d, ac, false)).join('');
   } else {
     groupClasses.forEach(cls => {
       const enrolled = autoEnroll
@@ -1822,7 +1822,7 @@ function selectGroup(key) {
           <span class="grp-class-count">${sorted.length} diver${sorted.length !== 1 ? 's' : ''}</span>
         </div>`;
       if (sorted.length) {
-        panelHtml += sorted.map(d => diverRowHtml(d, ac, autoEnroll ? null : cls, divers)).join('');
+        panelHtml += sorted.map(d => diverRowHtml(d, ac, !autoEnroll)).join('');
       } else {
         panelHtml += `<div class="grp-empty" style="padding:16px 0 8px;">No divers enrolled in this class.</div>`;
       }
@@ -1837,7 +1837,7 @@ function selectGroup(key) {
         panelHtml += `<div class="grp-class-section">
           <div class="grp-class-heading"><span class="grp-class-title" style="color:var(--orange);">Not enrolled in any class</span></div>`;
         panelHtml += unenrolledInAny.sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''))
-          .map(d => diverRowHtml(d, ac, null, divers)).join('');
+          .map(d => diverRowHtml(d, ac, true)).join('');
         panelHtml += `</div>`;
       }
     }
@@ -1846,12 +1846,12 @@ function selectGroup(key) {
   document.getElementById('grp-panel').innerHTML = panelHtml;
 }
 
-function diverRowHtml(d, ac, cls, groupDivers) {
+function diverRowHtml(d, ac, showEnrollBtn) {
   const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
   const name = esc(((d.first_name||'') + ' ' + (d.last_name||'')).trim());
   const level = d.current_level ? `Level ${d.current_level}` : '';
   const coach = d.assigned_coach_name || '';
-  const enrollBtn = cls
+  const enrollBtn = showEnrollBtn
     ? `<button class="grp-diver-enroll-btn" onclick="openEnrollDiver('${escAttr(d.id)}')">Classes ✎</button>`
     : '';
   return `<div class="grp-diver-row">
