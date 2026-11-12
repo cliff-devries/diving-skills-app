@@ -1797,7 +1797,7 @@ function selectGroup(key) {
   let panelHtml = `<div class="grp-panel-toolbar">
     <h2>${esc(label)}</h2>
     <span class="grp-panel-count">${totalCount} diver${totalCount !== 1 ? 's' : ''}</span>
-    <button class="dmgr-btn" onclick="openManageClasses(${JSON.stringify(esc(key))})">⚙ Manage Classes</button>
+    <button class="dmgr-btn" onclick="openManageClasses('${escAttr(key)}')">⚙ Manage Classes</button>
   </div>`;
 
   if (key === '') {
@@ -1852,7 +1852,7 @@ function diverRowHtml(d, ac, cls, groupDivers) {
   const level = d.current_level ? `Level ${d.current_level}` : '';
   const coach = d.assigned_coach_name || '';
   const enrollBtn = cls
-    ? `<button class="grp-diver-enroll-btn" onclick="openEnrollDiver(${JSON.stringify(esc(d.id))})">Classes ✎</button>`
+    ? `<button class="grp-diver-enroll-btn" onclick="openEnrollDiver('${escAttr(d.id)}')">Classes ✎</button>`
     : '';
   return `<div class="grp-diver-row">
     <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
@@ -1904,8 +1904,8 @@ function renderManageClassesModal(groupKey) {
           <div class="dmgr-class-item-label">${esc(classLabel(c))}</div>
           <div class="dmgr-class-item-loc">${esc(c.location)}</div>
         </div>
-        <button class="dmgr-btn" onclick="openEditClass(${JSON.stringify(esc(groupKey))},${JSON.stringify(esc(c.id))})">Edit</button>
-        <button class="dmgr-btn danger" onclick="confirmDeleteClass(${JSON.stringify(esc(c.id))},${JSON.stringify(esc(groupKey))})">✕</button>
+        <button class="dmgr-btn" onclick="openEditClass('${escAttr(groupKey)}','${escAttr(c.id)}')">Edit</button>
+        <button class="dmgr-btn danger" onclick="confirmDeleteClass('${escAttr(c.id)}','${escAttr(groupKey)}')">✕</button>
       </div>`).join('')
     : `<div style="color:var(--muted);font-size:.88rem;padding:8px 0;">No classes yet.</div>`;
 
@@ -1913,7 +1913,7 @@ function renderManageClassesModal(groupKey) {
     title: `Classes — ${label}`,
     body: `<div class="dmgr-class-list">${listHtml}</div>`,
     foot: `<button class="dmgr-btn" onclick="dmgrCloseModal({target:document.getElementById('dmgr-overlay')})">Close</button>
-           <button class="dmgr-btn primary" onclick="openAddClass(${JSON.stringify(esc(groupKey))})">+ Add Class</button>`,
+           <button class="dmgr-btn primary" onclick="openAddClass('${escAttr(groupKey)}')">+ Add Class</button>`,
   });
 }
 
@@ -1942,8 +1942,8 @@ function openEditClass(groupKey, classId) {
         <select class="dmgr-input" id="cls-loc">${locOptions}</select></div>
     `,
     foot: `
-      <button class="dmgr-btn" onclick="openManageClasses(${JSON.stringify(esc(groupKey))})">← Back</button>
-      <button class="dmgr-btn primary" onclick="saveClassForm(${JSON.stringify(esc(groupKey))},${JSON.stringify(esc(classId||''))})">Save</button>
+      <button class="dmgr-btn" onclick="openManageClasses('${escAttr(groupKey)}')">← Back</button>
+      <button class="dmgr-btn primary" onclick="saveClassForm('${escAttr(groupKey)}','${escAttr(classId||'')}')">Save</button>
     `,
   });
 }
@@ -2019,7 +2019,7 @@ function openEnrollDiver(diverId) {
       ? `<div>${checks}</div>`
       : `<div style="color:var(--muted);">No classes set up for ${esc(groupKey)} yet.</div>`,
     foot: `<button class="dmgr-btn" onclick="dmgrCloseModal({target:document.getElementById('dmgr-overlay')})">Cancel</button>
-           <button class="dmgr-btn primary" onclick="saveEnrollment(${JSON.stringify(esc(diverId))})">Save</button>`,
+           <button class="dmgr-btn primary" onclick="saveEnrollment('${escAttr(diverId)}')">Save</button>`,
   });
 }
 
@@ -2042,9 +2042,12 @@ async function saveEnrollment(diverId) {
   }
 }
 
-/* ── Escape helper ──────────────────────────────────────── */
+/* ── Escape helpers ─────────────────────────────────────── */
 function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
 }
 
 /* ══════════════════════════════════════════════════════════
