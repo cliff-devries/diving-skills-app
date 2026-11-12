@@ -1224,7 +1224,7 @@ function kanbanCardHtml(l, today, color) {
   return `
     <button class="kb-card" style="--c:${color}" onclick="openKbLead('${l.id}')">
       <div class="kb-card-top">
-        <div class="kb-card-name"><span class="kb-label">Parent:</span> ${c.full_name ? esc(c.full_name) : '<span class="kb-none">—</span>'}</div>
+        <div class="kb-card-name"><span class="kb-label">Parent:</span> ${(c.full_name || c.last_name) ? esc([c.full_name, c.last_name].filter(Boolean).join(' ')) : '<span class="kb-none">—</span>'}</div>
         ${initials ? `<span class="kb-avatar" title="${esc(coachName)}">${esc(initials)}</span>` : ''}
       </div>
       <div class="kb-card-parent"><span class="kb-label">Diver:</span> ${esc(leadName(l))}</div>
