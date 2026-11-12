@@ -1944,8 +1944,9 @@ function renderDetailTab() {
   if (!detailData.loaded) { el.innerHTML = '<div class="text-secondary text-sm">Loading…</div>'; return; }
   const empty = msg => `<div class="text-secondary text-sm">${esc(msg)}</div>`;
   const canDel = a => currentUser.is_super_user || a.created_by === currentUser.id;
-  const notes = detailData.acts.filter(a => a.kind === 'note');
-  const others = detailData.acts.filter(a => a.kind !== 'note');
+  const byNewest = (a, b) => (b.occurred_at || '').localeCompare(a.occurred_at || '');
+  const notes = detailData.acts.filter(a => a.kind === 'note').sort(byNewest);
+  const others = detailData.acts.filter(a => a.kind !== 'note').sort(byNewest);
   if (detailTab === 'timeline') {
     const items = [
       ...detailData.acts.map(a => ({ t: a.occurred_at, html: activityItemHtml(a, canDel(a)) })),
