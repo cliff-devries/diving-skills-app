@@ -724,6 +724,10 @@
     .grp-diver-badge.status { border-color: rgba(245,158,11,.4); color: #f59e0b; background: rgba(245,158,11,.1); }
     .grp-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; }
     .grp-panel-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 0.9rem; }
+    .grp-search-bar { margin-bottom: 16px; }
+    .grp-search-input { width: 100%; box-sizing: border-box; padding: 9px 14px; font-size: 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border-color .12s; }
+    .grp-search-input:focus { border-color: var(--accent); }
+    .grp-search-input::placeholder { color: var(--muted); }
     @media (max-width: 600px) {
       .grp-layout { flex-direction: column; height: auto; }
       .grp-nav { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 10px 0; overflow-x: auto; display: flex; gap: 0; }
@@ -1813,7 +1817,7 @@ function renderGroupNav() {
   const canGroups = GROUPS_DEF.filter(g => g.location === 'Canandaigua');
   function navItem(g) {
     const key = g.key;
-    const count = g._unassigned ? unassigned : (counts[key] || 0);
+    const count = g._all ? grpDivers.length : g._unassigned ? unassigned : (counts[key] || 0);
     const isActive = grpActive === key;
     return `<div class="grp-nav-item${isActive ? ' active' : ''}" data-grp-key="${key.replace(/"/g,'&quot;')}">
       <span class="grp-nav-icon">${g.icon}</span>
@@ -1822,6 +1826,8 @@ function renderGroupNav() {
     </div>`;
   }
   document.getElementById('grp-nav').innerHTML =
+    navItem({ key: '__all__', icon: '👥', label: 'All Divers', location: '', _all: true }) +
+    `<div class="grp-nav-sep"></div>` +
     `<div class="grp-nav-heading">RIT</div>` +
     ritGroups.map(navItem).join('') +
     `<div class="grp-nav-sep"></div>` +
@@ -1843,10 +1849,47 @@ function classLabel(cls) {
   return `${cls.day} ${fmtTime(cls.start_time)}–${fmtTime(cls.end_time)}`;
 }
 
+/* ── All Divers view ────────────────────────────────────── */
+function renderAllDivers(query) {
+  const q = (query || '').toLowerCase().trim();
+  const sorted = grpDivers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||'') || (a.first_name||'').localeCompare(b.first_name||''));
+  const filtered = q
+    ? sorted.filter(d => [d.first_name,d.last_name,d.nickname,d.diver_group,d.assigned_coach_name].some(v => v && v.toLowerCase().includes(q)))
+    : sorted;
+
+  const countLabel = q
+    ? `${filtered.length} of ${grpDivers.length} diver${grpDivers.length !== 1 ? 's' : ''}`
+    : `${grpDivers.length} diver${grpDivers.length !== 1 ? 's' : ''}`;
+
+  const rows = filtered.length
+    ? filtered.map(d => {
+        const ac = GRP_AVATAR_COLORS[(d.diver_group||'').trim()] || GRP_AVATAR_COLORS[''];
+        return diverRowHtml(d, ac, false);
+      }).join('')
+    : `<div class="grp-empty">No divers match "${esc(query)}".</div>`;
+
+  document.getElementById('grp-panel').innerHTML = `
+    <div class="grp-panel-toolbar">
+      <h2>All Divers</h2>
+      <span class="grp-panel-count" id="all-divers-count">${countLabel}</span>
+    </div>
+    <div class="grp-search-bar">
+      <input class="grp-search-input" id="grp-search" type="search" placeholder="Search by name, group, or coach…"
+        value="${escAttr(query||'')}" oninput="renderAllDivers(this.value)" autocomplete="off">
+    </div>
+    <div id="all-divers-list">${rows}</div>`;
+  if (!query) document.getElementById('grp-search').focus();
+}
+
 /* ── selectGroup: class-section view ───────────────────── */
 function selectGroup(key) {
   grpActive = key;
   renderGroupNav();
+
+  if (key === '__all__') {
+    renderAllDivers('');
+    return;
+  }
 
   const def = GROUPS_DEF.find(g => g.key === key);
   const label = def ? def.key : 'Unassigned';
