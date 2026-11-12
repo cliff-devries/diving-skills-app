@@ -1993,7 +1993,10 @@ async function addActivity() {
   if (!id || !body) return;
   const kind = document.getElementById('act-kind').value;
   const dateVal = document.getElementById('act-date').value; // YYYY-MM-DD local
-  const occurredAt = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
+  const now = new Date();
+  const occurredAt = dateVal
+    ? new Date(`${dateVal}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`).toISOString()
+    : now.toISOString();
   try {
     await SupabaseDB.crmAddActivity(id, kind, body, occurredAt);
     const l = findLead(id);
