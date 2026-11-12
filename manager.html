@@ -709,16 +709,19 @@
     .grp-panel-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
     .grp-panel-title { font-size: 1.2rem; font-weight: 800; margin: 0; }
     .grp-panel-count { font-size: 0.8rem; color: var(--muted); }
-    .grp-diver-row { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color .12s; }
+    .grp-diver-row { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color .12s; cursor: pointer; }
     .grp-diver-row + .grp-diver-row { margin-top: 6px; }
     .grp-diver-row:hover { border-color: var(--accent); }
-    .grp-diver-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.88rem; font-weight: 800; flex-shrink: 0; }
+    .grp-diver-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.88rem; font-weight: 800; flex-shrink: 0; }
     .grp-diver-info { flex: 1; min-width: 0; }
-    .grp-diver-name { font-size: 0.95rem; font-weight: 700; color: var(--text); }
-    .grp-diver-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
-    .grp-diver-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-left: auto; flex-shrink: 0; }
+    .grp-diver-name { font-size: 0.95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .grp-diver-meta-grid { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; }
+    .grp-diver-meta-item { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+    .grp-diver-meta-label { font-weight: 600; color: var(--text-secondary); margin-right: 3px; }
+    .grp-diver-badges { display: flex; flex-wrap: wrap; gap: 5px; flex-shrink: 0; }
     .grp-diver-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--raised); white-space: nowrap; }
     .grp-diver-badge.level { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .grp-diver-badge.status { border-color: rgba(245,158,11,.4); color: #f59e0b; background: rgba(245,158,11,.1); }
     .grp-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; }
     .grp-panel-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 0.9rem; }
     @media (max-width: 600px) {
@@ -739,9 +742,13 @@
     .grp-class-title { font-size: 0.82rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
     .grp-class-loc { font-size: 0.72rem; color: var(--muted); background: var(--raised); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
     .grp-class-count { font-size: 0.72rem; color: var(--muted); margin-left: auto; }
-    .grp-diver-row { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color .12s; }
     .grp-diver-enroll-btn { font-size: 0.72rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--raised); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .grp-diver-enroll-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Edit diver form inside dmgr-modal ─────────────── */
+    .dmgr-form-row { display: flex; gap: 12px; }
+    .dmgr-form-row .dmgr-field { flex: 1; }
+    .dmgr-aqua-display { padding: 9px 12px; background: var(--bg-secondary,var(--raised)); border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; color: var(--muted); user-select: none; }
 
     /* ── Modal ───────────────────────────────────────────── */
     .dmgr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -1215,6 +1222,67 @@
     </div>
     <div class="dmgr-modal-body" id="dmgr-modal-body"></div>
     <div class="dmgr-modal-foot" id="dmgr-modal-foot"></div>
+  </div>
+</div>
+
+<!-- Edit Diver modal -->
+<div id="edit-diver-overlay" class="dmgr-overlay" style="display:none" onclick="if(event.target===this)closeEditDiver()">
+  <div class="dmgr-modal" onclick="event.stopPropagation()" style="max-width:500px">
+    <div class="dmgr-modal-head">
+      <h3 id="ed-title">Edit Diver</h3>
+      <button class="dmgr-btn" onclick="closeEditDiver()" style="padding:4px 10px;">✕</button>
+    </div>
+    <div class="dmgr-modal-body" style="overflow-y:auto">
+      <div class="dmgr-form-row">
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">First Name</label>
+          <input type="text" id="ed-first" class="dmgr-input" placeholder="Jane"></div>
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Last Name</label>
+          <input type="text" id="ed-last" class="dmgr-input" placeholder="Smith"></div>
+      </div>
+      <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Nickname</label>
+        <input type="text" id="ed-nickname" class="dmgr-input" placeholder="e.g. Abby"></div>
+      <div class="dmgr-form-row">
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Date of Birth</label>
+          <input type="date" id="ed-dob" class="dmgr-input" oninput="edUpdateAqua()"></div>
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Current Level</label>
+          <select id="ed-level" class="dmgr-input">
+            <option value="">— none —</option>
+            <option value="0">Beginner</option>
+            <option value="1">Level 1</option><option value="2">Level 2</option><option value="3">Level 3</option>
+            <option value="4">Level 4</option><option value="5">Level 5</option><option value="6">Level 6</option>
+            <option value="7">Level 7</option><option value="8">Level 8</option><option value="9">Level 9</option>
+            <option value="10">Level 10</option><option value="11">Level 11</option><option value="12">Level 12</option>
+          </select></div>
+      </div>
+      <div class="dmgr-form-row">
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Diver Group</label>
+          <select id="ed-group" class="dmgr-input">
+            <option value="">— none —</option>
+            <option>Learn to Dive</option><option>Novice</option><option>Lessons</option>
+            <option>Canandaigua LTD</option><option>Canandaigua Lessons</option>
+            <option>Sparks</option><option>Fire</option><option>Blaze</option><option>Inactive</option>
+          </select></div>
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Assigned Coach</label>
+          <select id="ed-coach" class="dmgr-input"><option value="">— none —</option></select></div>
+      </div>
+      <div class="dmgr-form-row">
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Start Date</label>
+          <input type="date" id="ed-start" class="dmgr-input"></div>
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">AQUA Age <span style="font-weight:400;color:var(--muted)">(auto)</span></label>
+          <div class="dmgr-aqua-display" id="ed-aqua">—</div></div>
+      </div>
+      <div class="dmgr-form-row">
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Parent Email</label>
+          <input type="email" id="ed-parent-email" class="dmgr-input" placeholder="parent@example.com"></div>
+        <div class="dmgr-field"><label class="dmgr-input" style="display:block;font-size:.75rem;font-weight:600;color:var(--muted);padding:0;background:none;border:none;margin-bottom:4px;">Parent Phone</label>
+          <input type="tel" id="ed-parent-phone" class="dmgr-input" placeholder="(555) 123-4567"></div>
+      </div>
+      <div id="ed-alert" style="display:none;color:#ef4444;font-size:.85rem;margin-top:8px;"></div>
+    </div>
+    <div class="dmgr-modal-foot">
+      <button class="dmgr-btn" onclick="closeEditDiver()">Cancel</button>
+      <button class="dmgr-btn primary" id="ed-save-btn" onclick="saveDiverEdit()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -1846,22 +1914,49 @@ function selectGroup(key) {
   document.getElementById('grp-panel').innerHTML = panelHtml;
 }
 
+function grpCalcAge(dob) {
+  if (!dob) return '—';
+  const birth = new Date(dob + 'T00:00:00');
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+function grpFormatDOB(dob) {
+  if (!dob) return '—';
+  const [y, mo, d] = dob.split('-').map(Number);
+  return `${String(mo).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y}`;
+}
+
 function diverRowHtml(d, ac, showEnrollBtn) {
   const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
-  const name = esc(((d.first_name||'') + ' ' + (d.last_name||'')).trim());
-  const level = d.current_level ? `Level ${d.current_level}` : '';
-  const coach = d.assigned_coach_name || '';
-  const enrollBtn = showEnrollBtn
-    ? `<button class="grp-diver-enroll-btn" onclick="openEnrollDiver('${escAttr(d.id)}')">Classes ✎</button>`
+  const displayName = esc(((d.first_name||'') + (d.nickname ? ` "${d.nickname}"` : '') + ' ' + (d.last_name||'')).trim());
+  const age    = grpCalcAge(d.date_of_birth);
+  const dob    = grpFormatDOB(d.date_of_birth);
+  const coach  = d.assigned_coach_name || '—';
+  const aqua   = d.aqua_group || '—';
+  const level  = d.current_level != null ? (d.current_level === 0 ? 'Beginner' : `Level ${d.current_level}`) : '';
+  const statusBadge = d.status !== 'active'
+    ? `<span class="grp-diver-badge status">${d.status === 'pending' ? '⏳ Invited' : 'Unclaimed'}</span>`
     : '';
-  return `<div class="grp-diver-row">
+  const enrollBtn = showEnrollBtn
+    ? `<button class="grp-diver-enroll-btn" onclick="event.stopPropagation();openEnrollDiver('${escAttr(d.id)}')">Classes ✎</button>`
+    : '';
+  return `<div class="grp-diver-row" onclick="openEditDiver('${escAttr(d.id)}')">
     <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
     <div class="grp-diver-info">
-      <div class="grp-diver-name">${name}</div>
-      ${coach ? `<div class="grp-diver-meta">${esc(coach)}</div>` : ''}
-    </div>
-    <div class="grp-diver-badges">
-      ${level ? `<span class="grp-diver-badge level">${esc(level)}</span>` : ''}
+      <div class="grp-diver-name">
+        ${displayName}
+        ${level ? `<span class="grp-diver-badge level">${esc(level)}</span>` : ''}
+        ${statusBadge}
+      </div>
+      <div class="grp-diver-meta-grid">
+        <span class="grp-diver-meta-item"><span class="grp-diver-meta-label">Age</span>${age}</span>
+        <span class="grp-diver-meta-item"><span class="grp-diver-meta-label">DOB</span>${dob}</span>
+        <span class="grp-diver-meta-item"><span class="grp-diver-meta-label">Coach</span>${esc(coach)}</span>
+        <span class="grp-diver-meta-item"><span class="grp-diver-meta-label">AQUA</span>${esc(aqua)}</span>
+      </div>
     </div>
     ${enrollBtn}
   </div>`;
@@ -2039,6 +2134,108 @@ async function saveEnrollment(diverId) {
     selectGroup(grpActive);
   } catch(e) {
     alert('Could not save enrollment: ' + e.message);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EDIT DIVER MODAL
+   ══════════════════════════════════════════════════════════ */
+let edDiverId = null;
+let edCoaches = [];
+
+async function openEditDiver(diverId) {
+  const d = grpDivers.find(x => x.id === diverId);
+  if (!d) return;
+  edDiverId = diverId;
+
+  document.getElementById('ed-title').textContent =
+    'Edit — ' + (((d.first_name||'') + ' ' + (d.last_name||'')).trim() || 'Diver');
+  document.getElementById('ed-first').value        = d.first_name    || '';
+  document.getElementById('ed-last').value         = d.last_name     || '';
+  document.getElementById('ed-nickname').value     = d.nickname      || '';
+  document.getElementById('ed-dob').value          = d.date_of_birth || '';
+  document.getElementById('ed-level').value        = d.current_level != null ? String(d.current_level) : '';
+  document.getElementById('ed-group').value        = d.diver_group   || '';
+  document.getElementById('ed-start').value        = d.start_date    || '';
+  document.getElementById('ed-parent-email').value = d.parent_email  || '';
+  document.getElementById('ed-parent-phone').value = d.parent_phone  || '';
+  document.getElementById('ed-alert').style.display = 'none';
+  edUpdateAqua();
+
+  const coachSel = document.getElementById('ed-coach');
+  coachSel.innerHTML = '<option value="">— none —</option>';
+  try {
+    edCoaches = await SupabaseDB.getActiveCoaches();
+    edCoaches.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = (c.last_name ? c.last_name + ', ' : '') + (c.first_name || c.full_name || '');
+      if (c.full_name === d.assigned_coach_name) opt.selected = true;
+      coachSel.appendChild(opt);
+    });
+  } catch(e) { /* coaches optional */ }
+
+  document.getElementById('edit-diver-overlay').style.display = 'flex';
+}
+
+function closeEditDiver() {
+  document.getElementById('edit-diver-overlay').style.display = 'none';
+  edDiverId = null;
+}
+
+function edUpdateAqua() {
+  const dob = document.getElementById('ed-dob').value;
+  const el  = document.getElementById('ed-aqua');
+  if (!dob) { el.textContent = '—'; return; }
+  const age = new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear();
+  el.textContent = String(age);
+}
+
+async function saveDiverEdit() {
+  if (!edDiverId) return;
+  const btn     = document.getElementById('ed-save-btn');
+  const alertEl = document.getElementById('ed-alert');
+  alertEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const dob   = document.getElementById('ed-dob').value || null;
+    const level = document.getElementById('ed-level').value;
+    const aquaGroup = dob ? String(new Date().getFullYear() - new Date(dob + 'T00:00:00').getFullYear()) : null;
+
+    const selectedCoachId = document.getElementById('ed-coach').value;
+    const selectedCoach   = edCoaches.find(c => c.id === selectedCoachId);
+
+    await SupabaseDB.updateDiverProfileByCoach(edDiverId, {
+      firstName:         document.getElementById('ed-first').value.trim()        || null,
+      lastName:          document.getElementById('ed-last').value.trim()         || null,
+      nickname:          document.getElementById('ed-nickname').value.trim()     || null,
+      dateOfBirth:       dob,
+      currentLevel:      level !== '' ? parseInt(level, 10) : null,
+      diverGroup:        document.getElementById('ed-group').value               || null,
+      assignedCoachName: selectedCoach ? selectedCoach.full_name                 : null,
+      startDate:         document.getElementById('ed-start').value               || null,
+      parentEmail:       document.getElementById('ed-parent-email').value.trim() || null,
+      parentPhone:       document.getElementById('ed-parent-phone').value.trim() || null,
+      aquaGroup,
+    });
+
+    if (selectedCoachId) {
+      try { await SupabaseDB.reassignDiverCoach(edDiverId, selectedCoachId); } catch(e) { /* non-fatal */ }
+    }
+
+    SupabaseDB._diversCache = null;
+    [grpDivers, grpClasses] = await Promise.all([SupabaseDB.getAllDivers(), SupabaseDB.getClasses()]);
+    closeEditDiver();
+    if (grpActive !== null) selectGroup(grpActive);
+    renderGroupNav();
+  } catch(e) {
+    alertEl.textContent = e.message;
+    alertEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
   }
 }
 
