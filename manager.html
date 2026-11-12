@@ -731,6 +731,52 @@
       .grp-panel { padding: 16px; }
     }
 
+    /* ── Classes panel ──────────────────────────────────── */
+    .grp-panel-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .grp-panel-toolbar h2 { font-size: 1.2rem; font-weight: 800; flex: 1; }
+    .grp-class-section { margin-bottom: 28px; }
+    .grp-class-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .grp-class-title { font-size: 0.82rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .grp-class-loc { font-size: 0.72rem; color: var(--muted); background: var(--raised); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+    .grp-class-count { font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+    .grp-diver-row { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color .12s; }
+    .grp-diver-enroll-btn { font-size: 0.72rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--raised); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .grp-diver-enroll-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Modal ───────────────────────────────────────────── */
+    .dmgr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .dmgr-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 540px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .dmgr-modal.wide { max-width: 720px; }
+    .dmgr-modal-head { display: flex; align-items: center; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+    .dmgr-modal-head h3 { flex: 1; font-size: 1rem; font-weight: 800; }
+    .dmgr-modal-body { flex: 1; overflow-y: auto; padding: 20px; }
+    .dmgr-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
+    .dmgr-field { margin-bottom: 14px; }
+    .dmgr-field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .dmgr-input { width: 100%; background: var(--raised); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 8px 10px; font-size: 0.88rem; }
+    .dmgr-input:focus { outline: none; border-color: var(--accent); }
+    select.dmgr-input option { background: var(--raised); }
+    .dmgr-row { display: flex; gap: 10px; }
+    .dmgr-row .dmgr-field { flex: 1; }
+    .dmgr-btn { padding: 8px 16px; border-radius: 7px; border: 1px solid var(--border); background: var(--raised); color: var(--text); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .dmgr-btn:hover { border-color: var(--accent); }
+    .dmgr-btn.primary { background: var(--accent); border-color: var(--accent); color: #000; }
+    .dmgr-btn.primary:hover { opacity: .88; }
+    .dmgr-btn.danger { color: var(--orange); border-color: var(--orange); background: transparent; }
+    .dmgr-btn.danger:hover { background: color-mix(in srgb, var(--orange) 10%, transparent); }
+    .dmgr-class-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .dmgr-class-item { display: flex; align-items: center; gap: 10px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+    .dmgr-class-item-info { flex: 1; min-width: 0; }
+    .dmgr-class-item-label { font-size: 0.88rem; font-weight: 600; }
+    .dmgr-class-item-loc { font-size: 0.75rem; color: var(--muted); }
+    .dmgr-enroll-list { display: flex; flex-direction: column; gap: 6px; }
+    .dmgr-enroll-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .dmgr-enroll-item:last-child { border-bottom: none; }
+    .dmgr-enroll-name { flex: 1; font-size: 0.88rem; font-weight: 600; }
+    .dmgr-enroll-cb { display: flex; flex-wrap: wrap; gap: 6px; }
+    .dmgr-enroll-cb label { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .dmgr-enroll-cb input[type=checkbox] { accent-color: var(--accent); }
+
     /* ── Loading / error states ──────────────────────────── */
     .dmgr-loading {
       display: flex; align-items: center; justify-content: center;
@@ -1160,9 +1206,21 @@
 
 </main>
 
+<!-- Modal overlay (shared) -->
+<div id="dmgr-overlay" class="dmgr-overlay" style="display:none" onclick="dmgrCloseModal(event)">
+  <div class="dmgr-modal" id="dmgr-modal" onclick="event.stopPropagation()">
+    <div class="dmgr-modal-head">
+      <h3 id="dmgr-modal-title"></h3>
+      <button class="dmgr-btn" onclick="dmgrCloseModal()" style="padding:4px 10px;">✕</button>
+    </div>
+    <div class="dmgr-modal-body" id="dmgr-modal-body"></div>
+    <div class="dmgr-modal-foot" id="dmgr-modal-foot"></div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/supabase.js?v=45"></script>
+<script src="js/supabase.js?v=46"></script>
 <script src="js/auth.js?v=6"></script>
 <script>
 /* ── Auth guard ─────────────────────────────────────────── */
@@ -1628,27 +1686,42 @@ const GROUPS_DEF = [
   { key: 'Learn to Dive',        icon: '🌊', location: 'RIT' },
   { key: 'Novice',               icon: '⭐', location: 'RIT' },
   { key: 'Lessons',              icon: '📚', location: 'RIT' },
-  { key: 'Sparks',               icon: '✨', location: 'RIT' },
-  { key: 'Fire',                 icon: '🔥', location: 'RIT' },
-  { key: 'Blaze',                icon: '🚀', location: 'RIT' },
+  { key: 'Sparks',               icon: '✨', location: 'RIT',  autoEnroll: true },
+  { key: 'Fire',                 icon: '🔥', location: 'RIT',  autoEnroll: true },
+  { key: 'Blaze',                icon: '🚀', location: 'RIT',  autoEnroll: true },
   { key: 'Canandaigua LTD',      icon: '🌊', location: 'Canandaigua' },
   { key: 'Canandaigua Lessons',  icon: '📚', location: 'Canandaigua' },
 ];
 
+const GRP_AVATAR_COLORS = {
+  'Learn to Dive':       { bg:'#0d2a3a', fg:'#03A9F4' },
+  'Novice':              { bg:'#2a2a0d', fg:'#F9A825' },
+  'Lessons':             { bg:'#0d2a1a', fg:'#2ecc71' },
+  'Sparks':              { bg:'#2a1a2a', fg:'#9C27B0' },
+  'Fire':                { bg:'#2a1a0d', fg:'#F76900' },
+  'Blaze':               { bg:'#1a0d2a', fg:'#e040fb' },
+  'Canandaigua LTD':     { bg:'#0d2a3a', fg:'#03A9F4' },
+  'Canandaigua Lessons': { bg:'#0d2a1a', fg:'#2ecc71' },
+  '':                    { bg:'#1c2230', fg:'#7d8fa8' },
+};
+
 let grpLoaded = false;
 let grpDivers = [];
+let grpClasses = [];
 let grpActive = null;
 
 async function initGroups() {
   if (grpLoaded) return;
   try {
     await initSupabase();
-    grpDivers = await SupabaseDB.getAllDivers();
+    [grpDivers, grpClasses] = await Promise.all([
+      SupabaseDB.getAllDivers(),
+      SupabaseDB.getClasses(),
+    ]);
     grpLoaded = true;
     document.getElementById('grp-loading').style.display = 'none';
     document.getElementById('grp-layout').style.display = '';
     renderGroupNav();
-
     document.getElementById('grp-nav').addEventListener('click', e => {
       const item = e.target.closest('[data-grp-key]');
       if (item) selectGroup(item.dataset.grpKey);
@@ -1668,22 +1741,18 @@ function renderGroupNav() {
     if (g) assigned++;
   });
   const unassigned = grpDivers.length - assigned;
-
   const ritGroups = GROUPS_DEF.filter(g => g.location === 'RIT');
   const canGroups = GROUPS_DEF.filter(g => g.location === 'Canandaigua');
-
   function navItem(g) {
     const key = g.key;
-    const label = g.label || g.key;
     const count = g._unassigned ? unassigned : (counts[key] || 0);
     const isActive = grpActive === key;
     return `<div class="grp-nav-item${isActive ? ' active' : ''}" data-grp-key="${key.replace(/"/g,'&quot;')}">
       <span class="grp-nav-icon">${g.icon}</span>
-      <span class="grp-nav-label">${esc(label)}</span>
+      <span class="grp-nav-label">${esc(g.label || g.key)}</span>
       <span class="grp-nav-count">${count}</span>
     </div>`;
   }
-
   document.getElementById('grp-nav').innerHTML =
     `<div class="grp-nav-heading">RIT</div>` +
     ritGroups.map(navItem).join('') +
@@ -1694,55 +1763,283 @@ function renderGroupNav() {
     navItem({ key: '', icon: '❓', label: 'Unassigned', location: '', _unassigned: true });
 }
 
-const GRP_AVATAR_COLORS = {
-  'Learn to Dive':       { bg:'#0d2a3a', fg:'#03A9F4' },
-  'Novice':              { bg:'#2a2a0d', fg:'#F9A825' },
-  'Lessons':             { bg:'#0d2a1a', fg:'#2ecc71' },
-  'Sparks':              { bg:'#2a1a2a', fg:'#9C27B0' },
-  'Fire':                { bg:'#2a1a0d', fg:'#F76900' },
-  'Blaze':               { bg:'#1a0d2a', fg:'#e040fb' },
-  'Canandaigua LTD':     { bg:'#0d2a3a', fg:'#03A9F4' },
-  'Canandaigua Lessons': { bg:'#0d2a1a', fg:'#2ecc71' },
-  '':                    { bg:'#1c2230', fg:'#7d8fa8' },
-};
+/* ── Formatting helpers ─────────────────────────────────── */
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function classLabel(cls) {
+  return `${cls.day} ${fmtTime(cls.start_time)}–${fmtTime(cls.end_time)}`;
+}
 
+/* ── selectGroup: class-section view ───────────────────── */
 function selectGroup(key) {
   grpActive = key;
   renderGroupNav();
 
   const def = GROUPS_DEF.find(g => g.key === key);
   const label = def ? def.key : 'Unassigned';
+  const autoEnroll = def && def.autoEnroll;
+
   const divers = key === ''
     ? grpDivers.filter(d => !d.diver_group || !d.diver_group.trim())
     : grpDivers.filter(d => (d.diver_group || '').trim() === key);
 
   const ac = GRP_AVATAR_COLORS[key] || GRP_AVATAR_COLORS[''];
-  const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
+  const groupClasses = grpClasses.filter(c => c.group_name === key)
+    .sort((a,b) => a.sort_order - b.sort_order || a.start_time.localeCompare(b.start_time));
 
-  const rows = sorted.length
-    ? sorted.map(d => {
-        const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
-        const name = esc(((d.first_name||'') + ' ' + (d.last_name||'')).trim());
-        const level = d.current_level ? `Level ${d.current_level}` : '';
-        const coach = d.assigned_coach_name || '';
-        return `<div class="grp-diver-row">
-          <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
-          <div class="grp-diver-info">
-            <div class="grp-diver-name">${name}</div>
-            ${coach ? `<div class="grp-diver-meta">${esc(coach)}</div>` : ''}
-          </div>
-          <div class="grp-diver-badges">
-            ${level ? `<span class="grp-diver-badge level">${esc(level)}</span>` : ''}
-          </div>
+  const totalCount = divers.length;
+
+  let panelHtml = `<div class="grp-panel-toolbar">
+    <h2>${esc(label)}</h2>
+    <span class="grp-panel-count">${totalCount} diver${totalCount !== 1 ? 's' : ''}</span>
+    <button class="dmgr-btn" onclick="openManageClasses(${JSON.stringify(esc(key))})">⚙ Manage Classes</button>
+  </div>`;
+
+  if (key === '') {
+    const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
+    panelHtml += sorted.length
+      ? sorted.map(d => diverRowHtml(d, ac)).join('')
+      : `<div class="grp-empty">No unassigned divers.</div>`;
+  } else if (!groupClasses.length) {
+    const sorted = divers.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
+    panelHtml += `<div class="grp-empty" style="margin-bottom:16px;">No classes set up for this group yet. Use <strong>Manage Classes</strong> to add them.</div>`;
+    if (sorted.length) panelHtml += sorted.map(d => diverRowHtml(d, ac)).join('');
+  } else {
+    groupClasses.forEach(cls => {
+      const enrolled = autoEnroll
+        ? divers
+        : divers.filter(d => (d.diver_class_ids || []).includes(cls.id));
+      const sorted = enrolled.slice().sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''));
+      panelHtml += `<div class="grp-class-section">
+        <div class="grp-class-heading">
+          <span class="grp-class-title">${esc(classLabel(cls))}</span>
+          <span class="grp-class-loc">${esc(cls.location)}</span>
+          <span class="grp-class-count">${sorted.length} diver${sorted.length !== 1 ? 's' : ''}</span>
         </div>`;
-      }).join('')
-    : `<div class="grp-empty">No divers assigned to this group yet.</div>`;
+      if (sorted.length) {
+        panelHtml += sorted.map(d => diverRowHtml(d, ac, autoEnroll ? null : cls, divers)).join('');
+      } else {
+        panelHtml += `<div class="grp-empty" style="padding:16px 0 8px;">No divers enrolled in this class.</div>`;
+      }
+      panelHtml += `</div>`;
+    });
+    if (!autoEnroll) {
+      const unenrolledInAny = divers.filter(d => {
+        const ids = d.diver_class_ids || [];
+        return !groupClasses.some(c => ids.includes(c.id));
+      });
+      if (unenrolledInAny.length) {
+        panelHtml += `<div class="grp-class-section">
+          <div class="grp-class-heading"><span class="grp-class-title" style="color:var(--orange);">Not enrolled in any class</span></div>`;
+        panelHtml += unenrolledInAny.sort((a,b) => (a.last_name||'').localeCompare(b.last_name||''))
+          .map(d => diverRowHtml(d, ac, null, divers)).join('');
+        panelHtml += `</div>`;
+      }
+    }
+  }
 
-  document.getElementById('grp-panel').innerHTML =
-    `<div class="grp-panel-header">
-      <h2 class="grp-panel-title">${esc(label)}</h2>
-      <span class="grp-panel-count">${divers.length} diver${divers.length !== 1 ? 's' : ''}</span>
-    </div>` + rows;
+  document.getElementById('grp-panel').innerHTML = panelHtml;
+}
+
+function diverRowHtml(d, ac, cls, groupDivers) {
+  const initials = ((d.first_name||'').charAt(0) + (d.last_name||'').charAt(0)).toUpperCase();
+  const name = esc(((d.first_name||'') + ' ' + (d.last_name||'')).trim());
+  const level = d.current_level ? `Level ${d.current_level}` : '';
+  const coach = d.assigned_coach_name || '';
+  const enrollBtn = cls
+    ? `<button class="grp-diver-enroll-btn" onclick="openEnrollDiver(${JSON.stringify(esc(d.id))})">Classes ✎</button>`
+    : '';
+  return `<div class="grp-diver-row">
+    <div class="grp-diver-avatar" style="background:${ac.bg};color:${ac.fg}">${esc(initials)}</div>
+    <div class="grp-diver-info">
+      <div class="grp-diver-name">${name}</div>
+      ${coach ? `<div class="grp-diver-meta">${esc(coach)}</div>` : ''}
+    </div>
+    <div class="grp-diver-badges">
+      ${level ? `<span class="grp-diver-badge level">${esc(level)}</span>` : ''}
+    </div>
+    ${enrollBtn}
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MODAL SYSTEM
+   ══════════════════════════════════════════════════════════ */
+function dmgrOpenModal({ title, body, foot, wide }) {
+  document.getElementById('dmgr-modal-title').textContent = title;
+  document.getElementById('dmgr-modal-body').innerHTML = body;
+  document.getElementById('dmgr-modal-foot').innerHTML = foot || '';
+  document.getElementById('dmgr-modal').classList.toggle('wide', !!wide);
+  document.getElementById('dmgr-overlay').style.display = 'flex';
+}
+function dmgrCloseModal(e) {
+  if (e && e.target !== document.getElementById('dmgr-overlay')) return;
+  document.getElementById('dmgr-overlay').style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════════════════
+   MANAGE CLASSES MODAL
+   ══════════════════════════════════════════════════════════ */
+const DAY_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+function openManageClasses(groupKey) {
+  renderManageClassesModal(groupKey);
+}
+
+function renderManageClassesModal(groupKey) {
+  const def = GROUPS_DEF.find(g => g.key === groupKey);
+  const label = def ? def.key : groupKey;
+  const classes = grpClasses.filter(c => c.group_name === groupKey)
+    .sort((a,b) => a.sort_order - b.sort_order || a.start_time.localeCompare(b.start_time));
+
+  const listHtml = classes.length
+    ? classes.map((c,i) => `
+      <div class="dmgr-class-item">
+        <div class="dmgr-class-item-info">
+          <div class="dmgr-class-item-label">${esc(classLabel(c))}</div>
+          <div class="dmgr-class-item-loc">${esc(c.location)}</div>
+        </div>
+        <button class="dmgr-btn" onclick="openEditClass(${JSON.stringify(esc(groupKey))},${JSON.stringify(esc(c.id))})">Edit</button>
+        <button class="dmgr-btn danger" onclick="confirmDeleteClass(${JSON.stringify(esc(c.id))},${JSON.stringify(esc(groupKey))})">✕</button>
+      </div>`).join('')
+    : `<div style="color:var(--muted);font-size:.88rem;padding:8px 0;">No classes yet.</div>`;
+
+  dmgrOpenModal({
+    title: `Classes — ${label}`,
+    body: `<div class="dmgr-class-list">${listHtml}</div>`,
+    foot: `<button class="dmgr-btn" onclick="dmgrCloseModal({target:document.getElementById('dmgr-overlay')})">Close</button>
+           <button class="dmgr-btn primary" onclick="openAddClass(${JSON.stringify(esc(groupKey))})">+ Add Class</button>`,
+  });
+}
+
+function openAddClass(groupKey) {
+  openEditClass(groupKey, null);
+}
+
+function openEditClass(groupKey, classId) {
+  const cls = classId ? grpClasses.find(c => c.id === classId) : null;
+  const locations = ['RIT Pool','Dryland','Canandaigua Academy'];
+  const locOptions = locations.map(l => `<option${cls && cls.location === l ? ' selected' : ''}>${esc(l)}</option>`).join('');
+  const dayOptions = DAY_ORDER.map(d => `<option${cls && cls.day === d ? ' selected' : ''}>${esc(d)}</option>`).join('');
+
+  dmgrOpenModal({
+    title: cls ? 'Edit Class' : 'Add Class',
+    body: `
+      <div class="dmgr-field"><label>Day</label>
+        <select class="dmgr-input" id="cls-day">${dayOptions}</select></div>
+      <div class="dmgr-row">
+        <div class="dmgr-field"><label>Start time</label>
+          <input class="dmgr-input" type="time" id="cls-start" value="${cls ? cls.start_time.slice(0,5) : '18:00'}"></div>
+        <div class="dmgr-field"><label>End time</label>
+          <input class="dmgr-input" type="time" id="cls-end" value="${cls ? cls.end_time.slice(0,5) : '19:00'}"></div>
+      </div>
+      <div class="dmgr-field"><label>Location</label>
+        <select class="dmgr-input" id="cls-loc">${locOptions}</select></div>
+    `,
+    foot: `
+      <button class="dmgr-btn" onclick="openManageClasses(${JSON.stringify(esc(groupKey))})">← Back</button>
+      <button class="dmgr-btn primary" onclick="saveClassForm(${JSON.stringify(esc(groupKey))},${JSON.stringify(esc(classId||''))})">Save</button>
+    `,
+  });
+}
+
+async function saveClassForm(groupKey, classId) {
+  const day = document.getElementById('cls-day').value;
+  const start = document.getElementById('cls-start').value;
+  const end   = document.getElementById('cls-end').value;
+  const loc   = document.getElementById('cls-loc').value;
+  if (!day || !start || !end) return;
+  const existing = grpClasses.filter(c => c.group_name === groupKey);
+  const sort_order = classId
+    ? (grpClasses.find(c => c.id === classId) || {}).sort_order || 0
+    : (existing.length ? Math.max(...existing.map(c => c.sort_order)) + 1 : 0);
+  try {
+    const saved = await SupabaseDB.saveClass({
+      id: classId || undefined,
+      group_name: groupKey,
+      day, start_time: start, end_time: end, location: loc, sort_order,
+    });
+    if (classId) {
+      const idx = grpClasses.findIndex(c => c.id === classId);
+      if (idx >= 0) grpClasses[idx] = saved; else grpClasses.push(saved);
+    } else {
+      grpClasses.push(saved);
+    }
+    renderManageClassesModal(groupKey);
+    if (grpActive === groupKey) selectGroup(groupKey);
+  } catch(e) {
+    alert('Could not save class: ' + e.message);
+  }
+}
+
+async function confirmDeleteClass(classId, groupKey) {
+  if (!confirm('Delete this class? Divers enrolled in it will lose this enrollment.')) return;
+  try {
+    await SupabaseDB.deleteClass(classId);
+    grpClasses = grpClasses.filter(c => c.id !== classId);
+    grpDivers.forEach(d => {
+      if (d.diver_class_ids) d.diver_class_ids = d.diver_class_ids.filter(id => id !== classId);
+    });
+    renderManageClassesModal(groupKey);
+    if (grpActive === groupKey) selectGroup(groupKey);
+  } catch(e) {
+    alert('Could not delete class: ' + e.message);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   ENROLL DIVER IN CLASSES
+   ══════════════════════════════════════════════════════════ */
+function openEnrollDiver(diverId) {
+  const d = grpDivers.find(x => x.id === diverId);
+  if (!d) return;
+  const groupKey = (d.diver_group || '').trim();
+  const classes = grpClasses.filter(c => c.group_name === groupKey)
+    .sort((a,b) => a.sort_order - b.sort_order || a.start_time.localeCompare(b.start_time));
+  const enrolled = d.diver_class_ids || [];
+  const name = ((d.first_name||'') + ' ' + (d.last_name||'')).trim();
+
+  const checks = classes.map(c => `
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+      <input type="checkbox" id="enroll-${esc(c.id)}" ${enrolled.includes(c.id) ? 'checked' : ''} style="accent-color:var(--accent);width:16px;height:16px;">
+      <span>
+        <strong>${esc(classLabel(c))}</strong><br>
+        <span style="font-size:.78rem;color:var(--muted);">${esc(c.location)}</span>
+      </span>
+    </label>`).join('');
+
+  dmgrOpenModal({
+    title: `Classes — ${esc(name)}`,
+    body: classes.length
+      ? `<div>${checks}</div>`
+      : `<div style="color:var(--muted);">No classes set up for ${esc(groupKey)} yet.</div>`,
+    foot: `<button class="dmgr-btn" onclick="dmgrCloseModal({target:document.getElementById('dmgr-overlay')})">Cancel</button>
+           <button class="dmgr-btn primary" onclick="saveEnrollment(${JSON.stringify(esc(diverId))})">Save</button>`,
+  });
+}
+
+async function saveEnrollment(diverId) {
+  const d = grpDivers.find(x => x.id === diverId);
+  if (!d) return;
+  const groupKey = (d.diver_group || '').trim();
+  const classes = grpClasses.filter(c => c.group_name === groupKey);
+  const newIds = classes.filter(c => {
+    const cb = document.getElementById('enroll-' + c.id);
+    return cb && cb.checked;
+  }).map(c => c.id);
+  try {
+    await SupabaseDB.updateDiverClasses(diverId, newIds);
+    d.diver_class_ids = newIds;
+    document.getElementById('dmgr-overlay').style.display = 'none';
+    selectGroup(grpActive);
+  } catch(e) {
+    alert('Could not save enrollment: ' + e.message);
+  }
 }
 
 /* ── Escape helper ──────────────────────────────────────── */

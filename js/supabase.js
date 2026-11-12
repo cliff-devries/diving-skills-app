@@ -1025,7 +1025,7 @@ const SupabaseDB = {
       .select(`
         id, full_name, first_name, last_name, nickname, gender, email, avatar_url, status, current_level, created_at,
         date_of_birth, diver_group, start_date, assigned_coach_name, aqua_group, parent_email, parent_phone,
-        invite_token, invite_token_expires_at, invite_type
+        invite_token, invite_token_expires_at, invite_type, diver_class_ids
       `)
       .eq('role', 'diver')
       .neq('status', 'rejected')
@@ -1482,5 +1482,47 @@ const SupabaseDB = {
   async crmDeleteService(id) {
     const { error } = await this.db.from('crm_services').delete().eq('id', id);
     if (error) throw new Error(error.message);
+  },
+
+  // ── Club classes (v83) ────────────────────────────────────────────────────
+
+  // Returns all classes ordered by sort_order then start_time.
+  async getClasses() {
+    const { data, error } = await this.db
+      .from('club_classes')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('start_time',  { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  // Upsert a class. Pass the full row; id is optional (omit to insert).
+  async saveClass({ id, group_name, day, start_time, end_time, location, sort_order }) {
+    const row = { group_name, day, start_time, end_time, location: location || '', sort_order: sort_order ?? 0 };
+    if (id) row.id = id;
+    const { data, error } = await this.db
+      .from('club_classes')
+      .upsert(row, { onConflict: 'id' })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // Delete a class by id.
+  async deleteClass(id) {
+    const { error } = await this.db.from('club_classes').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
+  // Set the class IDs a diver is enrolled in. Calls the v83 RPC.
+  async updateDiverClasses(diverId, classIds) {
+    const { error } = await this.db.rpc('update_diver_class_ids', {
+      p_diver_id:  diverId,
+      p_class_ids: classIds ?? [],
+    });
+    if (error) throw new Error(error.message);
+    this._diversCache = null;
   },
 };
