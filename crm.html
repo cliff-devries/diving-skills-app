@@ -316,6 +316,22 @@
       .ld-log:has(input[type=hidden]) { grid-template-columns: 1fr; }
       .crm-toggle { padding-bottom: 0; }
     }
+    .fu-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .fu-title { font-size: 1.4rem; font-weight: 800; }
+    .fu-empty { text-align: center; padding: 48px 20px; color: var(--text-secondary); }
+    .fu-empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .fu-list { display: flex; flex-direction: column; gap: 10px; }
+    .fu-row {
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
+      background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; cursor: pointer; transition: var(--transition);
+    }
+    .fu-row:hover { border-color: var(--accent); }
+    .fu-cb { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+    .fu-info { min-width: 0; }
+    .fu-diver { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fu-parent { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fu-stage { font-size: 0.75rem; padding: 2px 10px; border-radius: 20px; background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
     .crm-map-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 12px; }
     .crm-map-table td, .crm-map-table th { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
     .crm-map-table select { width: 100%; }
@@ -353,6 +369,7 @@
     <a href="#emails" data-view="emails">Emails</a>
     <a href="#activities" data-view="activities">Activities</a>
     <a href="#reports" data-view="reports">Reports</a>
+    <a href="#followup" data-view="followup">Follow-Up</a>
   </nav>
 </header>
 
@@ -522,6 +539,13 @@
     </div>
   </section>
 
+  <section class="dcrm-view" id="view-followup" hidden>
+    <div class="fu-header">
+      <h1 class="fu-title">Follow-Up List</h1>
+    </div>
+    <div id="fu-body"></div>
+  </section>
+
   <section class="dcrm-view" id="view-lead" hidden></section>
 </main>
 
@@ -532,6 +556,7 @@
   <a href="#emails" data-view="emails"><span aria-hidden="true">✉️</span>Emails</a>
   <a href="#activities" data-view="activities"><span aria-hidden="true">🕒</span>Activities</a>
   <a href="#reports" data-view="reports"><span aria-hidden="true">📊</span>Reports</a>
+  <a href="#followup" data-view="followup"><span aria-hidden="true">✅</span>Follow-Up</a>
 </nav>
 
 
@@ -1117,7 +1142,7 @@ function renderAll() {
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
 
-const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'lead'];
+const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'followup', 'lead'];
 let currentView = 'leads';
 let lastTabView = 'dashboard';
 
@@ -1134,6 +1159,7 @@ function showView() {
   if (currentView === 'services') renderServices();
   if (currentView === 'emails') { renderEmails(); loadEmailLog(); }
   if (currentView === 'activities') loadActivities();
+  if (currentView === 'followup') renderFollowUp();
   if (currentView === 'lead') openLeadPage(arg);
   else { currentLeadId = null; detailEdit = false; leadNavIds = null; }
   window.scrollTo(0, 0);
@@ -1199,13 +1225,13 @@ function renderKanbanStats(today) {
   const monthPrefix = today.slice(0, 7);
 
   const active = leads.filter(l => OPEN_STAGES.has(l.stage)).length;
-  const due = leads.filter(l => isFollowUpDue(l, today)).length;
+  const needsFollowUp = leads.filter(l => l.needs_follow_up).length;
   const trials = leads.filter(l => l.trial_date && l.trial_date >= weekStart && l.trial_date <= weekEnd).length;
   const newThisMonth = leads.filter(l => l.created_at && localDateStr(new Date(l.created_at)).slice(0, 7) === monthPrefix).length;
 
   document.getElementById('kb-stats').innerHTML = `
     <button class="kb-stat" onclick="applyStatFilter('open')"><b>${active}</b> active leads</button>
-    <button class="kb-stat ${due ? 'warn' : ''}" onclick="applyStatFilter('due')"><b>${due}</b> follow-ups due</button>
+    <button class="kb-stat ${needsFollowUp ? 'warn' : ''}" onclick="applyStatFilter('due')"><b>${needsFollowUp}</b> follow-ups due</button>
     <span class="kb-stat" style="cursor:default"><b>${trials}</b> trials this week</span>
     <span class="kb-stat" style="cursor:default"><b>${newThisMonth}</b> new this month</span>
     <button class="kb-stat" onclick="showArchivedLeads()"><b>${leads.filter(l => ARCHIVED_STAGES.has(l.stage)).length}</b> archived</button>`;
@@ -1316,8 +1342,8 @@ function setupKanbanSwipe() {
 
 
 function applyStatFilter(id) {
-  if (id === 'due') { filters.due = !filters.due; if (filters.due) filters.stage = 'open'; }
-  else { filters.due = false; filters.stage = id; }
+  if (id === 'due') { goToView('followup'); return; }
+  filters.due = false; filters.stage = id;
   syncControlValues();
   visibleCount = 100;
   renderList();
@@ -1723,6 +1749,13 @@ function leftPanelReadHtml(l) {
       ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <label class="ld-onboard-item" style="font-weight:600">
+          <input type="checkbox" class="ld-onboard-cb" ${l.needs_follow_up ? 'checked' : ''}
+            onchange="toggleFollowUp('${l.id}',this.checked,false)">
+          <span class="ld-onboard-label ${l.needs_follow_up ? 'is-done' : ''}">Follow-up required</span>
+        </label>
+      </div>
     </div>
     <div class="ld-card ld-onboard-card">
       <div class="ld-card-title">Onboarding checklist</div>
@@ -1756,6 +1789,52 @@ async function onboardCheck(leadId, field, checked) {
     l[field] = !checked;
     renderLeadPage();
   }
+}
+
+async function toggleFollowUp(leadId, checked, fromList) {
+  const l = findLead(leadId);
+  if (!l) return;
+  l.needs_follow_up = checked;
+  try {
+    await SupabaseDB.crmUpdateLead(leadId, { needs_follow_up: checked });
+    renderKbStats();
+    if (fromList) renderFollowUp();
+    else renderLeadPage();
+  } catch (err) {
+    App.showToast('Could not save — ' + err.message, 'error');
+    l.needs_follow_up = !checked;
+    if (fromList) renderFollowUp();
+    else renderLeadPage();
+  }
+}
+
+function renderFollowUp() {
+  const list = (leads || []).filter(l => l.needs_follow_up);
+  const el = document.getElementById('fu-body');
+  if (!list.length) {
+    el.innerHTML = `<div class="fu-empty"><div class="fu-empty-icon">✅</div><p>No follow-ups pending.</p></div>`;
+    return;
+  }
+  const sorted = list.slice().sort((a, b) => {
+    const na = leadName(a).toLowerCase();
+    const nb = leadName(b).toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  });
+  el.innerHTML = `<div class="fu-list">${sorted.map(l => {
+    const c = l.contact || {};
+    const parentName = [c.full_name, c.last_name].filter(Boolean).join(' ');
+    const stageLabel = KANBAN.find(k => k.key === l.stage)?.label || (l.stage || '');
+    return `
+    <div class="fu-row" onclick="goToView('lead/${l.id}')">
+      <input type="checkbox" class="fu-cb" checked title="Mark done"
+        onclick="event.stopPropagation();toggleFollowUp('${l.id}',false,true)">
+      <div class="fu-info">
+        <div class="fu-diver">${esc(leadName(l))}</div>
+        ${parentName ? `<div class="fu-parent">Parent: ${esc(parentName)}</div>` : ''}
+      </div>
+      <span class="fu-stage">${esc(stageLabel)}</span>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function leftPanelEditHtml(l) {
