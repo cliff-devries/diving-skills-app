@@ -546,6 +546,13 @@
     <div id="fu-body"></div>
   </section>
 
+  <section class="dcrm-view" id="view-newthismonth" hidden>
+    <div class="fu-header">
+      <h1 class="fu-title" id="ntm-title">New This Month</h1>
+    </div>
+    <div id="ntm-body"></div>
+  </section>
+
   <section class="dcrm-view" id="view-lead" hidden></section>
 </main>
 
@@ -1142,7 +1149,7 @@ function renderAll() {
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
 
-const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'followup', 'lead'];
+const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'followup', 'newthismonth', 'lead'];
 let currentView = 'leads';
 let lastTabView = 'dashboard';
 
@@ -1160,6 +1167,7 @@ function showView() {
   if (currentView === 'emails') { renderEmails(); loadEmailLog(); }
   if (currentView === 'activities') loadActivities();
   if (currentView === 'followup') renderFollowUp();
+  if (currentView === 'newthismonth') renderNewThisMonth();
   if (currentView === 'lead') openLeadPage(arg);
   else { currentLeadId = null; detailEdit = false; leadNavIds = null; }
   window.scrollTo(0, 0);
@@ -1233,7 +1241,7 @@ function renderKanbanStats(today) {
     <button class="kb-stat" onclick="applyStatFilter('open')"><b>${active}</b> active leads</button>
     <button class="kb-stat ${needsFollowUp ? 'warn' : ''}" onclick="applyStatFilter('due')"><b>${needsFollowUp}</b> follow-ups due</button>
     <span class="kb-stat" style="cursor:default"><b>${trials}</b> trials this week</span>
-    <span class="kb-stat" style="cursor:default"><b>${newThisMonth}</b> new this month</span>
+    <button class="kb-stat" onclick="goToView('newthismonth')"><b>${newThisMonth}</b> new this month</button>
     <button class="kb-stat" onclick="showArchivedLeads()"><b>${leads.filter(l => ARCHIVED_STAGES.has(l.stage)).length}</b> archived</button>`;
 }
 
@@ -1823,6 +1831,35 @@ function renderFollowUp() {
     <div class="fu-row" onclick="goToView('lead/${l.id}')">
       <input type="checkbox" class="fu-cb" checked title="Mark done"
         onclick="event.stopPropagation();toggleFollowUp('${l.id}',false,true)">
+      <div class="fu-info">
+        <div class="fu-diver">${esc(leadName(l))}</div>
+        ${parentName ? `<div class="fu-parent">Parent: ${esc(parentName)}</div>` : ''}
+      </div>
+      <span class="fu-stage">${esc(stageLabel)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderNewThisMonth() {
+  const today = todayLocal();
+  const monthPrefix = today.slice(0, 7);
+  const monthLabel = new Date(today + 'T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  document.getElementById('ntm-title').textContent = `New in ${monthLabel}`;
+  const list = (leads || []).filter(l => l.created_at && localDateStr(new Date(l.created_at)).slice(0, 7) === monthPrefix);
+  const el = document.getElementById('ntm-body');
+  if (!list.length) {
+    el.innerHTML = `<div class="fu-empty"><div class="fu-empty-icon">📋</div><p>No new sign-ups this month.</p></div>`;
+    return;
+  }
+  const sorted = list.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  el.innerHTML = `<div class="fu-list">${sorted.map(l => {
+    const c = l.contact || {};
+    const parentName = [c.full_name, c.last_name].filter(Boolean).join(' ');
+    const stageLabel = KANBAN.find(k => k.key === l.stage)?.label || (l.stage || '');
+    const signedUp = l.created_at ? new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    return `
+    <div class="fu-row" onclick="goToView('lead/${l.id}')">
+      <div style="font-size:0.78rem;color:var(--text-secondary);text-align:center;min-width:36px;line-height:1.2">${esc(signedUp.replace(' ', '<br>'))}</div>
       <div class="fu-info">
         <div class="fu-diver">${esc(leadName(l))}</div>
         ${parentName ? `<div class="fu-parent">Parent: ${esc(parentName)}</div>` : ''}
