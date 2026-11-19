@@ -1749,13 +1749,6 @@ function leftPanelReadHtml(l) {
       ${infoRow('Trial date', l.trial_date ? esc(fmtDay(l.trial_date)) : '')}
       ${infoRow('Follow-up date', l.follow_up_date ? `<span class="${isFollowUpDue(l, todayLocal()) ? 'crm-due' : ''}">${esc(fmtDay(l.follow_up_date))}</span>` : '')}
       ${infoRow('Service interested in', esc(serviceName(l.service_id)))}
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-        <label class="ld-onboard-item" style="font-weight:600">
-          <input type="checkbox" class="ld-onboard-cb" ${l.needs_follow_up ? 'checked' : ''}
-            onchange="toggleFollowUp('${l.id}',this.checked,false)">
-          <span class="ld-onboard-label ${l.needs_follow_up ? 'is-done' : ''}">Follow-up required</span>
-        </label>
-      </div>
     </div>
     <div class="ld-card ld-onboard-card">
       <div class="ld-card-title">Onboarding checklist</div>
@@ -1797,7 +1790,9 @@ async function toggleFollowUp(leadId, checked, fromList) {
   l.needs_follow_up = checked;
   try {
     await SupabaseDB.crmUpdateLead(leadId, { needs_follow_up: checked });
-    renderKbStats();
+    if (document.getElementById('view-dashboard') && !document.getElementById('view-dashboard').hidden) {
+      renderKanbanStats(todayLocal());
+    }
     if (fromList) renderFollowUp();
     else renderLeadPage();
   } catch (err) {
@@ -1941,9 +1936,16 @@ function renderLeadPage() {
     <div class="ld-layout">
       <aside class="ld-left">${detailEdit ? leftPanelEditHtml(l) : leftPanelReadHtml(l)}</aside>
       <section class="ld-right">
-        <div class="ld-tabs" role="tablist">
-          ${[['timeline', 'Timeline'], ['notes', 'Notes'], ['activities', 'Activities']]
-            .map(([k, label]) => `<button class="ld-tab ${detailTab === k ? 'active' : ''}" onclick="setDetailTab('${k}')">${label}</button>`).join('')}
+        <div class="ld-tabs" role="tablist" style="justify-content:space-between;align-items:center">
+          <div style="display:flex;gap:2px">
+            ${[['timeline', 'Timeline'], ['notes', 'Notes'], ['activities', 'Activities']]
+              .map(([k, label]) => `<button class="ld-tab ${detailTab === k ? 'active' : ''}" onclick="setDetailTab('${k}')">${label}</button>`).join('')}
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;padding:0 12px 2px;font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap" title="Flag this contact for follow-up">
+            <input type="checkbox" class="ld-onboard-cb" ${l.needs_follow_up ? 'checked' : ''}
+              onchange="toggleFollowUp('${l.id}',this.checked,false)" style="accent-color:var(--accent)">
+            Follow-up required
+          </label>
         </div>
         <div id="ld-tab-body" class="ld-tab-body"></div>
       </section>
