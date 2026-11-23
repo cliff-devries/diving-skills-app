@@ -164,10 +164,15 @@ exports.handler = async (event) => {
     }
     let result = null;
     try { result = JSON.parse(await res.text()); } catch { result = null; }
-    if (result && (result.created === true || result.registered === true)) {
+    if (result && result.ok) {
+      const isNew        = result.created === true;
+      const isRegistered = result.registered === true;
+      const isRepeat     = !isNew && !isRegistered;
+      const heading = isNew ? 'New sign-up' : isRegistered ? 'Registered' : 'Repeat submission';
+      const subject = `${heading}: ${row.first_name} ${row.last_name} (Upstate Diving CRM)`;
       await notifyCoach({
-        subject: `${result.created ? 'New sign-up' : 'Registered'}: ${row.first_name} ${row.last_name} (Upstate Diving CRM)`,
-        heading: result.created ? 'New sign-up' : 'Registered',
+        subject,
+        heading,
         leadId: result.lead_id,
         replyTo: row.parent_email,
         rows: [
@@ -178,11 +183,12 @@ exports.handler = async (event) => {
           ['Diving location', row.diving_location],
           ['AAU number', row.aau_number],
           ['Found us through', row.source],
+          ...(isRepeat ? [['Note', 'Repeat submission — existing record updated with any blank fields filled in']] : []),
         ],
       });
-      // The family's confirmation email (any enabled "after sign-up" template);
-      // the 10-minute scheduler retries it if this attempt fails.
-      if (result.created) await processDue({ leadId: result.lead_id });
+      // Family confirmation email: send for new leads, and re-send for repeats
+      // so the family always gets an acknowledgement.
+      if (isNew || isRepeat) await processDue({ leadId: result.lead_id });
     }
     return json(200, { success: true });
   } catch (err) {
