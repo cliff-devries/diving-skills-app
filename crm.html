@@ -111,6 +111,8 @@
 
     /* ---- Dashboard kanban ---- */
     .dcrm-board-title { font-size: 1.4rem; font-weight: 800; }
+    .kb-search-wrap { margin-bottom: 10px; }
+    .kb-search-wrap input { max-width: 360px; }
     .kb-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .kb-stat {
       display: inline-flex; align-items: baseline; gap: 6px; font: inherit; color: var(--text-secondary);
@@ -381,6 +383,9 @@
       <h1 class="dcrm-board-title">Pipeline</h1>
       <button class="btn btn-primary btn-sm" onclick="openAdd()">+ Add Lead</button>
     </div>
+    <div class="kb-search-wrap">
+      <input type="search" id="kb-search" class="form-input" placeholder="Search contacts…" oninput="renderDashboard()" autocomplete="off">
+    </div>
     <div class="kb-stats" id="kb-stats"></div>
     <div class="kb-mobile-nav">
       <button class="btn btn-ghost btn-sm" id="kb-prev" onclick="kbStep(-1)">← Prev</button>
@@ -551,6 +556,13 @@
       <h1 class="fu-title" id="ntm-title">New This Month</h1>
     </div>
     <div id="ntm-body"></div>
+  </section>
+
+  <section class="dcrm-view" id="view-droppedthismonth" hidden>
+    <div class="fu-header">
+      <h1 class="fu-title" id="dtm-title">Dropped This Month</h1>
+    </div>
+    <div id="dtm-body"></div>
   </section>
 
   <section class="dcrm-view" id="view-lead" hidden></section>
@@ -1149,7 +1161,7 @@ function renderAll() {
 
 /* ---------- views (hash tabs: #dashboard #leads #contacts #reports) ---------- */
 
-const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'followup', 'newthismonth', 'lead'];
+const VIEWS = ['dashboard', 'leads', 'services', 'emails', 'activities', 'reports', 'followup', 'newthismonth', 'droppedthismonth', 'lead'];
 let currentView = 'leads';
 let lastTabView = 'dashboard';
 
@@ -1168,6 +1180,7 @@ function showView() {
   if (currentView === 'activities') loadActivities();
   if (currentView === 'followup') renderFollowUp();
   if (currentView === 'newthismonth') renderNewThisMonth();
+  if (currentView === 'droppedthismonth') renderDroppedThisMonth();
   if (currentView === 'lead') openLeadPage(arg);
   else { currentLeadId = null; detailEdit = false; leadNavIds = null; }
   window.scrollTo(0, 0);
@@ -1236,12 +1249,14 @@ function renderKanbanStats(today) {
   const needsFollowUp = leads.filter(l => l.needs_follow_up).length;
   const trials = leads.filter(l => l.trial_date && l.trial_date >= weekStart && l.trial_date <= weekEnd).length;
   const newThisMonth = leads.filter(l => l.created_at && localDateStr(new Date(l.created_at)).slice(0, 7) === monthPrefix).length;
+  const droppedThisMonth = leads.filter(l => l.stage === 'dropped' && l.updated_at && localDateStr(new Date(l.updated_at)).slice(0, 7) === monthPrefix).length;
 
   document.getElementById('kb-stats').innerHTML = `
     <button class="kb-stat" onclick="applyStatFilter('open')"><b>${active}</b> active leads</button>
     <button class="kb-stat ${needsFollowUp ? 'warn' : ''}" onclick="applyStatFilter('due')"><b>${needsFollowUp}</b> follow-ups due</button>
     <span class="kb-stat" style="cursor:default"><b>${trials}</b> trials this week</span>
     <button class="kb-stat" onclick="goToView('newthismonth')"><b>${newThisMonth}</b> new this month</button>
+    <button class="kb-stat ${droppedThisMonth ? 'warn' : ''}" onclick="goToView('droppedthismonth')"><b>${droppedThisMonth}</b> dropped this month</button>
     <button class="kb-stat" onclick="showArchivedLeads()"><b>${leads.filter(l => ARCHIVED_STAGES.has(l.stage)).length}</b> archived</button>`;
 }
 
@@ -1291,8 +1306,10 @@ function openStageList(key) {
 function renderDashboard() {
   const today = todayLocal();
   renderKanbanStats(today);
+  const q = (document.getElementById('kb-search')?.value || '').trim().toLowerCase();
   document.getElementById('kb-board').innerHTML = KANBAN.map((col, i) => {
-    const items = leads.filter(l => l.stage === col.key);
+    let items = leads.filter(l => l.stage === col.key);
+    if (q) items = items.filter(l => leadSearchText(l).includes(q));
     kbOrder[col.key] = items;
     if (col.key === 'lead' || col.key === 'registered' || col.key === 'trial_completed') {
       items.sort((a, b) => (a.follow_up_date || '9999-12-31').localeCompare(b.follow_up_date || '9999-12-31'));
@@ -1305,7 +1322,7 @@ function renderDashboard() {
           ${KANBAN_ADDABLE.has(col.key) ? `<button class="kb-add" onclick="openAdd('${col.key}')" title="Add a lead to ${esc(col.label)}">+ Add</button>` : ''}
         </div>
         <div class="kb-col-body">
-          ${items.length ? items.map(l => kanbanCardHtml(l, today, col.color)).join('') : '<div class="kb-empty">No leads</div>'}
+          ${items.length ? items.map(l => kanbanCardHtml(l, today, col.color)).join('') : `<div class="kb-empty">${q ? 'No matches' : 'No leads'}</div>`}
         </div>
       </div>`;
   }).join('');
@@ -1861,6 +1878,34 @@ function renderNewThisMonth() {
         ${parentName ? `<div class="fu-parent">Parent: ${esc(parentName)}</div>` : ''}
       </div>
       <span class="fu-stage">${esc(stageLabel)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderDroppedThisMonth() {
+  const today = todayLocal();
+  const monthPrefix = today.slice(0, 7);
+  const monthLabel = new Date(today + 'T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  document.getElementById('dtm-title').textContent = `Dropped / Quit in ${monthLabel}`;
+  const list = (leads || []).filter(l => l.stage === 'dropped' && l.updated_at && localDateStr(new Date(l.updated_at)).slice(0, 7) === monthPrefix);
+  const el = document.getElementById('dtm-body');
+  if (!list.length) {
+    el.innerHTML = `<div class="fu-empty"><div class="fu-empty-icon">✅</div><p>No one dropped this month.</p></div>`;
+    return;
+  }
+  const sorted = list.slice().sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  el.innerHTML = `<div class="fu-list">${sorted.map(l => {
+    const c = l.contact || {};
+    const parentName = [c.full_name, c.last_name].filter(Boolean).join(' ');
+    const droppedDate = l.updated_at ? new Date(l.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    return `
+    <div class="fu-row" onclick="goToView('lead/${l.id}')">
+      <div style="font-size:0.78rem;color:var(--text-secondary);text-align:center;min-width:36px;line-height:1.2">${esc(droppedDate.replace(' ', '<br>'))}</div>
+      <div class="fu-info">
+        <div class="fu-diver">${esc(leadName(l))}</div>
+        ${parentName ? `<div class="fu-parent">Parent: ${esc(parentName)}</div>` : ''}
+      </div>
+      <span class="fu-stage" style="background:#fdecea;color:#c62828">Dropped</span>
     </div>`;
   }).join('')}</div>`;
 }
