@@ -41,10 +41,7 @@ body::before{
 .site-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
 .site-title{font-size:1.4rem;font-weight:700;letter-spacing:-.02em;color:var(--text)}
 .site-title span{color:var(--accent)}
-.org-btn{font:inherit;font-size:.8rem;background:none;border:1px solid var(--border);border-radius:20px;color:var(--muted);padding:5px 14px;cursor:pointer;transition:border-color .15s}
-.org-btn:hover{border-color:var(--accent);color:var(--accent)}
 .org-badge{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:20px;padding:4px 12px}
-.org-badge button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 4px}
 
 /* ── Cards ── */
 .activity-grid{display:grid;gap:14px}
@@ -93,7 +90,6 @@ body::before{
 }
 .signup-row:last-child{border-bottom:none}
 .signup-row .who{flex:1}
-.signup-row .qty{color:var(--muted);font-size:.78rem}
 .signup-row .note{color:var(--muted);font-style:italic;font-size:.78rem}
 .del-signup{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:2px 4px;border-radius:4px}
 .del-signup:hover{color:var(--danger)}
@@ -179,6 +175,8 @@ body::before{
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
+<script src="js/supabase.js?v=46"></script>
+<script src="js/auth.js?v=6"></script>
 <script>
 'use strict';
 
@@ -187,23 +185,24 @@ let activities = [];
 let items      = {};   // { activityId: [item, …] }
 let signups    = {};   // { itemId: [signup, …] }
 let isOrg      = false;
+let authToken  = null; // Supabase JWT for organizer API calls
 let currentActivity = null;
 let view       = 'home'; // 'home' | 'activity' | 'cancel'
-let db;
+let anonDb;
 
-// ── Supabase read-only client ──────────────────────────────────
+// ── Supabase read-only client (anon key) ───────────────────────
 function initDb() {
-  db = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  anonDb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 }
 
 // ── API (all writes go through the Netlify function) ───────────
 async function api(action, payload = {}) {
-  const password = isOrg ? (sessionStorage.getItem('su_org_pass') || '') : undefined;
-  const body = JSON.stringify({ action, ...(password !== undefined ? { password } : {}), ...payload });
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
   const res = await fetch('/.netlify/functions/su-api', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
+    headers,
+    body: JSON.stringify({ action, ...payload }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
@@ -213,9 +212,9 @@ async function api(action, payload = {}) {
 // ── Data loading ───────────────────────────────────────────────
 async function loadAll() {
   const [{ data: acts }, { data: itms }, { data: sgns }] = await Promise.all([
-    db.from('su_activities').select('*').order('date', { ascending: true }).order('created_at'),
-    db.from('su_items').select('*').order('sort_order').order('created_at'),
-    db.from('su_signups').select('id, item_id, activity_id, name, qty, note, edit_token, created_at'),
+    anonDb.from('su_activities').select('*').order('date', { ascending: true }).order('created_at'),
+    anonDb.from('su_items').select('*').order('sort_order').order('created_at'),
+    anonDb.from('su_signups').select('id, item_id, activity_id, name, qty, note, edit_token, created_at'),
   ]);
 
   activities = acts || [];
@@ -287,15 +286,8 @@ function renderApp() {
   app.innerHTML = renderHome();
 }
 
-function orgControls(editCb, deleteCb, label = '') {
-  if (!isOrg) return '';
-  return `<button class="btn btn-ghost btn-sm" onclick="${editCb}">✏️ Edit${label}</button>
-          <button class="btn btn-danger btn-sm" onclick="${deleteCb}">🗑 Delete${label}</button>`;
-}
-
 // ── Home view ──────────────────────────────────────────────────
 function renderHome() {
-  const today = new Date().toISOString().slice(0, 10);
   const upcoming = activities.filter(a => !isPast(a));
   const past     = activities.filter(a => isPast(a));
 
@@ -321,11 +313,7 @@ function renderHome() {
     <div class="site-header">
       <a href="hub.html" style="font-size:.78rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:4px" title="DiveCentral">← DiveCentral</a>
       <div class="site-title">Dive<span>SignUp</span></div>
-      ${isOrg
-        ? `<div style="display:flex;align-items:center;gap:8px">
-             <div class="org-badge">🔑 Organizer <button onclick="logOutOrg()" title="Sign out">✕</button></div>
-           </div>`
-        : `<button class="org-btn" onclick="showOrgLogin()">Organizer login</button>`}
+      ${isOrg ? `<div class="org-badge">🔑 Coach</div>` : '<div></div>'}
     </div>
     ${isOrg ? `<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showCreateActivity()">+ New activity</button></div>` : ''}
     ${upcoming.length
@@ -410,52 +398,6 @@ function renderCancelPage() {
     <p>Your spot has been removed. See you next time!</p>
     <a class="btn btn-ghost" href="signup.html">Back to sign-ups</a>
   </div>`;
-}
-
-// ── Organizer auth ─────────────────────────────────────────────
-function showOrgLogin() {
-  openModal(`
-    <h2>Organizer login</h2>
-    <div class="form-group">
-      <label class="form-label">Password</label>
-      <input type="password" id="org-pass" class="form-input" placeholder="Organizer password" autocomplete="current-password">
-    </div>
-    <div class="error-msg" id="org-err"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="doOrgLogin()">Sign in</button>
-    </div>
-  `);
-  setTimeout(() => document.getElementById('org-pass')?.focus(), 50);
-}
-
-async function doOrgLogin() {
-  const pass = document.getElementById('org-pass').value;
-  if (!pass) { document.getElementById('org-err').textContent = 'Enter your password'; return; }
-  try {
-    // Validate by trying a no-op organizer action
-    await api('create_activity', { password: pass, title: '__test__' });
-    // If the test succeeded, delete the test activity (it's ephemeral)
-  } catch (err) {
-    if (err.message.includes('Wrong') || err.message.includes('403')) {
-      document.getElementById('org-err').textContent = 'Incorrect password';
-      return;
-    }
-    // Any other error means the password was accepted (the action itself might have issues)
-  }
-  // A cleaner approach: the function validates password before anything else,
-  // so try a lightweight but valid action.
-  // Instead, verify via delete of a non-existent id which should succeed auth-wise.
-  sessionStorage.setItem('su_org_pass', pass);
-  isOrg = true;
-  closeModal();
-  renderApp();
-}
-
-function logOutOrg() {
-  sessionStorage.removeItem('su_org_pass');
-  isOrg = false;
-  renderApp();
 }
 
 // ── Activity CRUD ──────────────────────────────────────────────
@@ -751,7 +693,6 @@ async function submitSignup(itemId, hasQty) {
 
   try {
     const { signup } = await api('create_signup', { item_id: itemId, name, email: email || null, qty, note: note || null });
-    // Remember name/email and their edit_token so they can cancel from this browser
     try {
       localStorage.setItem('su_name', name);
       if (email) localStorage.setItem('su_email', email);
@@ -784,7 +725,6 @@ async function removeSignup(signupId, editToken) {
     } else {
       await api('cancel_signup', { edit_token: editToken });
     }
-    // Remove stored token
     try {
       const tokens = JSON.parse(localStorage.getItem('su_tokens') || '{}');
       delete tokens[signupId];
@@ -848,55 +788,21 @@ function goHome() {
   window.scrollTo(0, 0);
 }
 
-// ── Organizer login (better validation) ───────────────────────
-// Override the previous doOrgLogin with a cleaner approach:
-// Try a known-safe organizer endpoint (delete a fake id — the server
-// authenticates password before hitting the DB, so a 403 means wrong pass,
-// anything else (404-ish from DB) means auth passed).
-async function doOrgLogin() {
-  const passEl = document.getElementById('org-pass');
-  if (!passEl) return;
-  const pass = passEl.value;
-  if (!pass) { document.getElementById('org-err').textContent = 'Enter your password'; return; }
-
-  try {
-    // We use a dummy delete — the server checks the password first.
-    // A 403 means wrong password; any other result means auth passed.
-    await fetch('/.netlify/functions/su-api', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete_activity', id: '00000000-0000-0000-0000-000000000000', password: pass }),
-    }).then(async res => {
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 403) throw new Error('wrong');
-      // Any other status (200, 500, etc.) means the password was accepted
-    });
-    sessionStorage.setItem('su_org_pass', pass);
-    isOrg = true;
-    closeModal();
-    renderApp();
-  } catch (err) {
-    document.getElementById('org-err').textContent = 'Incorrect password';
-  }
-}
-
 // ── URL-based cancel ───────────────────────────────────────────
 async function handleCancelToken(token) {
   try {
     await api('cancel_signup', { edit_token: token });
-    view = 'cancel';
-    renderApp();
-  } catch {
-    view = 'cancel'; // Show cancel page even on error (idempotent)
-    renderApp();
-  }
+  } catch {}
+  view = 'cancel';
+  renderApp();
 }
 
 // ── Init ───────────────────────────────────────────────────────
 async function init() {
   initDb();
+  initSupabase();
 
-  // Check for ?cancel= in URL
+  // Handle ?cancel= without requiring auth
   const params = new URLSearchParams(location.search);
   const cancelToken = params.get('cancel');
   if (cancelToken) {
@@ -904,9 +810,16 @@ async function init() {
     return;
   }
 
-  // Restore organizer session
-  const savedPass = sessionStorage.getItem('su_org_pass');
-  if (savedPass) isOrg = true;
+  // Check if the current user is a coach/super — if so, they get org controls
+  try {
+    const user = await Auth.init(false); // false = don't redirect if signed out
+    if (user && Auth.isCoachOrSuper(user)) {
+      isOrg = true;
+      // Get the session JWT to send with organizer API calls
+      const { data: { session } } = await anonDb.auth.getSession();
+      authToken = session?.access_token || null;
+    }
+  } catch {}
 
   try {
     await loadAll();

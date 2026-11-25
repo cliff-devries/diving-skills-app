@@ -1,13 +1,12 @@
 // =============================================
 // Netlify Function — DiveSignUp write API.
 // All mutations (create/edit/delete activity, item, signup) go here.
-// The organizer password is checked server-side; the service_role key
-// never reaches the browser.
+// Organizer actions require a valid Supabase JWT from a coach/super account.
+// The service_role key never reaches the browser.
 //
 // Required env vars:
 //   SUPABASE_URL              — project URL
 //   SUPABASE_SERVICE_ROLE_KEY — service_role key (never expose client-side)
-//   SIGNUP_ORGANIZER_PASSWORD — the organizer password (set in Netlify env)
 //   BREVO_API_KEY             — for confirmation emails (optional — email skipped if unset)
 //   BREVO_SENDER_EMAIL        — verified Brevo sender
 //   BREVO_SENDER_NAME         — display name for sender (optional)
@@ -46,6 +45,38 @@ function db(url, key) {
     patch:  (path, body)   => req('PATCH', path, body),
     delete: (path)         => req('DELETE', path),
   };
+}
+
+// Verify the Supabase JWT and check that the user has coach or super role.
+async function verifyCoach(url, token) {
+  if (!token) return false;
+  try {
+    const res = await fetch(`${url.replace(/\/+$/, '')}/auth/v1/user`, {
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return false;
+    const { id } = await res.json();
+    if (!id) return false;
+
+    // Look up the profile role using the service key
+    const profRes = await fetch(
+      `${url.replace(/\/+$/, '')}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,status`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+    if (!profRes.ok) return false;
+    const rows = await profRes.json();
+    const profile = rows?.[0];
+    return profile && (profile.role === 'coach' || profile.role === 'super') && profile.status === 'active';
+  } catch {
+    return false;
+  }
 }
 
 async function sendConfirmation({ name, email, activityTitle, itemName, cancelUrl }) {
@@ -90,7 +121,6 @@ exports.handler = async (event) => {
 
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const orgPass = process.env.SIGNUP_ORGANIZER_PASSWORD;
   if (!url || !key) return json(500, { error: 'Server misconfigured' });
 
   let d;
@@ -100,17 +130,18 @@ exports.handler = async (event) => {
   const client = db(url, key);
   const siteUrl = (process.env.URL || 'https://divedrills.com').replace(/\/+$/, '');
 
-  // ── Organizer-only actions ──────────────────────────────────
+  // ── Organizer-only actions: require a valid coach/super JWT ────
   const orgActions = new Set([
     'create_activity', 'update_activity', 'delete_activity',
     'create_item', 'update_item', 'delete_item',
-    'delete_signup',   // organizer can remove any signup
+    'delete_signup',
   ]);
 
   if (orgActions.has(action)) {
-    if (!orgPass || str(d.password, 200) !== orgPass) {
-      return json(403, { error: 'Wrong organizer password' });
-    }
+    const authHeader = event.headers['authorization'] || event.headers['Authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const ok = await verifyCoach(url, token);
+    if (!ok) return json(403, { error: 'Coach login required' });
   }
 
   try {
@@ -193,7 +224,6 @@ exports.handler = async (event) => {
 
       if (!itemId || !name) return json(400, { error: 'item_id and name are required' });
 
-      // Fetch item + current signups in one round-trip each, then check spots
       const [item]    = await client.get(`/su_items?id=eq.${encodeURIComponent(itemId)}&select=*`);
       if (!item) return json(404, { error: 'Item not found' });
 
@@ -213,7 +243,6 @@ exports.handler = async (event) => {
         note,
       });
 
-      // Email confirmation
       if (email) {
         const [activity] = await client.get(`/su_activities?id=eq.${encodeURIComponent(item.activity_id)}&select=title`);
         const cancelUrl = `${siteUrl}/signup.html?cancel=${encodeURIComponent(signup.edit_token)}`;
@@ -230,7 +259,6 @@ exports.handler = async (event) => {
     }
 
     if (action === 'delete_signup') {
-      // Organizer path — password already checked above
       const id = str(d.id, 36);
       if (!id) return json(400, { error: 'Missing id' });
       await client.delete(`/su_signups?id=eq.${encodeURIComponent(id)}`);
@@ -238,7 +266,6 @@ exports.handler = async (event) => {
     }
 
     if (action === 'cancel_signup') {
-      // Parent self-cancel via edit_token (no password needed)
       const token = str(d.edit_token, 36);
       if (!token) return json(400, { error: 'Missing edit_token' });
       await client.delete(`/su_signups?edit_token=eq.${encodeURIComponent(token)}`);
