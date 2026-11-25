@@ -216,7 +216,7 @@ exports.handler = async (event) => {
       // Email confirmation
       if (email) {
         const [activity] = await client.get(`/su_activities?id=eq.${encodeURIComponent(item.activity_id)}&select=title`);
-        const cancelUrl = `${siteUrl}/signup-genius.html?cancel=${encodeURIComponent(signup.edit_token)}`;
+        const cancelUrl = `${siteUrl}/signup.html?cancel=${encodeURIComponent(signup.edit_token)}`;
         await sendConfirmation({
           name,
           email,
