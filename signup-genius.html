@@ -355,6 +355,7 @@ function renderActivityDetail() {
       ${a.notes ? `<div class="notes">${esc(a.notes)}</div>` : ''}
       ${isOrg ? `<div class="act-actions">
         <button class="btn btn-ghost btn-sm" onclick="showEditActivity()">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="showCopyActivity()">📄 Copy</button>
         <button class="btn btn-danger btn-sm" onclick="confirmDeleteActivity()">🗑 Delete</button>
         <button class="btn btn-ghost btn-sm" onclick="showAddItem()">+ Add item</button>
         <button class="btn btn-ghost btn-sm" onclick="showSummary()">📋 Who's bringing what</button>
@@ -540,6 +541,74 @@ async function deleteActivity() {
     toast('Activity deleted');
   } catch (err) {
     toast('Error: ' + err.message);
+  }
+}
+
+function showCopyActivity() {
+  const a = currentActivity;
+  openModal(`
+    <h2>Copy activity</h2>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:16px">Creates a new activity with the same items but no sign-ups.</p>
+    <div class="form-group">
+      <label class="form-label">New title *</label>
+      <input class="form-input" id="ca-title" value="${esc(a.title + ' (copy)')}" placeholder="Activity title">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="ca-date" value="">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time</label>
+        <input class="form-input" id="ca-time" value="${esc(a.time_text || '')}" placeholder="e.g. 9 AM – 1 PM">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Location</label>
+      <input class="form-input" id="ca-loc" value="${esc(a.location || '')}" placeholder="e.g. RIT Gordon Field House">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-input" id="ca-notes" rows="2">${esc(a.notes || '')}</textarea>
+    </div>
+    <div class="error-msg" id="ca-err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doCopyActivity()">Create copy</button>
+    </div>
+  `);
+  setTimeout(() => { const el = document.getElementById('ca-title'); if (el) { el.focus(); el.select(); } }, 50);
+}
+
+async function doCopyActivity() {
+  const title = document.getElementById('ca-title').value.trim();
+  if (!title) { document.getElementById('ca-err').textContent = 'Title is required'; return; }
+  const payload = {
+    title,
+    date:      document.getElementById('ca-date').value || null,
+    time_text: document.getElementById('ca-time').value.trim() || null,
+    location:  document.getElementById('ca-loc').value.trim() || null,
+    notes:     document.getElementById('ca-notes').value.trim() || null,
+  };
+  try {
+    const { activity: newAct } = await api('create_activity', payload);
+    const srcItems = items[currentActivity.id] || [];
+    for (let i = 0; i < srcItems.length; i++) {
+      const it = srcItems[i];
+      await api('create_item', {
+        activity_id:  newAct.id,
+        name:         it.name,
+        description:  it.description || null,
+        spots_needed: it.spots_needed,
+        sort_order:   i,
+      });
+    }
+    closeModal();
+    await loadAll();
+    openActivity(newAct.id);
+    toast('Activity copied');
+  } catch (err) {
+    document.getElementById('ca-err').textContent = err.message;
   }
 }
 
