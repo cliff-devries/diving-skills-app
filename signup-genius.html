@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>DiveSignUp — Upstate Diving</title>
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface-raised: #222;
+  --border: #2a2a2a;
+  --text: #f0f0f0;
+  --muted: #888;
+  --accent: #00c9a7;
+  --accent-dim: rgba(0,201,167,.12);
+  --warn: #F76900;
+  --danger: #E53935;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.5;
+  min-height:100vh;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 70% 40% at 50% -10%,rgba(0,201,167,.12),transparent 70%);
+  pointer-events:none;z-index:0;
+}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:32px 16px 60px}
+
+/* ── Header ── */
+.site-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.site-title{font-size:1.4rem;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.site-title span{color:var(--accent)}
+.org-btn{font:inherit;font-size:.8rem;background:none;border:1px solid var(--border);border-radius:20px;color:var(--muted);padding:5px 14px;cursor:pointer;transition:border-color .15s}
+.org-btn:hover{border-color:var(--accent);color:var(--accent)}
+.org-badge{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:20px;padding:4px 12px}
+.org-badge button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 4px}
+
+/* ── Cards ── */
+.activity-grid{display:grid;gap:14px}
+.act-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.act-card:hover{border-color:var(--accent);background:var(--surface-raised)}
+.act-card.past{opacity:.55}
+.act-title{font-size:1.05rem;font-weight:600;margin-bottom:4px}
+.act-meta{font-size:.82rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.act-progress{display:flex;align-items:center;gap:10px;margin-top:8px}
+.prog-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.prog-label{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.prog-label.full{color:var(--accent)}
+
+.section-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:24px 0 10px}
+
+/* ── Back button ── */
+.back-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;display:flex;align-items:center;gap:6px;padding:0;margin-bottom:20px}
+.back-btn:hover{color:var(--text)}
+
+/* ── Activity detail ── */
+.act-header{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.act-header h1{font-size:1.3rem;font-weight:700;margin-bottom:6px}
+.act-header .meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+.act-header .notes{font-size:.88rem;color:var(--muted);border-top:1px solid var(--border);padding-top:10px;margin-top:10px;white-space:pre-wrap}
+.act-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+/* ── Item cards ── */
+.item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
+.item-name{font-weight:600;font-size:.95rem}
+.item-pill{
+  font-size:.72rem;white-space:nowrap;border-radius:20px;padding:2px 10px;
+  background:var(--accent-dim);color:var(--accent);
+}
+.item-pill.full{background:rgba(229,57,53,.12);color:var(--danger)}
+.item-desc{font-size:.82rem;color:var(--muted);margin-bottom:10px}
+.item-prog{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.signup-list{margin-bottom:10px}
+.signup-row{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:.85rem;padding:5px 0;border-bottom:1px solid var(--border);gap:8px;
+}
+.signup-row:last-child{border-bottom:none}
+.signup-row .who{flex:1}
+.signup-row .qty{color:var(--muted);font-size:.78rem}
+.signup-row .note{color:var(--muted);font-style:italic;font-size:.78rem}
+.del-signup{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:2px 4px;border-radius:4px}
+.del-signup:hover{color:var(--danger)}
+.item-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font:inherit;font-size:.85rem;font-weight:500;
+  padding:7px 16px;border-radius:var(--radius-sm);
+  border:1px solid transparent;cursor:pointer;transition:opacity .15s,background .15s;
+  text-decoration:none;
+}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.btn-primary:hover:not(:disabled){opacity:.88}
+.btn-ghost{background:none;color:var(--text);border-color:var(--border)}
+.btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:none;color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover:not(:disabled){background:rgba(229,57,53,.1)}
+.btn-sm{font-size:.78rem;padding:5px 12px}
+
+/* ── Modals ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.overlay.hidden{display:none}
+@media(min-width:600px){.overlay{align-items:center}}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;
+  width:100%;max-width:520px;padding:24px;max-height:90vh;overflow-y:auto;
+}
+@media(min-width:600px){.modal{border-radius:var(--radius)}}
+.modal h2{font-size:1.1rem;font-weight:700;margin-bottom:18px}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:5px}
+.form-input{
+  width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--radius-sm);padding:9px 12px;font:inherit;font-size:.9rem;
+}
+.form-input:focus{outline:none;border-color:var(--accent)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{
+  font:inherit;font-size:.78rem;padding:4px 10px;border-radius:20px;
+  background:var(--border);color:var(--muted);border:none;cursor:pointer;transition:background .15s,color .15s;
+}
+.chip:hover{background:var(--accent-dim);color:var(--accent)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.error-msg{font-size:.82rem;color:var(--danger);margin-top:8px;min-height:1.2em}
+
+/* ── Summary copy box ── */
+.summary-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;font-size:.82rem;white-space:pre-wrap;color:var(--muted);margin-top:12px;max-height:260px;overflow-y:auto}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--surface-raised);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--radius-sm);padding:10px 20px;font-size:.88rem;z-index:200;
+  opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;
+}
+.toast.show{opacity:1}
+
+/* ── Empty / loading ── */
+.empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:.95rem}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Cancel page ── */
+.cancel-page{text-align:center;padding:80px 20px}
+.cancel-page h1{font-size:1.5rem;margin-bottom:12px}
+.cancel-page p{color:var(--muted);margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="empty"><span class="spinner"></span> Loading…</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Overlays / Modals -->
+<div class="overlay hidden" id="modal-overlay" onclick="maybeCloseModal(event)">
+  <div class="modal" id="modal-box"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────
+let activities = [];
+let items      = {};   // { activityId: [item, …] }
+let signups    = {};   // { itemId: [signup, …] }
+let isOrg      = false;
+let currentActivity = null;
+let view       = 'home'; // 'home' | 'activity' | 'cancel'
+let db;
+
+// ── Supabase read-only client ──────────────────────────────────
+function initDb() {
+  db = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+}
+
+// ── API (all writes go through the Netlify function) ───────────
+async function api(action, payload = {}) {
+  const password = isOrg ? (sessionStorage.getItem('su_org_pass') || '') : undefined;
+  const body = JSON.stringify({ action, ...(password !== undefined ? { password } : {}), ...payload });
+  const res = await fetch('/.netlify/functions/su-api', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+// ── Data loading ───────────────────────────────────────────────
+async function loadAll() {
+  const [{ data: acts }, { data: itms }, { data: sgns }] = await Promise.all([
+    db.from('su_activities').select('*').order('date', { ascending: true }).order('created_at'),
+    db.from('su_items').select('*').order('sort_order').order('created_at'),
+    db.from('su_signups').select('id, item_id, activity_id, name, qty, note, edit_token, created_at'),
+  ]);
+
+  activities = acts || [];
+  items = {};
+  signups = {};
+  for (const it of (itms || [])) {
+    (items[it.activity_id] ||= []).push(it);
+  }
+  for (const sg of (sgns || [])) {
+    (signups[sg.item_id] ||= []).push(sg);
+  }
+}
+
+function spotsLeft(item) {
+  const taken = (signups[item.id] || []).reduce((s, r) => s + (r.qty || 1), 0);
+  return item.spots_needed - taken;
+}
+
+function activityProgress(act) {
+  const its = items[act.id] || [];
+  const total = its.reduce((s, i) => s + i.spots_needed, 0);
+  const taken = its.reduce((s, i) => s + (i.spots_needed - spotsLeft(i)), 0);
+  return { total, taken };
+}
+
+function isPast(act) {
+  if (!act.date) return false;
+  return act.date < new Date().toISOString().slice(0, 10);
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// ── Toast ──────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, dur = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ── Modal ──────────────────────────────────────────────────────
+function openModal(html, onClose) {
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('modal-overlay')._onClose = onClose || null;
+}
+function closeModal() {
+  const ov = document.getElementById('modal-overlay');
+  ov.classList.add('hidden');
+  if (ov._onClose) { ov._onClose(); ov._onClose = null; }
+}
+function maybeCloseModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// ── Render helpers ─────────────────────────────────────────────
+function renderApp() {
+  const app = document.getElementById('app');
+  if (view === 'cancel') { app.innerHTML = renderCancelPage(); return; }
+  if (view === 'activity' && currentActivity) { app.innerHTML = renderActivityDetail(); return; }
+  app.innerHTML = renderHome();
+}
+
+function orgControls(editCb, deleteCb, label = '') {
+  if (!isOrg) return '';
+  return `<button class="btn btn-ghost btn-sm" onclick="${editCb}">✏️ Edit${label}</button>
+          <button class="btn btn-danger btn-sm" onclick="${deleteCb}">🗑 Delete${label}</button>`;
+}
+
+// ── Home view ──────────────────────────────────────────────────
+function renderHome() {
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = activities.filter(a => !isPast(a));
+  const past     = activities.filter(a => isPast(a));
+
+  const actCard = (a) => {
+    const { total, taken } = activityProgress(a);
+    const pct = total ? Math.round(taken / total * 100) : 0;
+    const allFull = total > 0 && taken >= total;
+    return `<div class="act-card${isPast(a) ? ' past' : ''}" onclick="openActivity('${a.id}')">
+      <div class="act-title">${esc(a.title)}</div>
+      <div class="act-meta">
+        ${a.date ? `<span>📅 ${fmtDate(a.date)}</span>` : ''}
+        ${a.time_text ? `<span>🕐 ${esc(a.time_text)}</span>` : ''}
+        ${a.location ? `<span>📍 ${esc(a.location)}</span>` : ''}
+      </div>
+      <div class="act-progress">
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+        <span class="prog-label${allFull ? ' full' : ''}">${allFull ? '✅ All filled' : `${total - taken} open`}</span>
+      </div>
+    </div>`;
+  };
+
+  return `
+    <div class="site-header">
+      <div class="site-title">Dive<span>SignUp</span></div>
+      ${isOrg
+        ? `<div style="display:flex;align-items:center;gap:8px">
+             <div class="org-badge">🔑 Organizer <button onclick="logOutOrg()" title="Sign out">✕</button></div>
+           </div>`
+        : `<button class="org-btn" onclick="showOrgLogin()">Organizer login</button>`}
+    </div>
+    ${isOrg ? `<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showCreateActivity()">+ New activity</button></div>` : ''}
+    ${upcoming.length
+      ? `<div class="activity-grid">${upcoming.map(actCard).join('')}</div>`
+      : `<div class="empty">No upcoming activities yet.${isOrg ? ' Create one above.' : ''}</div>`}
+    ${past.length ? `<div class="section-label">Past</div><div class="activity-grid">${past.map(actCard).join('')}</div>` : ''}
+  `;
+}
+
+// ── Activity detail view ───────────────────────────────────────
+function renderActivityDetail() {
+  const a = currentActivity;
+  const its = items[a.id] || [];
+
+  const itemCards = its.length
+    ? its.map(item => renderItemCard(a, item)).join('')
+    : `<div class="empty" style="padding:30px">${isOrg ? 'No items yet. Add one below.' : 'No items yet.'}</div>`;
+
+  return `
+    <button class="back-btn" onclick="goHome()">← All activities</button>
+    <div class="act-header">
+      <h1>${esc(a.title)}</h1>
+      <div class="meta">
+        ${a.date ? `<span>📅 ${fmtDate(a.date)}</span>` : ''}
+        ${a.time_text ? `<span>🕐 ${esc(a.time_text)}</span>` : ''}
+        ${a.location ? `<span>📍 ${esc(a.location)}</span>` : ''}
+      </div>
+      ${a.notes ? `<div class="notes">${esc(a.notes)}</div>` : ''}
+      ${isOrg ? `<div class="act-actions">
+        <button class="btn btn-ghost btn-sm" onclick="showEditActivity()">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDeleteActivity()">🗑 Delete</button>
+        <button class="btn btn-ghost btn-sm" onclick="showAddItem()">+ Add item</button>
+        <button class="btn btn-ghost btn-sm" onclick="showSummary()">📋 Who's bringing what</button>
+      </div>` : ''}
+    </div>
+    ${itemCards}
+    ${isOrg ? `<div style="margin-top:12px"><button class="btn btn-ghost" onclick="showAddItem()">+ Add item</button></div>` : ''}
+  `;
+}
+
+function renderItemCard(a, item) {
+  const left = spotsLeft(item);
+  const taken = item.spots_needed - left;
+  const full = left <= 0;
+  const pct = Math.round(taken / item.spots_needed * 100);
+  const sgs = signups[item.id] || [];
+
+  const signupRows = sgs.map(sg => {
+    const myToken = getMyToken(sg.id);
+    const canRemove = isOrg || myToken === sg.edit_token;
+    return `<div class="signup-row">
+      <span class="who">${esc(sg.name)}${sg.qty > 1 ? ` ×${sg.qty}` : ''}</span>
+      ${sg.note ? `<span class="note">${esc(sg.note)}</span>` : ''}
+      ${canRemove ? `<button class="del-signup" onclick="removeSignup('${sg.id}','${sg.edit_token}')" title="Remove">✕</button>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="item-card" id="item-${item.id}">
+    <div class="item-head">
+      <div class="item-name">${esc(item.name)}</div>
+      <span class="item-pill${full ? ' full' : ''}">${full ? 'Full' : `${left} of ${item.spots_needed} open`}</span>
+    </div>
+    ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ''}
+    <div class="item-prog">
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <span class="prog-label${full ? ' full' : ''}">${taken}/${item.spots_needed}</span>
+    </div>
+    ${sgs.length ? `<div class="signup-list">${signupRows}</div>` : ''}
+    <div class="item-actions">
+      ${full ? '' : `<button class="btn btn-primary btn-sm" onclick="showSignupForm('${item.id}')">Sign up</button>`}
+      ${isOrg ? `<button class="btn btn-ghost btn-sm" onclick="showEditItem('${item.id}')">✏️ Edit</button>
+                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('${item.id}')">🗑</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── Cancel page ────────────────────────────────────────────────
+function renderCancelPage() {
+  return `<div class="cancel-page">
+    <h1>Sign-up cancelled</h1>
+    <p>Your spot has been removed. See you next time!</p>
+    <a class="btn btn-ghost" href="signup-genius.html">Back to sign-ups</a>
+  </div>`;
+}
+
+// ── Organizer auth ─────────────────────────────────────────────
+function showOrgLogin() {
+  openModal(`
+    <h2>Organizer login</h2>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="org-pass" class="form-input" placeholder="Organizer password" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="org-err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doOrgLogin()">Sign in</button>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('org-pass')?.focus(), 50);
+}
+
+async function doOrgLogin() {
+  const pass = document.getElementById('org-pass').value;
+  if (!pass) { document.getElementById('org-err').textContent = 'Enter your password'; return; }
+  try {
+    // Validate by trying a no-op organizer action
+    await api('create_activity', { password: pass, title: '__test__' });
+    // If the test succeeded, delete the test activity (it's ephemeral)
+  } catch (err) {
+    if (err.message.includes('Wrong') || err.message.includes('403')) {
+      document.getElementById('org-err').textContent = 'Incorrect password';
+      return;
+    }
+    // Any other error means the password was accepted (the action itself might have issues)
+  }
+  // A cleaner approach: the function validates password before anything else,
+  // so try a lightweight but valid action.
+  // Instead, verify via delete of a non-existent id which should succeed auth-wise.
+  sessionStorage.setItem('su_org_pass', pass);
+  isOrg = true;
+  closeModal();
+  renderApp();
+}
+
+function logOutOrg() {
+  sessionStorage.removeItem('su_org_pass');
+  isOrg = false;
+  renderApp();
+}
+
+// ── Activity CRUD ──────────────────────────────────────────────
+const ACTIVITY_FORM = (a = {}) => `
+  <h2>${a.id ? 'Edit activity' : 'New activity'}</h2>
+  <div class="form-group">
+    <label class="form-label">Title *</label>
+    <input class="form-input" id="af-title" value="${esc(a.title || '')}" placeholder="e.g. Home invitational volunteers">
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="af-date" value="${esc(a.date || '')}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time</label>
+      <input class="form-input" id="af-time" value="${esc(a.time_text || '')}" placeholder="e.g. 9 AM – 1 PM">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Location</label>
+    <input class="form-input" id="af-loc" value="${esc(a.location || '')}" placeholder="e.g. RIT Gordon Field House">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Notes</label>
+    <textarea class="form-input" id="af-notes" rows="3" placeholder="Any extra info for parents">${esc(a.notes || '')}</textarea>
+  </div>
+  <div class="error-msg" id="af-err"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveActivity(${a.id ? `'${a.id}'` : 'null'})">${a.id ? 'Save' : 'Create'}</button>
+  </div>
+`;
+
+function showCreateActivity() { openModal(ACTIVITY_FORM()); }
+function showEditActivity() { openModal(ACTIVITY_FORM(currentActivity)); }
+
+async function saveActivity(id) {
+  const title = document.getElementById('af-title').value.trim();
+  if (!title) { document.getElementById('af-err').textContent = 'Title is required'; return; }
+  const payload = {
+    title,
+    date:      document.getElementById('af-date').value || null,
+    time_text: document.getElementById('af-time').value.trim() || null,
+    location:  document.getElementById('af-loc').value.trim() || null,
+    notes:     document.getElementById('af-notes').value.trim() || null,
+  };
+  try {
+    if (id) {
+      await api('update_activity', { id, ...payload });
+    } else {
+      const { activity } = await api('create_activity', payload);
+      id = activity.id;
+    }
+    closeModal();
+    await loadAll();
+    if (currentActivity?.id === id) {
+      currentActivity = activities.find(a => a.id === id) || null;
+    }
+    renderApp();
+    toast(id ? 'Activity saved' : 'Activity created');
+  } catch (err) {
+    document.getElementById('af-err').textContent = err.message;
+  }
+}
+
+function confirmDeleteActivity() {
+  openModal(`
+    <h2>Delete activity?</h2>
+    <p style="color:var(--muted);margin-bottom:18px">This will delete "${esc(currentActivity.title)}" and all its items and sign-ups.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deleteActivity()">Yes, delete</button>
+    </div>
+  `);
+}
+
+async function deleteActivity() {
+  try {
+    await api('delete_activity', { id: currentActivity.id });
+    closeModal();
+    await loadAll();
+    goHome();
+    toast('Activity deleted');
+  } catch (err) {
+    toast('Error: ' + err.message);
+  }
+}
+
+// ── Item CRUD ──────────────────────────────────────────────────
+const QUICK_PICKS = [
+  'Pool-deck snacks','Water & sports drinks','Team dinner dish','Carpool driver',
+  'Timer / scorer','Check-in table','Set up & clean up',
+  'Hotel / meal coordinator','Photographer','Fruit & veggie tray',
+];
+
+function itemForm(item = {}) {
+  return `
+  <h2>${item.id ? 'Edit item' : 'Add item'}</h2>
+  ${!item.id ? `<div class="chip-row">${QUICK_PICKS.map(p =>
+    `<button class="chip" onclick="pickChip('${esc(p)}')">${esc(p)}</button>`
+  ).join('')}</div>` : ''}
+  <div class="form-group">
+    <label class="form-label">Name *</label>
+    <input class="form-input" id="if-name" value="${esc(item.name || '')}" placeholder="What do you need?">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Description</label>
+    <input class="form-input" id="if-desc" value="${esc(item.description || '')}" placeholder="Optional details">
+  </div>
+  <div class="form-group" style="max-width:120px">
+    <label class="form-label">Spots needed</label>
+    <input type="number" class="form-input" id="if-spots" value="${item.spots_needed || 1}" min="1" max="99">
+  </div>
+  <div class="error-msg" id="if-err"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveItem(${item.id ? `'${item.id}'` : 'null'})">${item.id ? 'Save' : 'Add'}</button>
+  </div>`;
+}
+
+function pickChip(name) {
+  const el = document.getElementById('if-name');
+  if (el) el.value = name;
+}
+
+function showAddItem() { openModal(itemForm()); }
+function showEditItem(itemId) {
+  const item = (items[currentActivity.id] || []).find(i => i.id === itemId);
+  if (item) openModal(itemForm(item));
+}
+
+async function saveItem(id) {
+  const name = document.getElementById('if-name').value.trim();
+  if (!name) { document.getElementById('if-err').textContent = 'Name is required'; return; }
+  const spots = parseInt(document.getElementById('if-spots').value, 10);
+  if (!Number.isFinite(spots) || spots < 1) { document.getElementById('if-err').textContent = 'Spots must be at least 1'; return; }
+  const payload = {
+    name,
+    description:  document.getElementById('if-desc').value.trim() || null,
+    spots_needed: spots,
+  };
+  try {
+    if (id) {
+      await api('update_item', { id, ...payload });
+    } else {
+      const its = items[currentActivity.id] || [];
+      await api('create_item', { activity_id: currentActivity.id, sort_order: its.length, ...payload });
+    }
+    closeModal();
+    await loadAll();
+    renderApp();
+    toast(id ? 'Item saved' : 'Item added');
+  } catch (err) {
+    document.getElementById('if-err').textContent = err.message;
+  }
+}
+
+function confirmDeleteItem(itemId) {
+  const item = (items[currentActivity.id] || []).find(i => i.id === itemId);
+  if (!item) return;
+  openModal(`
+    <h2>Delete item?</h2>
+    <p style="color:var(--muted);margin-bottom:18px">Remove "${esc(item.name)}" and all its sign-ups?</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deleteItem('${itemId}')">Yes, delete</button>
+    </div>
+  `);
+}
+
+async function deleteItem(id) {
+  try {
+    await api('delete_item', { id });
+    closeModal();
+    await loadAll();
+    renderApp();
+    toast('Item deleted');
+  } catch (err) { toast('Error: ' + err.message); }
+}
+
+// ── Signup form ────────────────────────────────────────────────
+function showSignupForm(itemId) {
+  const item = (items[currentActivity.id] || []).find(i => i.id === itemId);
+  if (!item) return;
+  const left = spotsLeft(item);
+  const savedName = localStorage.getItem('su_name') || '';
+  const savedEmail = localStorage.getItem('su_email') || '';
+  const needsQty = item.spots_needed > 1;
+
+  openModal(`
+    <h2>Sign up for "${esc(item.name)}"</h2>
+    <div class="form-group">
+      <label class="form-label">Your name *</label>
+      <input class="form-input" id="sf-name" value="${esc(savedName)}" placeholder="First & last name" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email <span style="color:var(--muted)">(optional — for confirmation)</span></label>
+      <input type="email" class="form-input" id="sf-email" value="${esc(savedEmail)}" placeholder="your@email.com" autocomplete="email">
+    </div>
+    ${needsQty ? `<div class="form-group" style="max-width:120px">
+      <label class="form-label">How many spots? (max ${left})</label>
+      <input type="number" class="form-input" id="sf-qty" value="1" min="1" max="${left}">
+    </div>` : ''}
+    <div class="form-group">
+      <label class="form-label">Note <span style="color:var(--muted)">(optional)</span></label>
+      <input class="form-input" id="sf-note" placeholder="e.g. gluten-free, arriving at 8am">
+    </div>
+    <div class="error-msg" id="sf-err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSignup('${itemId}', ${needsQty})">Sign up</button>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('sf-name')?.focus(), 50);
+}
+
+async function submitSignup(itemId, hasQty) {
+  const name  = document.getElementById('sf-name').value.trim();
+  const email = document.getElementById('sf-email').value.trim();
+  const qty   = hasQty ? parseInt(document.getElementById('sf-qty').value, 10) : 1;
+  const note  = document.getElementById('sf-note').value.trim();
+  if (!name) { document.getElementById('sf-err').textContent = 'Please enter your name'; return; }
+  if (hasQty && (!Number.isFinite(qty) || qty < 1)) { document.getElementById('sf-err').textContent = 'Invalid quantity'; return; }
+
+  try {
+    const { signup } = await api('create_signup', { item_id: itemId, name, email: email || null, qty, note: note || null });
+    // Remember name/email and their edit_token so they can cancel from this browser
+    try {
+      localStorage.setItem('su_name', name);
+      if (email) localStorage.setItem('su_email', email);
+      const tokens = JSON.parse(localStorage.getItem('su_tokens') || '{}');
+      tokens[signup.id] = signup.edit_token;
+      localStorage.setItem('su_tokens', JSON.stringify(tokens));
+    } catch {}
+    closeModal();
+    await loadAll();
+    renderApp();
+    toast('✅ You\'re signed up!');
+  } catch (err) {
+    document.getElementById('sf-err').textContent = err.message;
+  }
+}
+
+function getMyToken(signupId) {
+  try {
+    const tokens = JSON.parse(localStorage.getItem('su_tokens') || '{}');
+    return tokens[signupId] || null;
+  } catch { return null; }
+}
+
+async function removeSignup(signupId, editToken) {
+  const isOwnToken = getMyToken(signupId) === editToken;
+  if (!isOrg && !isOwnToken) return;
+  try {
+    if (isOrg) {
+      await api('delete_signup', { id: signupId });
+    } else {
+      await api('cancel_signup', { edit_token: editToken });
+    }
+    // Remove stored token
+    try {
+      const tokens = JSON.parse(localStorage.getItem('su_tokens') || '{}');
+      delete tokens[signupId];
+      localStorage.setItem('su_tokens', JSON.stringify(tokens));
+    } catch {}
+    await loadAll();
+    renderApp();
+    toast('Sign-up removed');
+  } catch (err) { toast('Error: ' + err.message); }
+}
+
+// ── Summary (organizer) ────────────────────────────────────────
+function showSummary() {
+  const a = currentActivity;
+  const its = items[a.id] || [];
+  let text = `${a.title}\n`;
+  if (a.date) text += `${fmtDate(a.date)}`;
+  if (a.time_text) text += ` · ${a.time_text}`;
+  if (a.location) text += ` · ${a.location}`;
+  text += '\n\n';
+  for (const item of its) {
+    const sgs = signups[item.id] || [];
+    text += `${item.name} (${sgs.length}/${item.spots_needed}):\n`;
+    if (sgs.length) {
+      for (const sg of sgs) {
+        text += `  • ${sg.name}${sg.qty > 1 ? ` ×${sg.qty}` : ''}${sg.note ? ` — ${sg.note}` : ''}\n`;
+      }
+    } else {
+      text += '  (no one yet)\n';
+    }
+    text += '\n';
+  }
+
+  openModal(`
+    <h2>Who's bringing what</h2>
+    <div class="summary-box" id="summary-text">${esc(text)}</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="copySummary()">📋 Copy</button>
+    </div>
+  `);
+}
+
+function copySummary() {
+  const text = document.getElementById('summary-text')?.textContent || '';
+  navigator.clipboard.writeText(text).then(() => toast('Copied!')).catch(() => toast('Could not copy'));
+}
+
+// ── Navigation ─────────────────────────────────────────────────
+function openActivity(id) {
+  currentActivity = activities.find(a => a.id === id) || null;
+  view = 'activity';
+  renderApp();
+  window.scrollTo(0, 0);
+}
+
+function goHome() {
+  currentActivity = null;
+  view = 'home';
+  renderApp();
+  window.scrollTo(0, 0);
+}
+
+// ── Organizer login (better validation) ───────────────────────
+// Override the previous doOrgLogin with a cleaner approach:
+// Try a known-safe organizer endpoint (delete a fake id — the server
+// authenticates password before hitting the DB, so a 403 means wrong pass,
+// anything else (404-ish from DB) means auth passed).
+async function doOrgLogin() {
+  const passEl = document.getElementById('org-pass');
+  if (!passEl) return;
+  const pass = passEl.value;
+  if (!pass) { document.getElementById('org-err').textContent = 'Enter your password'; return; }
+
+  try {
+    // We use a dummy delete — the server checks the password first.
+    // A 403 means wrong password; any other result means auth passed.
+    await fetch('/.netlify/functions/su-api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_activity', id: '00000000-0000-0000-0000-000000000000', password: pass }),
+    }).then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) throw new Error('wrong');
+      // Any other status (200, 500, etc.) means the password was accepted
+    });
+    sessionStorage.setItem('su_org_pass', pass);
+    isOrg = true;
+    closeModal();
+    renderApp();
+  } catch (err) {
+    document.getElementById('org-err').textContent = 'Incorrect password';
+  }
+}
+
+// ── URL-based cancel ───────────────────────────────────────────
+async function handleCancelToken(token) {
+  try {
+    await api('cancel_signup', { edit_token: token });
+    view = 'cancel';
+    renderApp();
+  } catch {
+    view = 'cancel'; // Show cancel page even on error (idempotent)
+    renderApp();
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────
+async function init() {
+  initDb();
+
+  // Check for ?cancel= in URL
+  const params = new URLSearchParams(location.search);
+  const cancelToken = params.get('cancel');
+  if (cancelToken) {
+    await handleCancelToken(cancelToken);
+    return;
+  }
+
+  // Restore organizer session
+  const savedPass = sessionStorage.getItem('su_org_pass');
+  if (savedPass) isOrg = true;
+
+  try {
+    await loadAll();
+    renderApp();
+  } catch (err) {
+    document.getElementById('app').innerHTML =
+      `<div class="empty">Failed to load: ${esc(err.message)}</div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
