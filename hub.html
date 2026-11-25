@@ -105,15 +105,11 @@
     }
 
     /* ---- Cards ---- */
-    /* 4 + 3 layout on an 8-track grid: every card spans 2 tracks, and the
-       second row starts at track 2 so its three cards sit centered. */
     .grid {
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 22px;
     }
-    .grid > .card { grid-column: span 2; }
-    .grid > .card:nth-child(5) { grid-column: 2 / span 2; }
     .card {
       --accent: var(--teal);
       position: relative;
@@ -249,15 +245,13 @@
       .wrap { padding: 64px 16px 32px; }
       .userbar { right: 16px; }
       .hero { margin-bottom: 36px; }
-      .grid { grid-template-columns: 1fr; gap: 18px; }
-      .grid > .card,
-      .grid > .card:nth-child(5) { grid-column: auto; }
+      .grid { grid-template-columns: 1fr 1fr; gap: 14px; }
       .card { padding: 28px 22px 22px; }
       footer { padding: 0 16px 28px; }
     }
     /* Compact desktop cards so all seven fit above the fold on a 1366x768 laptop. */
     @media (min-width: 761px) {
-      .wrap { max-width: 1100px; padding: 36px 24px 20px; }
+      .wrap { max-width: 1200px; padding: 36px 24px 20px; }
       .hero { margin-bottom: 28px; }
       .wordmark { font-size: clamp(2.2rem, 5vw, 2.8rem); }
       .tagline { margin-top: 8px; font-size: 1.05rem; }
@@ -279,7 +273,7 @@
       }
       .btn { padding: 8px 14px; font-size: .85rem; border-radius: 10px; }
       .badge { top: 14px; right: 14px; font-size: .6rem; padding: 4px 8px; }
-      footer { max-width: 1100px; padding: 0 24px 20px; }
+      footer { max-width: 1200px; padding: 0 24px 20px; }
       .divider { margin-bottom: 12px; }
     }
     @media (prefers-reduced-motion: reduce) {
