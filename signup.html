@@ -810,14 +810,17 @@ async function init() {
     return;
   }
 
-  // Check if the current user is a coach/super — if so, they get org controls
+  // Check if the current user is a coach/super — if so, they get org controls.
+  // We call getSession/getProfile directly (not Auth.init) so signed-in coaches
+  // are never redirected away from this public page.
   try {
-    const user = await Auth.init(false); // false = don't redirect if signed out
-    if (user && Auth.isCoachOrSuper(user)) {
-      isOrg = true;
-      // Get the session JWT to send with organizer API calls
-      const { data: { session } } = await anonDb.auth.getSession();
-      authToken = session?.access_token || null;
+    const { data: { session } } = await anonDb.auth.getSession();
+    if (session) {
+      const profile = await SupabaseDB.getProfile(session.user.id);
+      if (profile && Auth.isCoachOrSuper(profile)) {
+        isOrg = true;
+        authToken = session.access_token;
+      }
     }
   } catch {}
 
