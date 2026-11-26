@@ -553,9 +553,8 @@ window.addEventListener('online',()=>scheduleSync());
     const {data:{session}}=await window.supabaseClient.auth.getSession();
     if(session){
       authToken=session.access_token;
-      /* Auto-populate sync URL/key from config if not already set */
-      if(!S.sync.url&&window.SUPABASE_URL)S.sync.url=window.SUPABASE_URL;
-      if(!S.sync.key&&window.SUPABASE_ANON_KEY)S.sync.key=window.SUPABASE_ANON_KEY;
+      if(!S.sync.url&&typeof CONFIG!=='undefined')S.sync.url=CONFIG.SUPABASE_URL;
+      if(!S.sync.key&&typeof CONFIG!=='undefined')S.sync.key=CONFIG.SUPABASE_ANON_KEY;
       if(!S.sync.token)S.sync.token=authToken;
       save();
     }
