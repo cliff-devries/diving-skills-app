@@ -468,7 +468,7 @@ body.view-mode #content{padding:0;max-width:none;}
   <nav id="sidebar"></nav>
   <div id="mainWrap">
     <div id="debugBar"></div>
-    <div class="pp-mobile-backbar"><a href="dashboard.html">← DiveDrills</a></div>
+    <div class="pp-mobile-backbar"><a href="hub.html">← DiveCentral</a></div>
     <div id="statusBanner"></div>
     <main><div id="content"><div class="pp-loading-overlay"><div class="pp-loading-spinner pp-loading-spinner-lg"></div><span>Loading your practice data…</span></div></div></main>
   </div>
@@ -1612,8 +1612,8 @@ function renderDashboard(container){
         <div id="dashUpcoming"></div>
       </div>
     </div>
-    <a class="card dashboard-backcard" href="dashboard.html">
-      <span class="nav-icon">←</span><span>DiveDrills</span>
+    <a class="card dashboard-backcard" href="hub.html">
+      <span class="nav-icon">←</span><span>DiveCentral</span>
     </a>`;
   mountMiniMonthCalendar(document.getElementById('dashCalHost'));
   const upcoming=[...DB.plans].sort((a,b)=>a.date.localeCompare(b.date)).filter(p=>p.date>=todayISO()).slice(0,5);
