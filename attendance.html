@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="robots" content="noindex">
+<title>DiveAttendance — Upstate Diving</title>
+<style>
+:root{
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface-raised:#202020;--border:#2a2a2a;
+  --text:#f5f5f5;--muted:#9a9a9a;
+  --accent:#43A047;--accent-d:#2d7a30;
+  --P:#43A047;--A:#E53935;--L:#F76900;--E:#2196F3;
+  --radius:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+
+/* ---- top bar ---- */
+#top{
+  position:sticky;top:0;z-index:20;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  display:flex;align-items:center;gap:10px;
+}
+#top h1{font-size:18px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib{background:transparent;border:0;color:var(--text);font-size:20px;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;opacity:.8}
+.ib:active,.ib:hover{background:var(--surface-raised);opacity:1}
+#sync{font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.1);white-space:nowrap;color:var(--muted)}
+#sync.ok{background:rgba(67,160,71,.25);color:#6fcf73}
+#sync.err{background:rgba(229,57,53,.25);color:#ef5350}
+.back-link{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;padding:4px 0}
+.back-link:hover{color:var(--text)}
+
+/* ---- layout ---- */
+main{max-width:720px;margin:0 auto;padding:14px 14px calc(96px + env(safe-area-inset-bottom))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.mute{color:var(--muted);font-size:13px}
+.h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 2px 8px;font-weight:700}
+
+/* ---- classes list ---- */
+.cls{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.cls:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--border))}
+.dot{width:12px;height:42px;border-radius:6px;flex:none}
+.cls b{display:block;font-size:17px}
+.pill{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--surface-raised);color:var(--muted);white-space:nowrap;border:1px solid var(--border)}
+.pill.done{background:rgba(67,160,71,.18);color:#6fcf73;border-color:rgba(67,160,71,.35)}
+
+/* ---- FAB ---- */
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));background:var(--accent);color:#0f0f0f;border:0;border-radius:99px;padding:14px 20px;font-weight:700;box-shadow:0 6px 24px rgba(0,0,0,.5);z-index:15;font-size:15px}
+.fab:hover{filter:brightness(1.1)}
+
+/* ---- buttons ---- */
+.btn{border:1px solid var(--border);background:var(--surface-raised);border-radius:10px;padding:10px 14px;font-weight:600;color:var(--text)}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn.dng{color:#ef5350;border-color:rgba(229,57,53,.4)}
+.btn.dng:hover{background:rgba(229,57,53,.12)}
+.btn.sm{padding:6px 10px;font-size:14px}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+
+/* ---- date bar ---- */
+.datebar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.datebar input{flex:1;text-align:center;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface);color:var(--text);min-width:0;color-scheme:dark}
+
+/* ---- chips ---- */
+.chips{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.chip{flex:1;min-width:64px;text-align:center;border-radius:12px;padding:8px 4px;background:var(--surface);border:1px solid var(--border)}
+.chip b{display:block;font-size:20px}
+.chip span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+/* ---- diver cards ---- */
+.ava{width:38px;height:38px;border-radius:50%;background:var(--surface-raised);color:var(--text);display:grid;place-items:center;font-weight:700;font-size:14px;flex:none;border:1px solid var(--border)}
+.diver{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px}
+.diver .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg{display:flex;gap:6px;margin-top:8px}
+.seg button{flex:1;border:1.5px solid var(--border);background:var(--surface-raised);border-radius:10px;padding:9px 0;font-weight:700;color:var(--muted)}
+.seg button[data-s=P].on{background:var(--P);border-color:var(--P);color:#0f0f0f}
+.seg button[data-s=A].on{background:var(--A);border-color:var(--A);color:#fff}
+.seg button[data-s=L].on{background:var(--L);border-color:var(--L);color:#0f0f0f}
+.seg button[data-s=E].on{background:var(--E);border-color:var(--E);color:#fff}
+.note{font-size:13px;color:var(--muted);margin-top:6px;font-style:italic}
+.nb{border:0;background:transparent;font-size:18px;opacity:.5;padding:4px 6px}
+.nb.has{opacity:1}
+
+/* ---- reports table ---- */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--border)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td.P{color:var(--P)}td.A{color:var(--A)}td.L{color:var(--L)}td.E{color:var(--E)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--surface-raised)}
+.bar{height:8px;background:var(--surface-raised);border-radius:6px;overflow:hidden;min-width:50px}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+/* ---- diver history ---- */
+.hist{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.sd{width:26px;height:26px;border-radius:8px;color:#0f0f0f;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.sd.P{background:var(--P)}.sd.A{background:var(--A);color:#fff}.sd.L{background:var(--L)}.sd.E{background:var(--E);color:#fff}
+
+/* ---- forms ---- */
+label.f{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;font-weight:600}
+.in{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-raised);color:var(--text)}
+.in:focus{outline:none;border-color:var(--accent)}
+textarea.in{min-height:90px;resize:vertical}
+select.in{color-scheme:dark}
+.chk{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+
+/* ---- modal ---- */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-end;justify-content:center;z-index:50}
+#modal.show{display:flex}
+#modal .sheet{background:var(--surface);border:1px solid var(--border);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
+@media(min-width:600px){#modal{align-items:center}#modal .sheet{border-radius:20px}}
+.sheet h3{margin:0 0 10px;font-size:17px}
+
+/* ---- misc ---- */
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.suite a{display:block;padding:12px 4px;border-bottom:1px solid var(--border);color:var(--accent);font-weight:600;text-decoration:none}
+.suite a:last-child{border-bottom:0}
+@media print{#top,.fab,.noprint{display:none!important}body{background:#fff;color:#000}.card,.diver,.cls{border-color:#ccc}}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <button class="ib" id="back" style="display:none" data-act="back" aria-label="Back">‹</button>
+  <h1 id="title">DiveAttendance</h1>
+  <span id="sync" style="display:none"></span>
+  <button class="ib" data-act="go-reports" aria-label="Reports" title="Reports">📊</button>
+  <button class="ib" data-act="go-menu" aria-label="Menu" title="Menu">☰</button>
+</div>
+<main id="app"></main>
+<div id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js?v=46"></script>
+<script src="js/auth.js?v=6"></script>
+<script>
+/* =====================================================================
+   DiveAttendance — local-first attendance tracking with optional Supabase sync.
+   Part of the DiveDrills suite. Auth via auth.js (coach/super session).
+   ===================================================================== */
+const KEY='dd_attendance_v1';
+const STATUS={P:'Present',A:'Absent',L:'Late',E:'Excused'};
+const ORDER=['P','A','L','E'];
+const COLORS=['#43A047','#2196F3','#F76900','#8e5bd6','#E53935','#13a5a0','#e0569a'];
+
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const nowISO=()=>new Date().toISOString();
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today=()=>ymd(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)};
+const fmtDate=s=>new Date(s+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+const initials=n=>n.trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+const rkey=(date,g,d)=>`${date}|${g}|${d}`;
+
+/* ---------- state ---------- */
+function blank(){return{groups:[],divers:[],records:{},sessions:{},
+  sync:{url:'',key:'',token:'',refresh:'',lastPull:'1970-01-01T00:00:00.000Z',lastPush:'1970-01-01T00:00:00.000Z',
+        rosterTable:'profiles',nameCol:'full_name',firstCol:'first_name',lastCol:'last_name',auto:true},
+  suite:[{name:'DiveCentral',url:'hub.html'},{name:'Video Overlay',url:'/overlay'}]}}
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s){const b=blank();return{...b,...s,sync:{...b.sync,...s.sync}}}}catch(e){}return blank()}
+let saveT;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage full')}},50);scheduleSync()}
+let ui={view:'home',groupId:null,date:today(),diverId:null,rep:{from:addDays(today(),-30),to:today(),groupId:''},stack:[]};
+
+/* Supabase session from auth.js — set after initAuth() */
+let authToken='';
+
+/* ---------- helpers ---------- */
+const activeGroups=()=>S.groups.filter(g=>!g.archived);
+const groupDivers=gid=>S.divers.filter(d=>d.active!==false&&d.groupIds.includes(gid)).sort((a,b)=>a.name.localeCompare(b.name));
+const grp=id=>S.groups.find(g=>g.id===id);
+const dvr=id=>S.divers.find(d=>d.id===id);
+const rec=(date,g,d)=>S.records[rkey(date,g,d)];
+function setStatus(date,g,d,status){
+  const k=rkey(date,g,d),r=S.records[k]||{id:k,date,groupId:g,diverId:d,status:'',note:''};
+  r.status=status;r.updatedAt=nowISO();S.records[k]=r;save();
+}
+function setNote(date,g,d,note){
+  const k=rkey(date,g,d),r=S.records[k]||{id:k,date,groupId:g,diverId:d,status:'',note:''};
+  r.note=note;r.updatedAt=nowISO();S.records[k]=r;save();
+}
+function toast(msg){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--surface-raised);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:99px;z-index:99;font-size:14px';document.body.appendChild(t)}t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2200)}
+function counts(date,gid){const c={P:0,A:0,L:0,E:0,none:0};for(const d of groupDivers(gid)){const r=rec(date,gid,d.id);if(r&&r.status)c[r.status]++;else c.none++}return c}
+
+/* ---------- modal ---------- */
+function modal(html,onMount){const m=document.getElementById('modal'),s=document.getElementById('sheet');s.innerHTML=html;m.classList.add('show');onMount&&onMount(s)}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+
+/* ---------- navigation ---------- */
+function go(view,extra={}){ui.stack.push({view:ui.view,groupId:ui.groupId,diverId:ui.diverId});Object.assign(ui,{view},extra);render();window.scrollTo(0,0)}
+function back(){const p=ui.stack.pop();if(p){Object.assign(ui,p)}else ui.view='home';render()}
+
+/* ---------- views ---------- */
+function render(){
+  const app=document.getElementById('app'),title=document.getElementById('title'),bk=document.getElementById('back');
+  bk.style.display=ui.view==='home'?'none':'grid';
+  document.querySelectorAll('.fab').forEach(f=>f.remove());
+  let h='';
+  if(ui.view==='home'){title.textContent='DiveAttendance';h=vHome()}
+  else if(ui.view==='roll'){title.textContent=grp(ui.groupId)?.name||'Class';h=vRoll()}
+  else if(ui.view==='roster'){title.textContent='Roster';h=vRoster()}
+  else if(ui.view==='diver'){title.textContent=dvr(ui.diverId)?.name||'Diver';h=vDiver()}
+  else if(ui.view==='reports'){title.textContent='Reports';h=vReports()}
+  else if(ui.view==='settings'){title.textContent='Settings';h=vSettings()}
+  app.innerHTML=h;
+  if(ui.view==='home'&&S.groups.length)addFab('+ Class','add-group');
+  updateSyncBadge();
+}
+function addFab(label,act){const b=document.createElement('button');b.className='fab';b.dataset.act=act;b.textContent=label;document.body.appendChild(b)}
+
+function vHome(){
+  const gs=activeGroups();
+  if(!gs.length)return `<div class="empty"><div style="font-size:48px">🏊</div><h2 style="margin:12px 0 8px">Welcome to DiveAttendance</h2>
+    <p style="margin-bottom:16px">Create your first class (for example "Tuesday Group A"), then add divers and start taking attendance.</p>
+    <button class="btn pri" data-act="add-group">Create a class</button>
+    <p class="mute" style="margin-top:24px">Already have divers in DiveDrills? Open Settings → Sync to import your roster.</p>
+    <button class="btn" data-act="go-settings" style="margin-top:8px">Open Settings</button></div>`;
+  const t=today();
+  return `<div class="h2">Classes · ${esc(fmtDate(t))}</div>`+gs.map(g=>{
+    const n=groupDivers(g.id).length,c=counts(t,g.id),marked=n-c.none;
+    return `<div class="cls" data-act="open-group" data-id="${g.id}">
+      <div class="dot" style="background:${g.color}"></div>
+      <div class="grow"><b>${esc(g.name)}</b><span class="mute">${n} diver${n===1?'':'s'}${g.when?' · '+esc(g.when):''}</span></div>
+      <span class="pill ${n&&marked===n?'done':''}">${n?`${marked}/${n} today`:'empty'}</span></div>`}).join('');
+}
+
+function vRoll(){
+  const g=grp(ui.groupId);if(!g)return '<div class="empty">Class not found</div>';
+  const ds=groupDivers(g.id),c=counts(ui.date,g.id),sn=S.sessions[`${ui.date}|${g.id}`]?.note;
+  let h=`<div class="datebar noprint">
+    <button class="btn" data-act="date-prev">‹</button>
+    <input type="date" value="${ui.date}" data-act="date-set">
+    <button class="btn" data-act="date-next">›</button>
+    <button class="btn" data-act="date-today">Today</button></div>
+    <div class="chips">${ORDER.map(s=>`<div class="chip"><b style="color:var(--${s})">${c[s]}</b><span>${STATUS[s]}</span></div>`).join('')}<div class="chip"><b>${c.none}</b><span>Unmarked</span></div></div>
+    <div class="row noprint" style="margin-bottom:12px;gap:8px;flex-wrap:wrap">
+      <button class="btn pri sm" data-act="all-present">✓ Mark all present</button>
+      <button class="btn sm" data-act="session-note">${sn?'✎ Edit':'＋ Add'} class note</button>
+      <button class="btn sm" data-act="go-roster">👥 Roster</button></div>`;
+  if(sn)h+=`<div class="card" style="font-size:14px"><b>Class note:</b> ${esc(sn)}</div>`;
+  if(!ds.length)return h+`<div class="empty">No divers in this class yet.<br><br><button class="btn pri" data-act="go-roster">Add divers</button></div>`;
+  h+=ds.map(d=>{const r=rec(ui.date,g.id,d.id)||{};return `<div class="diver">
+    <div class="row"><div class="ava">${esc(initials(d.name))}</div>
+      <div class="grow nm" data-act="open-diver" data-id="${d.id}" style="cursor:pointer">${esc(d.name)}</div>
+      <button class="nb ${r.note?'has':''}" data-act="diver-note" data-id="${d.id}" aria-label="Note">📝</button></div>
+    <div class="seg">${ORDER.map(s=>`<button data-act="mark" data-id="${d.id}" data-s="${s}" class="${r.status===s?'on':''}">${s==='P'?'Present':s==='A'?'Absent':s==='L'?'Late':'Excused'}</button>`).join('')}</div>
+    ${r.note?`<div class="note">${esc(r.note)}</div>`:''}</div>`}).join('');
+  return h;
+}
+
+function vRoster(){
+  const g=grp(ui.groupId);if(!g)return '';
+  const ds=groupDivers(g.id);
+  return `<div class="card"><div class="row"><div class="dot" style="background:${g.color};height:30px;border-radius:6px"></div><div class="grow"><b>${esc(g.name)}</b></div>
+    <button class="btn sm" data-act="edit-group">Edit class</button></div></div>
+    <div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap">
+      <button class="btn pri sm" data-act="add-divers">＋ Add divers</button>
+      <button class="btn sm" data-act="pick-existing">Add existing diver</button>
+      <button class="btn sm" data-act="import-roster">⇣ Import from DiveDrills</button></div>
+    ${ds.length?ds.map(d=>`<div class="diver"><div class="row"><div class="ava">${esc(initials(d.name))}</div>
+      <div class="grow nm" data-act="open-diver" data-id="${d.id}" style="cursor:pointer">${esc(d.name)}</div>
+      <button class="btn sm" data-act="rename-diver" data-id="${d.id}">Edit</button>
+      <button class="btn sm dng" data-act="remove-diver" data-id="${d.id}">Remove</button></div></div>`).join(''):'<div class="empty">No divers yet.</div>'}`;
+}
+
+function diverStats(did,from,to,gid){
+  const c={P:0,A:0,L:0,E:0};const list=[];
+  for(const r of Object.values(S.records)){
+    if(r.diverId!==did||!r.status||r.date<from||r.date>to||(gid&&r.groupId!==gid))continue;
+    c[r.status]++;list.push(r);
+  }
+  list.sort((a,b)=>b.date.localeCompare(a.date));
+  const base=c.P+c.L+c.A;return{c,list,rate:base?Math.round((c.P+c.L)/base*100):null};
+}
+function vDiver(){
+  const d=dvr(ui.diverId);if(!d)return '';
+  const st=diverStats(d.id,'0000-01-01','9999-12-31',null);
+  return `<div class="card"><div class="row"><div class="ava" style="width:52px;height:52px;font-size:18px">${esc(initials(d.name))}</div>
+    <div class="grow"><b style="font-size:18px">${esc(d.name)}</b><div class="mute">${d.groupIds.map(g=>esc(grp(g)?.name||'')).filter(Boolean).join(', ')||'No class'}</div></div></div>
+    <div class="chips" style="margin:14px 0 0">${ORDER.map(s=>`<div class="chip"><b style="color:var(--${s})">${st.c[s]}</b><span>${STATUS[s]}</span></div>`).join('')}<div class="chip"><b>${st.rate===null?'–':st.rate+'%'}</b><span>Rate</span></div></div></div>
+    <div class="h2">History</div><div class="card">${st.list.length?st.list.slice(0,200).map(r=>`<div class="hist"><div class="sd ${r.status}">${r.status}</div>
+      <div class="grow"><div>${esc(fmtDate(r.date))}</div><div class="mute">${esc(grp(r.groupId)?.name||'')}${r.note?' · '+esc(r.note):''}</div></div></div>`).join(''):'<div class="mute" style="padding:12px 0">No attendance recorded yet.</div>'}</div>`;
+}
+
+function reportRows(){
+  const {from,to,groupId}=ui.rep,rows=[],dates=new Set();
+  const divs=S.divers.filter(d=>d.active!==false&&(!groupId||d.groupIds.includes(groupId)));
+  for(const d of divs){const st=diverStats(d.id,from,to,groupId||null);rows.push({d,...st})}
+  for(const r of Object.values(S.records))if(r.status&&r.date>=from&&r.date<=to&&(!groupId||r.groupId===groupId))dates.add(r.date+'|'+r.groupId);
+  rows.sort((a,b)=>a.d.name.localeCompare(b.d.name));
+  return{rows,sessions:dates.size};
+}
+function vReports(){
+  const {from,to,groupId}=ui.rep,{rows,sessions}=reportRows();
+  return `<div class="card noprint"><div class="row" style="gap:8px"><div class="grow"><label class="f" style="margin-top:0">From</label><input class="in" type="date" value="${from}" data-act="rep-from"></div>
+    <div class="grow"><label class="f" style="margin-top:0">To</label><input class="in" type="date" value="${to}" data-act="rep-to"></div></div>
+    <label class="f">Class</label><select class="in" data-act="rep-group"><option value="">All classes</option>${activeGroups().map(g=>`<option value="${g.id}" ${g.id===groupId?'selected':''}>${esc(g.name)}</option>`).join('')}</select>
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn sm" data-act="rep-csv">⇩ Export CSV</button><button class="btn sm" data-act="rep-print">🖨 Print / PDF</button></div></div>
+    <div class="mute" style="margin:0 2px 8px">${sessions} session${sessions===1?'':'s'} recorded · ${esc(from)} to ${esc(to)}. Rate = (Present + Late) ÷ (Present + Late + Absent); excused days don't count against a diver.</div>
+    <div class="card" style="padding:6px 8px"><table><thead><tr><th>Diver</th><th>P</th><th>A</th><th>L</th><th>E</th><th>Rate</th></tr></thead><tbody>
+    ${rows.length?rows.map(r=>`<tr class="click" data-act="open-diver" data-id="${r.d.id}"><td>${esc(r.d.name)}</td><td class="P">${r.c.P}</td><td class="A">${r.c.A}</td><td class="L">${r.c.L}</td><td class="E">${r.c.E}</td>
+      <td>${r.rate===null?'–':`<div class="row" style="gap:6px"><div class="bar grow"><i style="width:${r.rate}%"></i></div>${r.rate}%</div>`}</td></tr>`).join(''):'<tr><td colspan="6" class="mute">No divers.</td></tr>'}</tbody></table></div>`;
+}
+
+function vSettings(){
+  const y=S.sync,connected=!!(y.url&&y.key&&y.token);
+  return `<div class="h2">Supabase sync</div><div class="card">
+    <p class="mute" style="margin-top:0">${connected?'Connected to your DiveDrills Supabase project. Attendance syncs automatically across devices.':'Connect to your DiveDrills Supabase project to sync attendance across devices. Run <b>attendance-supabase.sql</b> in the SQL editor first.'}</p>
+    ${connected?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn pri" data-act="s-sync">Sync now</button><button class="btn dng" data-act="s-signout">Disconnect</button></div>`:`<button class="btn pri" data-act="s-connect" style="margin-top:8px">Connect DiveDrills sync</button>`}
+    ${!connected?`<div class="card" style="margin-top:12px;background:var(--surface-raised)">
+      <label class="f" style="margin-top:0">Project URL</label><input class="in" id="s_url" placeholder="https://xxxx.supabase.co" value="${esc(y.url)}">
+      <label class="f">Anon (public) key</label><input class="in" id="s_key" value="${esc(y.key)}">
+      <div class="chk"><input type="checkbox" id="s_auto" ${y.auto?'checked':''}><label for="s_auto">Sync automatically after changes</label></div>
+      <button class="btn pri" style="margin-top:12px" data-act="s-save-creds">Save credentials</button></div>`:
+      `<div class="chk" style="margin-top:12px"><input type="checkbox" id="s_auto" ${y.auto?'checked':''}><label for="s_auto">Sync automatically after changes</label></div>
+       <button class="btn sm" style="margin-top:8px" data-act="s-save-auto">Save preference</button>`}
+    </div>
+  <div class="h2">Roster import</div><div class="card">
+    <p class="mute" style="margin-top:0">Which table holds your divers? Used by "Import from DiveDrills" on the Roster screen.</p>
+    <label class="f">Table</label><input class="in" id="r_table" value="${esc(y.rosterTable)}">
+    <div class="row" style="gap:8px"><div class="grow"><label class="f">Full-name column</label><input class="in" id="r_name" value="${esc(y.nameCol)}"></div></div>
+    <div class="row" style="gap:8px"><div class="grow"><label class="f">First-name column</label><input class="in" id="r_first" value="${esc(y.firstCol)}"></div><div class="grow"><label class="f">Last-name column</label><input class="in" id="r_last" value="${esc(y.lastCol)}"></div></div>
+    <button class="btn" style="margin-top:12px" data-act="r-save">Save</button></div>
+  <div class="h2">Suite links</div><div class="card">
+    <textarea class="in" id="suite_txt" placeholder="Name | URL (one per line)">${S.suite.map(s=>s.name+' | '+s.url).join('\n')}</textarea>
+    <button class="btn" style="margin-top:10px" data-act="suite-save">Save links</button></div>
+  <div class="h2">Data</div><div class="card"><div class="row" style="gap:8px;flex-wrap:wrap">
+    <button class="btn" data-act="backup">⇩ Backup (JSON)</button><button class="btn" data-act="restore">⇡ Restore</button></div>
+    <input type="file" id="restoreFile" accept="application/json" style="display:none"></div>`;
+}
+
+/* ---------- actions ---------- */
+const A={
+ 'back':()=>back(),
+ 'go-reports':()=>go('reports'),
+ 'go-settings':()=>go('settings'),
+ 'go-roster':()=>go('roster'),
+ 'go-menu':()=>{modal(`<h3>Menu</h3><div class="suite">
+    <a href="#" data-act="m-home">🏠 Classes</a>
+    <a href="#" data-act="m-reports">📊 Reports</a>
+    <a href="#" data-act="m-settings">⚙️ Settings &amp; Sync</a>
+    <div class="h2" style="margin-top:14px">DiveDrills suite</div>
+    ${S.suite.map(s=>`<a href="${esc(s.url)}" ${s.url.startsWith('http')?'target="_blank" rel="noopener"':''}>${esc(s.name)} ↗</a>`).join('')}</div>`)},
+ 'm-home':()=>{closeModal();ui.stack=[];ui.view='home';render()},
+ 'm-reports':()=>{closeModal();go('reports')},
+ 'm-settings':()=>{closeModal();go('settings')},
+ 'open-group':el=>{ui.date=today();go('roll',{groupId:el.dataset.id})},
+ 'open-diver':el=>go('diver',{diverId:el.dataset.id}),
+ 'date-prev':()=>{ui.date=addDays(ui.date,-1);render()},
+ 'date-next':()=>{ui.date=addDays(ui.date,1);render()},
+ 'date-today':()=>{ui.date=today();render()},
+ 'date-set':el=>{if(el.value){ui.date=el.value;render()}},
+ 'mark':el=>{const d=el.dataset.id,s=el.dataset.s,cur=rec(ui.date,ui.groupId,d)?.status;setStatus(ui.date,ui.groupId,d,cur===s?'':s);render()},
+ 'all-present':()=>{let n=0;for(const d of groupDivers(ui.groupId)){if(!rec(ui.date,ui.groupId,d.id)?.status){setStatus(ui.date,ui.groupId,d.id,'P');n++}}toast(n?`Marked ${n} present`:'Everyone already marked');render()},
+ 'diver-note':el=>{const d=dvr(el.dataset.id);modal(`<h3>Note · ${esc(d.name)}</h3><div class="mute">${esc(fmtDate(ui.date))}</div><textarea class="in" id="nt" placeholder="Injury, left early, dive list changes…" style="margin-top:10px">${esc(rec(ui.date,ui.groupId,d.id)?.note||'')}</textarea>
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn pri grow" data-act="note-save" data-id="${d.id}">Save</button><button class="btn" data-act="close">Cancel</button></div>`,s=>s.querySelector('#nt').focus())},
+ 'note-save':el=>{setNote(ui.date,ui.groupId,el.dataset.id,document.getElementById('nt').value.trim());closeModal();render()},
+ 'session-note':()=>{const k=`${ui.date}|${ui.groupId}`;modal(`<h3>Class note</h3><div class="mute">${esc(fmtDate(ui.date))}</div><textarea class="in" id="nt" placeholder="Focus of practice, pool changes, weather…" style="margin-top:10px">${esc(S.sessions[k]?.note||'')}</textarea>
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn pri grow" data-act="session-save">Save</button><button class="btn" data-act="close">Cancel</button></div>`,s=>s.querySelector('#nt').focus())},
+ 'session-save':()=>{S.sessions[`${ui.date}|${ui.groupId}`]={note:document.getElementById('nt').value.trim(),updatedAt:nowISO()};save();closeModal();render()},
+ 'close':()=>closeModal(),
+
+ 'add-group':()=>groupForm(),
+ 'edit-group':()=>groupForm(grp(ui.groupId)),
+ 'group-save':el=>{
+   const name=document.getElementById('gn').value.trim();if(!name)return toast('Name required');
+   const when=document.getElementById('gw').value.trim(),color=document.querySelector('input[name=gc]:checked')?.value||COLORS[0];
+   const id=el.dataset.id;
+   if(id){Object.assign(grp(id),{name,when,color,updatedAt:nowISO()})}else{const g={id:uid(),name,when,color,archived:false,updatedAt:nowISO()};S.groups.push(g);ui.groupId=g.id}
+   save();closeModal();if(!id){ui.date=today();go('roster')}else render()},
+ 'group-archive':el=>{if(!confirm('Archive this class? History is kept.'))return;const g=grp(el.dataset.id);g.archived=true;g.updatedAt=nowISO();save();closeModal();ui.stack=[];ui.view='home';render()},
+
+ 'add-divers':()=>modal(`<h3>Add divers</h3><div class="mute">One name per line. Paste a list from a spreadsheet if you like.</div><textarea class="in" id="names" style="min-height:140px;margin-top:10px" placeholder="Jordan Smith\nAlex Rivera"></textarea>
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn pri grow" data-act="divers-save">Add</button><button class="btn" data-act="close">Cancel</button></div>`,s=>s.querySelector('#names').focus()),
+ 'divers-save':()=>{
+   const names=document.getElementById('names').value.split('\n').map(s=>s.trim()).filter(Boolean);let n=0;
+   for(const nm of names){
+     const ex=S.divers.find(d=>d.name.toLowerCase()===nm.toLowerCase());
+     if(ex){if(!ex.groupIds.includes(ui.groupId)){ex.groupIds.push(ui.groupId)}ex.active=true;ex.updatedAt=nowISO()}
+     else S.divers.push({id:uid(),name:nm,groupIds:[ui.groupId],active:true,extId:'',updatedAt:nowISO()});n++}
+   save();closeModal();toast(`${n} added`);render()},
+ 'pick-existing':()=>{
+   const avail=S.divers.filter(d=>d.active!==false&&!d.groupIds.includes(ui.groupId)).sort((a,b)=>a.name.localeCompare(b.name));
+   if(!avail.length)return toast('Everyone is already in this class');
+   modal(`<h3>Add existing divers</h3>${avail.map(d=>`<label class="chk"><input type="checkbox" value="${d.id}"> ${esc(d.name)}</label>`).join('')}
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn pri grow" data-act="pick-save">Add selected</button><button class="btn" data-act="close">Cancel</button></div>`)},
+ 'pick-save':()=>{document.querySelectorAll('#sheet input:checked').forEach(c=>{const d=dvr(c.value);d.groupIds.push(ui.groupId);d.updatedAt=nowISO()});save();closeModal();render()},
+ 'rename-diver':el=>{const d=dvr(el.dataset.id);const nm=prompt('Diver name',d.name);if(nm&&nm.trim()){d.name=nm.trim();d.updatedAt=nowISO();save();render()}},
+ 'remove-diver':el=>{const d=dvr(el.dataset.id);if(!confirm(`Remove ${d.name} from this class? Past attendance is kept.`))return;d.groupIds=d.groupIds.filter(g=>g!==ui.groupId);if(!d.groupIds.length)d.active=false;d.updatedAt=nowISO();save();render()},
+
+ 'rep-from':el=>{ui.rep.from=el.value;render()},
+ 'rep-to':el=>{ui.rep.to=el.value;render()},
+ 'rep-group':el=>{ui.rep.groupId=el.value;render()},
+ 'rep-csv':()=>{
+   const {rows}=reportRows(),{from,to,groupId}=ui.rep;
+   const lines=[['Diver','Present','Absent','Late','Excused','Rate %']];
+   rows.forEach(r=>lines.push([r.d.name,r.c.P,r.c.A,r.c.L,r.c.E,r.rate??'']));
+   lines.push([]);lines.push(['Detail']);lines.push(['Date','Class','Diver','Status','Note']);
+   Object.values(S.records).filter(r=>r.status&&r.date>=from&&r.date<=to&&(!groupId||r.groupId===groupId)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>lines.push([r.date,grp(r.groupId)?.name||'',dvr(r.diverId)?.name||'',STATUS[r.status],r.note||'']));
+   download(`attendance_${from}_to_${to}.csv`,lines.map(l=>l.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv')},
+ 'rep-print':()=>window.print(),
+
+ 's-connect':()=>modal(`<h3>Connect DiveDrills Sync</h3>
+    <p class="mute">Enter your Supabase project credentials. Run <b>attendance-supabase.sql</b> in the SQL editor first.</p>
+    <label class="f">Project URL</label><input class="in" id="s_url" placeholder="https://xxxx.supabase.co" value="${esc(S.sync.url)}">
+    <label class="f">Anon (public) key</label><input class="in" id="s_key" value="${esc(S.sync.key)}">
+    <div class="chk" style="margin-top:8px"><input type="checkbox" id="s_auto" ${S.sync.auto?'checked':''}><label for="s_auto">Sync automatically</label></div>
+    <div class="row" style="margin-top:14px;gap:8px"><button class="btn pri grow" data-act="s-save-creds">Connect</button><button class="btn" data-act="close">Cancel</button></div>`),
+ 's-save-creds':()=>{
+   const url=document.getElementById('s_url')?.value.trim().replace(/\/+$/,'');
+   const key=document.getElementById('s_key')?.value.trim();
+   const auto=document.getElementById('s_auto')?.checked??true;
+   if(!url||!key)return toast('URL and key required');
+   Object.assign(S.sync,{url,key,auto});save();closeModal();
+   /* Use the existing Supabase session token from auth.js if available */
+   if(authToken&&!S.sync.token){S.sync.token=authToken;save()}
+   toast('Credentials saved');render();syncNow(true)},
+ 's-save-auto':()=>{S.sync.auto=document.getElementById('s_auto')?.checked??true;save();toast('Saved')},
+ 's-sync':()=>syncNow(true),
+ 's-signout':()=>{S.sync.token='';S.sync.refresh='';save();render();toast('Disconnected')},
+ 'r-save':()=>{Object.assign(S.sync,{rosterTable:val('r_table'),nameCol:val('r_name'),firstCol:val('r_first'),lastCol:val('r_last')});save();toast('Saved')},
+ 'suite-save':()=>{S.suite=val('suite_txt').split('\n').map(l=>l.split('|').map(s=>s.trim())).filter(p=>p[0]&&p[1]).map(p=>({name:p[0],url:p[1]}));save();toast('Saved')},
+ 'backup':()=>download(`attendance_backup_${today()}.json`,JSON.stringify(S,null,1),'application/json'),
+ 'restore':()=>document.getElementById('restoreFile').click(),
+ 'import-roster':()=>importRoster(),
+};
+const val=id=>document.getElementById(id)?.value.trim()||'';
+function groupForm(g){
+  modal(`<h3>${g?'Edit class':'New class'}</h3><label class="f">Name</label><input class="in" id="gn" value="${esc(g?.name||'')}" placeholder="Tuesday Group A">
+   <label class="f">Schedule (optional)</label><input class="in" id="gw" value="${esc(g?.when||'')}" placeholder="Tue/Thu 5–7pm">
+   <label class="f">Color</label><div class="row" style="gap:10px;flex-wrap:wrap;margin-top:4px">${COLORS.map((c,i)=>`<label><input type="radio" name="gc" value="${c}" ${(g?g.color===c:i===0)?'checked':''}> <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${c};vertical-align:middle"></span></label>`).join('')}</div>
+   <div class="row" style="margin-top:16px;gap:8px;flex-wrap:wrap"><button class="btn pri grow" data-act="group-save" data-id="${g?.id||''}">Save</button>${g?`<button class="btn dng" data-act="group-archive" data-id="${g.id}">Archive</button>`:''}<button class="btn" data-act="close">Cancel</button></div>`,s=>s.querySelector('#gn').focus())}
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;
+  if(el.tagName==='INPUT'||el.tagName==='SELECT')return;
+  const fn=A[el.dataset.act];if(fn){e.preventDefault();fn(el)}
+});
+document.addEventListener('change',e=>{
+  const el=e.target;if(!el.dataset||!el.dataset.act)return;
+  if(['date-set','rep-from','rep-to','rep-group'].includes(el.dataset.act))A[el.dataset.act](el);
+});
+document.addEventListener('change',async e=>{
+  if(e.target.id!=='restoreFile')return;
+  const f=e.target.files[0];if(!f)return;
+  try{const j=JSON.parse(await f.text());if(!j.groups||!j.divers)throw 0;if(!confirm('Replace all local data with this backup?'))return;S={...blank(),...j,sync:{...blank().sync,...j.sync,token:S.sync.token,refresh:S.sync.refresh}};save();ui.stack=[];ui.view='home';render();toast('Restored')}catch(err){toast('Not a valid backup')}
+});
+
+/* =====================================================================
+   Supabase REST sync — last-write-wins by updated_at
+   Tables: att_groups, att_divers, att_records, att_sessions
+   ===================================================================== */
+const configured=()=>S.sync.url&&S.sync.key&&S.sync.token;
+async function refreshToken(){
+  try{const r=await fetch(`${S.sync.url}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:S.sync.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:S.sync.refresh})});
+    const j=await r.json();if(!r.ok)return false;S.sync.token=j.access_token;S.sync.refresh=j.refresh_token;save();return true}catch(e){return false}
+}
+async function syncApi(path,opts={},retried){
+  const y=S.sync,r=await fetch(y.url+path,{...opts,headers:{apikey:y.key,Authorization:'Bearer '+y.token,'Content-Type':'application/json',...(opts.headers||{})}});
+  if(r.status===401&&!retried&&y.refresh&&await refreshToken())return syncApi(path,opts,true);
+  if(!r.ok){let m=r.status;try{m=(await r.json()).message||m}catch(e){}throw new Error(m)}
+  return r.status===204?null:r.json();
+}
+const toRemote={
+  att_groups:g=>({id:g.id,name:g.name,color:g.color,schedule:g.when||'',archived:!!g.archived,updated_at:g.updatedAt}),
+  att_divers:d=>({id:d.id,name:d.name,group_ids:d.groupIds,active:d.active!==false,ext_id:d.extId||null,updated_at:d.updatedAt}),
+  att_records:r=>({id:r.id,date:r.date,group_id:r.groupId,diver_id:r.diverId,status:r.status||'',note:r.note||'',updated_at:r.updatedAt}),
+  att_sessions:(s,k)=>{const [date,gid]=k.split('|');return{id:k,date,group_id:gid,note:s.note||'',updated_at:s.updatedAt}}
+};
+let syncing=false,syncState='',syncT;
+function scheduleSync(){if(!S.sync.auto||!configured())return;clearTimeout(syncT);syncT=setTimeout(()=>syncNow(false),3000)}
+async function syncNow(manual){
+  if(!configured()){if(manual)toast('Set up sync in Settings first');return}
+  if(syncing)return;syncing=true;setSync('…');
+  try{
+    const cutoff=S.sync.lastPush,startedAt=nowISO();
+    const changed=(arr,fn)=>arr.filter(x=>(x.updatedAt||'')>cutoff).map(fn);
+    const push=async(t,rows)=>{for(let i=0;i<rows.length;i+=500)await syncApi(`/rest/v1/${t}?on_conflict=id`,{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows.slice(i,i+500))})};
+    await push('att_groups',changed(S.groups,toRemote.att_groups));
+    await push('att_divers',changed(S.divers,toRemote.att_divers));
+    await push('att_records',changed(Object.values(S.records),toRemote.att_records));
+    await push('att_sessions',Object.entries(S.sessions).filter(([,s])=>(s.updatedAt||'')>cutoff).map(([k,s])=>toRemote.att_sessions(s,k)));
+    S.sync.lastPush=startedAt;
+    const since=S.sync.lastPull;let newest=since;
+    const pull=async t=>{let off=0,all=[];for(;;){const rows=await syncApi(`/rest/v1/${t}?updated_at=gt.${encodeURIComponent(since)}&order=updated_at.asc&limit=1000&offset=${off}`);all=all.concat(rows);if(rows.length<1000)break;off+=1000}return all};
+    const iso=x=>new Date(x).toISOString();
+    for(const g of await pull('att_groups')){const u=iso(g.updated_at);newest=u>newest?u:newest;const l=grp(g.id);if(!l||u>(l.updatedAt||'')){const n={id:g.id,name:g.name,color:g.color,when:g.schedule,archived:g.archived,updatedAt:u};l?Object.assign(l,n):S.groups.push(n)}}
+    for(const d of await pull('att_divers')){const u=iso(d.updated_at);newest=u>newest?u:newest;const l=dvr(d.id);if(!l||u>(l.updatedAt||'')){const n={id:d.id,name:d.name,groupIds:d.group_ids||[],active:d.active,extId:d.ext_id||'',updatedAt:u};l?Object.assign(l,n):S.divers.push(n)}}
+    for(const r of await pull('att_records')){const u=iso(r.updated_at);newest=u>newest?u:newest;const l=S.records[r.id];if(!l||u>(l.updatedAt||''))S.records[r.id]={id:r.id,date:r.date,groupId:r.group_id,diverId:r.diver_id,status:r.status,note:r.note,updatedAt:u}}
+    for(const s of await pull('att_sessions')){const u=iso(s.updated_at);newest=u>newest?u:newest;const l=S.sessions[s.id];if(!l||u>(l.updatedAt||''))S.sessions[s.id]={note:s.note,updatedAt:u}}
+    S.sync.lastPull=newest;
+    localStorage.setItem(KEY,JSON.stringify(S));setSync('ok');if(manual)toast('Synced');render();
+  }catch(e){setSync('err');toast('Sync failed: '+e.message)}
+  finally{syncing=false}
+}
+function setSync(s){syncState=s;updateSyncBadge()}
+function updateSyncBadge(){
+  const b=document.getElementById('sync');if(!configured()){b.style.display='none';return}
+  b.style.display='';b.className=syncState==='ok'?'ok':syncState==='err'?'err':'';b.textContent=syncState==='ok'?'● synced':syncState==='err'?'● sync error':syncState==='…'?'syncing…':'● connected';
+}
+
+async function importRoster(){
+  if(!configured())return toast('Connect sync in Settings first');
+  try{
+    const y=S.sync,rows=await syncApi(`/rest/v1/${encodeURIComponent(y.rosterTable)}?select=*&limit=2000`);
+    const nameOf=r=>(r[y.nameCol]||[r[y.firstCol],r[y.lastCol]].filter(Boolean).join(' ')||'').trim();
+    let added=0,linked=0;
+    for(const r of rows){
+      const nm=nameOf(r);if(!nm)continue;const ext=String(r.id??'');
+      let d=S.divers.find(x=>(ext&&x.extId===ext)||x.name.toLowerCase()===nm.toLowerCase());
+      if(!d){d={id:uid(),name:nm,groupIds:[ui.groupId],active:true,extId:ext,updatedAt:nowISO()};S.divers.push(d);added++}
+      else{if(ext&&!d.extId)d.extId=ext;if(!d.groupIds.includes(ui.groupId)){d.groupIds.push(ui.groupId);linked++}d.active=true;d.updatedAt=nowISO()}
+    }
+    save();toast(`Imported ${added} new, linked ${linked}`);render();
+  }catch(e){toast('Import failed: '+e.message+' — check table/column names in Settings')}
+}
+
+/* ---- Public hooks for other DiveDrills apps ---- */
+window.DiveAttendance={
+  summary:(date=today())=>activeGroups().map(g=>({groupId:g.id,group:g.name,date,counts:counts(date,g.id),total:groupDivers(g.id).length})),
+  diver:(idOrName)=>{const d=S.divers.find(x=>x.id===idOrName||x.extId===idOrName||x.name.toLowerCase()===String(idOrName).toLowerCase());return d?{diver:d,...diverStats(d.id,'0000-01-01','9999-12-31',null)}:null},
+  open:(group,date)=>{const g=S.groups.find(x=>x.id===group||x.name.toLowerCase()===String(group).toLowerCase());if(g){ui.stack=[];ui.date=date||today();ui.view='roll';ui.groupId=g.id;render()}},
+  sync:()=>syncNow(true)
+};
+(function(){const q=new URLSearchParams(location.search);if(q.get('group'))setTimeout(()=>window.DiveAttendance.open(q.get('group'),q.get('date')),0)})();
+window.addEventListener('online',()=>scheduleSync());
+
+/* ---- Init: load auth session, then render ---- */
+(async function initAttendance(){
+  initSupabase();
+  /* Use the current coach session for Supabase sync — no extra sign-in required. */
+  const profile=await Auth.init(true);
+  if(!profile)return; /* Auth.init redirects to login if not signed in */
+  if(!Auth.isCoachOrSuper(profile)){window.location.replace('/dashboard.html');return}
+  /* Grab the access token so sync can use it without a separate sign-in */
+  try{
+    const {data:{session}}=await window.supabaseClient.auth.getSession();
+    if(session){
+      authToken=session.access_token;
+      /* Auto-populate sync URL/key from config if not already set */
+      if(!S.sync.url&&window.SUPABASE_URL)S.sync.url=window.SUPABASE_URL;
+      if(!S.sync.key&&window.SUPABASE_ANON_KEY)S.sync.key=window.SUPABASE_ANON_KEY;
+      if(!S.sync.token)S.sync.token=authToken;
+      save();
+    }
+  }catch(e){}
+  render();
+  if(configured())syncNow(false);
+})();
+</script>
+</body>
+</html>
